@@ -278,4 +278,222 @@ object SwAR128 {
         normalizeLimbs(dest)
         return carry.toInt()
     }
+
+    // -----------------------------------------------------------------------------------------
+    // Heap-native operations (zero-copy)
+    
+    /**
+     * Read a 16-bit limb from heap at given address.
+     * Assumes little-endian storage: low byte at addr, high byte at addr+1.
+     */
+    private fun readLimb(addr: Int): Int {
+        val lo = ai.solace.klang.mem.GlobalHeap.lbu(addr)
+        val hi = ai.solace.klang.mem.GlobalHeap.lbu(addr + 1)
+        return lo or (hi shl 8)
+    }
+    
+    /**
+     * Write a 16-bit limb to heap at given address.
+     * Assumes little-endian storage: low byte at addr, high byte at addr+1.
+     */
+    private fun writeLimb(addr: Int, value: Int) {
+        val normalized = (value and LIMB_MASK)
+        ai.solace.klang.mem.GlobalHeap.sb(addr, (normalized and 0xFF).toByte())
+        ai.solace.klang.mem.GlobalHeap.sb(addr + 1, ((normalized ushr 8) and 0xFF).toByte())
+    }
+    
+    /**
+     * Add two 128-bit integers stored in heap, write result to dest.
+     * @param aAddr address of first operand (8 limbs = 16 bytes)
+     * @param bAddr address of second operand (8 limbs = 16 bytes)
+     * @param destAddr address for result (8 limbs = 16 bytes)
+     * @return carry out (0 or 1)
+     */
+    fun addHeap(aAddr: Int, bAddr: Int, destAddr: Int): Int {
+        var carry = 0uL
+        var offset = 0
+        for (i in 0 until LIMB_COUNT) {
+            val aLimb = readLimb(aAddr + offset)
+            val bLimb = readLimb(bAddr + offset)
+            val sum = aLimb.toULong() + bLimb.toULong() + carry
+            writeLimb(destAddr + offset, (sum % LIMB_BASE_UL).toInt())
+            carry = sum / LIMB_BASE_UL
+            offset += 2
+        }
+        return carry.toInt()
+    }
+    
+    /**
+     * Subtract two 128-bit integers stored in heap, write result to dest.
+     * @param aAddr address of first operand (8 limbs = 16 bytes)
+     * @param bAddr address of second operand (8 limbs = 16 bytes)
+     * @param destAddr address for result (8 limbs = 16 bytes)
+     * @return borrow out (0 or 1)
+     */
+    fun subHeap(aAddr: Int, bAddr: Int, destAddr: Int): Int {
+        var borrow = 0L
+        var offset = 0
+        for (i in 0 until LIMB_COUNT) {
+            val aLimb = readLimb(aAddr + offset)
+            val bLimb = readLimb(bAddr + offset)
+            var diff = aLimb.toLong() - bLimb.toLong() - borrow
+            if (diff < 0) {
+                diff += LIMB_BASE.toLong()
+                borrow = 1
+            } else {
+                borrow = 0
+            }
+            writeLimb(destAddr + offset, (diff % LIMB_BASE.toLong()).toInt())
+            offset += 2
+        }
+        return borrow.toInt()
+    }
+    
+    /**
+     * Compare two 128-bit integers stored in heap.
+     * @return -1 if a < b, 0 if a == b, 1 if a > b
+     */
+    fun compareHeap(aAddr: Int, bAddr: Int): Int {
+        var offset = (LIMB_COUNT - 1) * 2
+        for (i in LIMB_COUNT - 1 downTo 0) {
+            val aLimb = readLimb(aAddr + offset) and LIMB_MASK
+            val bLimb = readLimb(bAddr + offset) and LIMB_MASK
+            if (aLimb != bLimb) return if (aLimb > bLimb) 1 else -1
+            offset -= 2
+        }
+        return 0
+    }
+    
+    /**
+     * Shift left a 128-bit integer in heap by specified bits.
+     * @param srcAddr source address (8 limbs = 16 bytes)
+     * @param destAddr destination address (8 limbs = 16 bytes)
+     * @param bits number of bits to shift
+     * @return spill (bits shifted out beyond 128 bits)
+     */
+    fun shiftLeftHeap(srcAddr: Int, destAddr: Int, bits: Int): ULong {
+        require(bits >= 0)
+        
+        if (bits == 0) {
+            // Copy src to dest
+            ai.solace.klang.mem.GlobalHeap.memcpy(destAddr, srcAddr, LIMB_COUNT * 2)
+            return 0uL
+        }
+        
+        if (bits >= LIMB_COUNT * LIMB_BITS) {
+            // Everything shifts out, result is zero
+            ai.solace.klang.mem.GlobalHeap.memset(destAddr, 0, LIMB_COUNT * 2)
+            return accumulateSpillHeap(srcAddr)
+        }
+        
+        val wordShift = bits / LIMB_BITS
+        val bitShift = bits % LIMB_BITS
+        
+        // First, do word shift
+        var spill = 0uL
+        
+        // Shift limbs upward
+        for (i in LIMB_COUNT - 1 downTo wordShift) {
+            val limb = readLimb(srcAddr + (i - wordShift) * 2)
+            writeLimb(destAddr + i * 2, limb)
+        }
+        
+        // Lower limbs become zero, accumulate their contribution to spill
+        for (i in 0 until wordShift) {
+            spill += (readLimb(srcAddr + i * 2) and LIMB_MASK).toULong() shl (i * LIMB_BITS)
+            writeLimb(destAddr + i * 2, 0)
+        }
+        
+        if (bitShift == 0) {
+            return spill
+        }
+        
+        // Now do bit shift within limbs
+        var carry = 0uL
+        for (i in 0 until LIMB_COUNT) {
+            val limb = readLimb(destAddr + i * 2)
+            val raw = (limb and LIMB_MASK).toULong() shl bitShift
+            val combined = raw + carry
+            writeLimb(destAddr + i * 2, (combined % LIMB_BASE_UL).toInt())
+            carry = combined / LIMB_BASE_UL
+        }
+        
+        spill += carry shl (LIMB_COUNT * LIMB_BITS)
+        return spill
+    }
+    
+    /**
+     * Shift right a 128-bit integer in heap by specified bits.
+     * @param srcAddr source address (8 limbs = 16 bytes)
+     * @param destAddr destination address (8 limbs = 16 bytes)
+     * @param bits number of bits to shift
+     * @return spill (bits shifted out)
+     */
+    fun shiftRightHeap(srcAddr: Int, destAddr: Int, bits: Int): ULong {
+        require(bits >= 0)
+        
+        if (bits == 0) {
+            ai.solace.klang.mem.GlobalHeap.memcpy(destAddr, srcAddr, LIMB_COUNT * 2)
+            return 0uL
+        }
+        
+        if (bits >= LIMB_COUNT * LIMB_BITS) {
+            ai.solace.klang.mem.GlobalHeap.memset(destAddr, 0, LIMB_COUNT * 2)
+            return accumulateSpillHeap(srcAddr)
+        }
+        
+        val wordShift = bits / LIMB_BITS
+        val bitShift = bits % LIMB_BITS
+        
+        var spill = 0uL
+        
+        // Shift limbs downward
+        for (i in 0 until LIMB_COUNT - wordShift) {
+            val limb = readLimb(srcAddr + (i + wordShift) * 2)
+            writeLimb(destAddr + i * 2, limb)
+        }
+        
+        // Upper limbs become zero, accumulate their contribution to spill
+        for (i in LIMB_COUNT - wordShift until LIMB_COUNT) {
+            spill += (readLimb(srcAddr + i * 2) and LIMB_MASK).toULong() shl (i * LIMB_BITS)
+            writeLimb(destAddr + i * 2, 0)
+        }
+        
+        if (bitShift == 0) {
+            return spill
+        }
+        
+        // Now do bit shift within limbs
+        var carry = 0uL
+        for (i in LIMB_COUNT - 1 downTo 0) {
+            val limb = readLimb(destAddr + i * 2)
+            val raw = (limb and LIMB_MASK).toULong() + (carry shl LIMB_BITS)
+            writeLimb(destAddr + i * 2, (raw shr bitShift).toInt())
+            carry = raw and ((1uL shl bitShift) - 1uL)
+        }
+        
+        spill += carry shl (LIMB_COUNT * LIMB_BITS - bitShift)
+        return spill
+    }
+    
+    /**
+     * Accumulate all limbs of a heap-based 128-bit integer into a ULong.
+     * Used for spill calculation.
+     */
+    private fun accumulateSpillHeap(addr: Int): ULong {
+        var total = 0uL
+        var factor = 1uL
+        for (i in 0 until LIMB_COUNT) {
+            total += (readLimb(addr + i * 2) and LIMB_MASK).toULong() * factor
+            factor *= LIMB_BASE_UL
+        }
+        return total
+    }
+    
+    /**
+     * Write zero to a 128-bit integer in heap.
+     */
+    fun zeroHeap(addr: Int) {
+        ai.solace.klang.mem.GlobalHeap.memset(addr, 0, LIMB_COUNT * 2)
+    }
 }
