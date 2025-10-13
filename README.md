@@ -1,15 +1,32 @@
 # KLang
 
-**A Kotlin multiplatform systems programming library that makes Kotlin behave like C** — providing deterministic, bit-exact low-level primitives across all platforms (JavaScript, Native) while remaining pure Kotlin.
+**Pure Kotlin multiplatform systems programming library for exact C code porting** — providing deterministic, bit-exact low-level primitives across all platforms (JVM, JavaScript, Native) to enable reliable C-to-Kotlin code migration.
+
+## What is KLang?
+
+KLang is **not** a cinterop wrapper or FFI layer. It's a **pure Kotlin implementation** that precisely replicates C's bitwise operations, memory model, and numeric behavior. This enables accurate porting of C code to idiomatic Kotlin multiplatform while maintaining exact bit-level compatibility.
+
+## Why KLang Exists
+
+Multiple large-scale C-to-Kotlin porting projects failed or took months to debug due to subtle behavioral differences between Kotlin and C:
+
+- **16-bit C code** had different sign extension and overflow behavior
+- **Double-double floating point** algorithms broke due to Kotlin's multiple rounding steps
+- **Cryptographic implementations** produced incorrect results from platform-specific bitwise operations
+- **High-precision computation (HPC)** code couldn't be reliably ported
+- **Mark Adler's compression algorithms** relied on specific C bit manipulation semantics
+
+KLang solves these issues by implementing C semantics in pure, portable Kotlin.
 
 ## Why KLang?
 
 KLang bridges the gap between Kotlin's high-level abstractions and C's low-level control, enabling:
 
-- **Cross-platform determinism**: Identical behavior across JS and Native targets with explicit little-endian semantics
+- **Exact C behavior**: Bit-exact replication of C operations in pure Kotlin
+- **Cross-platform determinism**: Identical behavior across JVM, JS, and Native targets with explicit little-endian semantics
 - **Pure Kotlin implementation**: No native dependencies, GMP, or glibc required — everything is reproducible Kotlin code
-- **C compatibility**: Direct mapping of C memory models, pointer arithmetic, and type semantics
-- **Performance**: Native-speed operations with optional arithmetic-mode for legacy compatibility
+- **C code porting**: Direct mapping of C memory models, pointer arithmetic, and type semantics
+- **Performance**: Native-speed operations with optional arithmetic-mode for bit-exact C compatibility
 
 ## Key Innovations
 
@@ -35,13 +52,22 @@ KLang double-double: 1.000000000000000 (error: 4.44e-31, 2.1x slower)
 Double-double provides **~15 orders of magnitude** better precision than compensated summation while maintaining consistent behavior across all platforms.
 
 ### 3. BitShift Engine with Dual Modes
-A unified shift interface supporting both performance and determinism:
-- **NATIVE mode**: Fast path using Kotlin's native `shl/shr/ushr` operations
-- **ARITHMETIC mode**: Pure multiply/divide/add for legacy 8/16-bit code requiring bit-exact compatibility
+A unified shift interface supporting both performance and C-exact determinism:
+- **NATIVE mode**: Fast path using Kotlin's native `shl/shr/ushr` operations (use only after validation)
+- **ARITHMETIC mode**: Pure multiply/divide/add operations that exactly replicate C behavior across all platforms
+- **Forbidden practices**: Raw Kotlin bitwise operators and hard-coded masks are prohibited outside BitShiftEngine to ensure C compatibility
 - **Array operations**: Efficient multi-limb shifts for arbitrary-precision arithmetic
 
-### 4. 128-bit Integer Support
-`HeapUInt128` provides full arithmetic and comparison operations with 8 little-endian 16-bit limbs stored directly in the heap — mirroring C's memory layout.
+**Why this matters**: Kotlin's `shl`, `shr`, and bitwise operators have platform-specific behavior that breaks C algorithm ports. A single misplaced `and 0xFF` can cause cryptographic or compression algorithms to produce different results on different platforms.
+
+### 4. C-Compatible Type System
+All C types have Klang equivalents with exact semantic matching:
+- **Standard integers**: `C_UInt8`, `C_UInt16`, `C_UInt32`, `C_UInt64` (and signed variants)
+- **Extended integers**: `C_UInt128`, `C_Int128` (matching GCC/Clang's `__uint128` and `__int128`)
+- **SwAR128**: Experimental SIMD-within-a-register 128-bit operations (Klang's own invention)
+- **Floating point**: `CFloat`, `CDouble`, `CLongDouble`, `CFloat128` with configurable precision profiles
+
+All types use heap-based storage for zero-copy operations and exact C memory layout.
 
 ## Platform Support
 
@@ -55,11 +81,13 @@ All platforms provide **identical semantics** — no endianness leaks, no platfo
 
 ## Use Cases
 
-- **Cross-platform numeric algorithms**: Implement once, get identical results everywhere
-- **Legacy code porting**: Port C libraries to pure Kotlin with deterministic behavior
-- **High-precision computing**: Extended precision without platform-specific dependencies
-- **Systems programming in Kotlin**: Memory management, pointer arithmetic, bit manipulation
+- **C code porting**: Port C libraries and algorithms to pure Kotlin multiplatform with confidence
+- **Cross-platform numeric algorithms**: Implement once in C-style, get identical results everywhere
+- **Legacy code migration**: Migrate 16-bit or 32-bit C code without behavioral regressions
+- **High-precision computing**: Extended precision without platform-specific dependencies or GMP
 - **Cryptography**: Deterministic operations critical for security implementations
+- **Compression algorithms**: Port zlib, bzip2, or similar with exact C behavior
+- **Systems programming in Kotlin**: Memory management, pointer arithmetic, bit manipulation
 
 ## Architecture Highlights
 

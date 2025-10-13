@@ -4,25 +4,38 @@
 
 BitShiftEngine is Klang's unified interface for all bitwise operations. It provides cross-platform deterministic bit shifting and manipulation that works consistently across JVM, Native, and JS platforms.
 
-## Why BitShiftEngine?
+**IMPORTANT**: Klang is **pure Kotlin multiplatform code**, not a cinterop wrapper. It provides idiomatic Kotlin implementations that precisely replicate C bitwise behavior, enabling accurate porting of C code to Kotlin while maintaining exact bit-level compatibility.
 
-### The Problem
+## Why BitShiftEngine Exists
 
-Kotlin's native bitwise operators (`shl`, `shr`, `ushr`, `and`, `or`, `xor`) have platform-specific behavior:
+### The Core Problem: C-to-Kotlin Porting
 
-- **Arithmetic shifts** differ between platforms (sign extension behavior)
+Multiple large-scale C-to-Kotlin porting projects failed or required months of debugging due to subtle behavioral differences:
+
+1. **16-bit C code** had different sign extension and overflow behavior
+2. **Double-double floating point** algorithms suffered from Kotlin's multiple rounding steps during operations
+3. **Cryptographic implementations** produced incorrect results due to platform-specific bitwise behavior
+4. **High-precision computation (HPC)** code couldn't be reliably ported
+
+### The Underlying Issues
+
+Kotlin's native bitwise operators (`shl`, `shr`, `ushr`, `and`, `or`, `xor`) have subtle platform-specific behaviors that break C algorithm ports:
+
+- **Arithmetic shifts** differ between platforms (sign extension behavior varies)
 - **JavaScript** has 32-bit limitations and different overflow handling
-- **Mask operations** don't account for variable bit widths properly
-- **Multi-precision arithmetic** requires carry/overflow tracking
+- **Mask operations** don't account for variable bit widths properly, breaking on types that don't align with mask bit length
+- **Rounding behavior** in floating-point operations differs from C
+- **Multi-precision arithmetic** requires carry/overflow tracking absent in Kotlin primitives
 
 ### The Solution
 
-BitShiftEngine provides:
+BitShiftEngine and Klang provide:
 
-1. **Mode Selection**: Choose between NATIVE (fast) and ARITHMETIC (deterministic)
-2. **Bit Width Awareness**: Operations respect 8, 16, 32, or 64-bit boundaries
-3. **Carry/Overflow Tracking**: Essential for multi-limb arithmetic
-4. **Zero-Copy Heap Operations**: Work directly with memory without allocations
+1. **Mode Selection**: Choose between NATIVE (fast) and ARITHMETIC (bit-exact C replication)
+2. **Bit Width Awareness**: Operations respect 8, 16, 32, or 64-bit boundaries exactly as C does
+3. **Carry/Overflow Tracking**: Essential for multi-limb arithmetic and C algorithm compatibility
+4. **Zero-Copy Heap Operations**: Work directly with memory without allocations, matching C's pointer semantics
+5. **Deterministic Cross-Platform Behavior**: Same results on JVM, Native, and JS as the original C code
 
 ## Quick Start
 
@@ -247,9 +260,20 @@ val qword = engine64.leftShift(1, 32).value // 0x100000000
 
 ## Rules and Guidelines
 
+### The Klang Philosophy
+
+Klang exists to enable **exact C code porting to pure Kotlin multiplatform**. This means:
+
+- Every C type has a corresponding Klang type (prefixed with `C_`, e.g., `C_UInt128`, `C_Int128`)
+- All bitwise operations must go through BitShiftEngine to ensure C-compatible behavior
+- Hard-coded masks break variable bit-width compatibility and are forbidden
+- The library uses its own implementations, **not** Kotlin/Native cinterop
+
 ### CRITICAL: Raw Bitwise Operations Are Forbidden
 
-**DO NOT** use raw Kotlin bitwise operators outside of BitShiftEngine:
+**DO NOT** use raw Kotlin bitwise operators outside of BitShiftEngine's implementation:
+
+**Why?** Kotlin's operators have platform-specific behavior that breaks C algorithm ports. Even a single `shl` or `and 0xFF` can produce different results than C on different platforms, breaking cryptography, compression, and HPC code.
 
 ```kotlin
 // ❌ FORBIDDEN - Raw operators
@@ -272,6 +296,8 @@ val good5 = engine.bitwiseXor(value, 0xAA)
 
 **DO NOT** use hard-coded masks:
 
+**Why?** A mask like `0xFF` only works for 8-bit values. If applied to values of different bit widths, it produces incorrect results. C code often uses bit-width-aware masking, and hard-coded masks break that. Use `getMask(bits)` which generates the correct mask for any bit width.
+
 ```kotlin
 // ❌ FORBIDDEN - Hard-coded masks
 val bad1 = value and 0xFF
@@ -288,15 +314,18 @@ val good3 = if (engine.isBitSet(value, 7)) ...
 ### When to Use Each Mode
 
 **Use NATIVE mode when:**
-- Performance is critical
-- Operating on a single known platform
-- Already validated behavior on target platform
+- Performance is critical AND you've validated bit-exact behavior on all target platforms
+- Operating on a single known platform with validated C compatibility
+- You're confident the operation doesn't expose platform-specific edge cases
 
 **Use ARITHMETIC mode when:**
+- Porting C code (always start here to ensure correctness)
 - Cross-platform consistency is required
 - Implementing cryptographic algorithms
 - Building reference implementations
 - Testing/validating against C implementations
+- Working with multi-precision or HPC algorithms
+- Any code where bit-exact correctness matters more than raw speed
 
 ## Performance Considerations
 

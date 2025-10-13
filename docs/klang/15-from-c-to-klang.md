@@ -1,14 +1,18 @@
-From C To KLang — In‑Place, Heap‑Native Rules (Authoritative)
+From C To KLang — In-Place, Heap-Native Rules (Authoritative)
 ============================================================
 
 Purpose
-- Capture the exact, C‑driven rules we follow so every engineer can build and review this system without losing intent.
+- Capture the exact, C-driven rules we follow so every engineer can build and review this system without losing intent.
 - All memory lives in GlobalHeap. No persistent Kotlin arrays. Variables exist in place, accessed by typed loads/stores.
+- This is **pure Kotlin multiplatform**, not cinterop. We replicate C semantics exactly in idiomatic Kotlin.
 
-Non‑Negotiables
-- Heap is the single universe. Long‑lived state must never bounce through Kotlin arrays.
-- In‑place operations only: shifts, scalar updates, string/memory ops, etc. Must touch GlobalHeap directly.
+Non-Negotiables
+- Heap is the single universe. Long-lived state must never bounce through Kotlin arrays.
+- In-place operations only: shifts, scalar updates, string/memory ops, etc. Must touch GlobalHeap directly.
 - Alignment and semantics follow the platform C ABI and libc behavior where applicable.
+- No raw Kotlin bitwise operators (shl/shr/ushr/and/or/xor) except within BitShiftEngine implementation.
+- No hard-coded masks (0xFF, 0xFFFF, etc.) — use BitShiftEngine.getMask(bits) for bit-width-safe masking.
+- C types prefixed with C_ (C_UInt128, C_Int128, etc.) map exactly to C types like __uint128 and __int128.
 
 1) Automatic Storage — KStack
 -----------------------------
@@ -48,16 +52,20 @@ Non‑Negotiables
 - CLib (strlen/strnlen/strcmp/strncmp/strcpy/strncpy/memchr/strchr/memcmp) mirrors libc behavior.
 - Tests: overlaps (right/left), zero‑length no‑ops, strnlen and strncmp edge cases, strncpy padding, memcmp ordering.
 
-5) Bit Shifts — In‑Place, Limb‑Wise, Carry‑Correct
+5) Bit Shifts — In-Place, Limb-Wise, Carry-Correct
 -----------------------------------------------
-- BitShiftEngine controls mode (NATIVE vs ARITHMETIC). ArrayBitShifts must operate in place on GlobalHeap.
-- Left shift by s (1..15): per‑limb: new = ((v << s) & 0xFFFF) | carry; carry = (v >> (16−s)) & ((1<<s)−1).
-- Right shift by s: per‑limb from the end: new = (v >> s) | (carry << (16−s)); carry = v & ((1<<s)−1); sticky ORs all dropped bits.
+- BitShiftEngine controls mode (NATIVE vs ARITHMETIC). ALWAYS use BitShiftEngine, never raw shl/shr/ushr.
+- ARITHMETIC mode: Exactly replicates C bitwise behavior across all platforms using pure arithmetic operations.
+- NATIVE mode: Uses Kotlin's native operators for speed, but only after validation that behavior matches C.
+- ArrayBitShifts must operate in place on GlobalHeap.
+- Left shift by s (1..15): per-limb: new = ((v << s) & 0xFFFF) | carry; carry = (v >> (16−s)) & ((1<<s)−1).
+- Right shift by s: per-limb from the end: new = (v >> s) | (carry << (16−s)); carry = v & ((1<<s)−1); sticky ORs all dropped bits.
 - Heap overloads:
   - shl16LEInPlace(base, from, len, s, carryIn): updates limbs directly; returns carryOut.
   - rsh16LEInPlace(base, from, len, s): updates limbs directly; returns carryOut + sticky.
 - No heap→array→heap copies anywhere in shift paths.
-- Tests: heap‑address left/right parity vs IntArray references, plus word‑shift+bit‑shift composition tests.
+- Tests: heap-address left/right parity vs IntArray references, plus word-shift+bit-shift composition tests.
+- **FORBIDDEN**: Raw Kotlin shift operators (shl/shr/ushr) and hard-coded masks (0xFF, 0xFFFF, etc.) break C compatibility.
 
 6) Allocator — KMalloc Bins, Coalescing, Alignment
 --------------------------------------------------
