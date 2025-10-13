@@ -2,6 +2,53 @@
 
 package ai.solace.klang.common
 
+/**
+ * ZlibLogger: Cross-platform configurable logging system for KLang internals.
+ *
+ * Provides structured, hierarchical logging with runtime configuration support.
+ * Designed for debugging compression algorithms, bitwise operations, and other
+ * low-level implementations where detailed tracing is essential.
+ *
+ * ## Configuration
+ *
+ * Logging can be enabled via environment variables or programmatic API:
+ *
+ * ### Environment Variables
+ * - `ZLIB_LOG_ENABLE=1`: Enable general logging
+ * - `ZLIB_LOG_DEBUG=1`: Enable verbose debug logs
+ * - `ZLIB_LOG_BITWISE=1`: Enable detailed bitwise operation logs
+ * - `ZLIB_LOG_PATH=/path/to/log.txt`: Set log file path
+ *
+ * ### Programmatic Configuration
+ * ```kotlin
+ * ZlibLogger.setEnabled(true)
+ * ZlibLogger.setDebug(true)
+ * ZlibLogger.setBitwiseVerbose(true)
+ * ```
+ *
+ * ## Logger Categories
+ *
+ * Specialized loggers for different subsystems:
+ * - **Compression**: `logInflate()`, `logDeflate()`, `logZStream()`
+ * - **Huffman**: `logHuffman()`, `logInfTree()`, `logTree()`
+ * - **Checksums**: `logAdler32()`, `logCRC32()`
+ * - **Bitwise**: `logBitwise()`, `logBitwiseOp()`
+ *
+ * ## Usage Example
+ *
+ * ```kotlin
+ * ZlibLogger.logInflate("Starting decompression", "decompress")
+ * ZlibLogger.logBitwiseOp("shl", input=0x1234, shift=4, result=0x12340, "shiftLeft")
+ * ZlibLogger.logAdler32Calc(s1=1, s2=0, byte=0x42, index=0, "updateChecksum")
+ * ```
+ *
+ * ## Performance
+ *
+ * When logging is disabled (default), all log calls are no-ops after a single
+ * flag check. This makes it safe to leave logging calls in production code.
+ *
+ * @see logToFile Platform-specific file output
+ */
 object ZlibLogger {
     // Logging flags (configurable via CLI/env)
     var ENABLE_LOGGING: Boolean = false
@@ -22,12 +69,26 @@ object ZlibLogger {
         }
     }
 
+    /**
+     * Logs a debug message (requires DEBUG_ENABLED).
+     *
+     * @param message The log message.
+     * @param className The originating class name.
+     * @param functionName The originating function name.
+     */
     fun debug(
         message: String,
         className: String = "",
         functionName: String = "",
     ) = log(message, className, functionName)
 
+    /**
+     * Logs a message with optional class and function context.
+     *
+     * @param message The log message.
+     * @param className The originating class name (optional).
+     * @param functionName The originating function name (optional).
+     */
     fun log(
         message: String,
         className: String = "",

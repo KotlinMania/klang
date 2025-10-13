@@ -1,5 +1,76 @@
-// KTCC RUNTIME ///////////////////////////////////////////////////
-
+/**
+ * AbstractRuntime: C-compatible runtime environment for transpiled C code.
+ *
+ * Provides the execution environment for code transpiled from C to Kotlin via KTCC
+ * (Kotlin Transpiled C Compiler). Implements heap management, memory operations,
+ * stack allocation, and syscall interfaces that mirror C's standard library semantics.
+ *
+ * ## Architecture
+ *
+ * The runtime provides three core abstractions:
+ * 1. **Heap**: Managed memory space for dynamic allocations
+ * 2. **Stack**: Automatic storage for local variables and call frames
+ * 3. **Syscalls**: Platform interaction (I/O, time, etc.)
+ *
+ * ## Memory Layout
+ *
+ * ```
+ * Address 0                    HEAP_PTR    STACK_PTR           HEAP_SIZE
+ * ├────────────────────────────┼───────────┼──────────────────────┤
+ * │   Reserved (128 bytes)    │   Heap → │ ← Stack           │
+ * └────────────────────────────┴───────────┴──────────────────────┘
+ * ```
+ *
+ * - **Heap grows upward** from HEAP_PTR (default: 128)
+ * - **Stack grows downward** from STACK_PTR (default: HEAP_SIZE)
+ * - Default heap size: 16 MB
+ *
+ * ## Key Features
+ *
+ * ### Memory Operations
+ * - Byte/short/int/long/float/double load/store (lb, lh, lw, ld, lwf, ldf, etc.)
+ * - Unsigned variants (lbu, lhu, lwu)
+ * - Bulk operations (memcpy, memmove, memset)
+ *
+ * ### Stack Management
+ * - Stack pointer manipulation (STACK_PTR)
+ * - Automatic allocation/deallocation via pointer arithmetic
+ *
+ * ### Allocation
+ * - KMalloc integration (kmalloc, kcalloc, krealloc, kfree)
+ * - Compatible with C's malloc family
+ *
+ * ## Usage Example
+ *
+ * ```kotlin
+ * class MyRuntime : AbstractRuntime(REQUESTED_HEAP_SIZE = 1024 * 1024) {
+ *     private val heap = ByteArray(HEAP_SIZE)
+ *
+ *     override fun lb(ptr: Int): Byte = heap[ptr]
+ *     override fun sb(ptr: Int, value: Byte) { heap[ptr] = value }
+ *     // ... implement other abstract methods
+ * }
+ *
+ * val runtime = MyRuntime()
+ * val ptr = runtime.kmalloc(100)  // Allocate 100 bytes
+ * runtime.sb(ptr.ptr, 42)         // Write byte
+ * val value = runtime.lbu(ptr.ptr) // Read byte (unsigned)
+ * runtime.kfree(ptr)              // Free memory
+ * ```
+ *
+ * ## Implementation Notes
+ *
+ * - Subclasses must implement abstract load/store methods for their backing storage
+ * - Syscalls can be customized via the RuntimeSyscalls interface
+ * - The runtime is NOT thread-safe by default
+ *
+ * @property REQUESTED_HEAP_SIZE Custom heap size (0 = use 16MB default).
+ * @property REQUESTED_STACK_PTR Custom stack pointer (0 = use HEAP_SIZE).
+ * @property __syscalls System call implementation (default: no-op).
+ *
+ * @see RuntimeSyscalls For syscall interface
+ * @see ai.solace.klang.mem.KMalloc For heap allocation implementation
+ */
 @Suppress("MemberVisibilityCanBePrivate", "FunctionName", "CanBeVal", "DoubleNegation", "LocalVariableName", "NAME_SHADOWING", "VARIABLE_WITH_REDUNDANT_INITIALIZER", "RemoveRedundantCallsOfConversionMethods", "EXPERIMENTAL_IS_NOT_ENABLED", "RedundantExplicitType", "RemoveExplicitTypeArguments", "RedundantExplicitType", "unused", "UNCHECKED_CAST", "UNUSED_VARIABLE", "UNUSED_PARAMETER", "NOTHING_TO_INLINE", "PropertyName", "ClassName", "USELESS_CAST", "PrivatePropertyName", "CanBeParameter", "UnusedMainParameter")
 @OptIn(ExperimentalUnsignedTypes::class)
 public/*!*/ abstract class AbstractRuntime(val REQUESTED_HEAP_SIZE: Int = 0, val REQUESTED_STACK_PTR: Int = 0, val __syscalls: RuntimeSyscalls = DummyRuntimeSyscalls) : RuntimeSyscalls by __syscalls {
