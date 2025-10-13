@@ -187,6 +187,79 @@ afterEvaluate {
             dependsOn("linkReleaseExecutableMacosArm64")
         }
     }
+
+    // Register build target tasks
+    tasks.register("buildTargets") {
+        group = "help"
+        description = "Shows available build targets for Kotlin Multiplatform"
+        doLast {
+            println("""
+                |
+                |═══════════════════════════════════════════════════════════════════════════════
+                |  KLang - Kotlin Multiplatform Build Targets
+                |═══════════════════════════════════════════════════════════════════════════════
+                |
+                |  This is a Kotlin Multiplatform library focused on native builds.
+                |  The primary targets are native platforms (Linux, macOS, Windows).
+                |  JS and JVM targets are included but native is the focus.
+                |
+                |  NATIVE TARGETS (Primary Focus):
+                |  ─────────────────────────────────────────────────────────────────────────────
+                |  • macosArm64Binaries         - Build all macOS ARM64 binaries
+                |  • macosX64Binaries            - Build all macOS x64 binaries
+                |  • linuxX64Binaries            - Build all Linux x64 binaries
+                |  • linuxArm64Binaries          - Build all Linux ARM64 binaries
+                |  • mingwX64Binaries            - Build all Windows x64 binaries
+                |
+                |  SPECIFIC NATIVE BUILDS:
+                |  ─────────────────────────────────────────────────────────────────────────────
+                |  • linkReleaseExecutableMacosArm64   - macOS ARM64 release
+                |  • linkReleaseExecutableMacosX64     - macOS x64 release
+                |  • linkReleaseExecutableLinuxX64     - Linux x64 release
+                |  • linkReleaseExecutableLinuxArm64   - Linux ARM64 release
+                |  • linkReleaseExecutableMingwX64     - Windows x64 release
+                |
+                |  • linkDebugExecutableMacosArm64     - macOS ARM64 debug
+                |  • linkDebugExecutableMacosX64       - macOS x64 debug
+                |  • linkDebugExecutableLinuxX64       - Linux x64 debug
+                |  • linkDebugExecutableLinuxArm64     - Linux ARM64 debug
+                |  • linkDebugExecutableMingwX64       - Windows x64 debug
+                |
+                |  JAVASCRIPT TARGET:
+                |  ─────────────────────────────────────────────────────────────────────────────
+                |  • jsBrowserProductionWebpack  - Build optimized JS for browser
+                |  • jsBrowserDevelopmentWebpack - Build development JS for browser
+                |  • jsWeb                       - Copy JS resources to docs/
+                |
+                |  TESTING:
+                |  ─────────────────────────────────────────────────────────────────────────────
+                |  • allTests                    - Run all enabled tests
+                |  • macosArm64Test              - Run macOS ARM64 tests (enabled)
+                |  • jsTest                      - Run JS tests
+                |
+                |  ALL TARGETS:
+                |  ─────────────────────────────────────────────────────────────────────────────
+                |  • assemble                    - Build all configured targets
+                |  • build                       - Build and test all targets
+                |
+                |  CONVENIENCE SHORTCUTS:
+                |  ─────────────────────────────────────────────────────────────────────────────
+                |  • buildMac                    - Build macOS ARM64 release (convenience)
+                |  • run                         - Run macOS ARM64 debug (convenience)
+                |
+                |  EXAMPLES:
+                |  ─────────────────────────────────────────────────────────────────────────────
+                |  ./gradlew macosArm64Binaries            # Build all macOS ARM64 binaries
+                |  ./gradlew linkReleaseExecutableLinuxX64 # Build Linux x64 release
+                |  ./gradlew assemble                      # Build all targets
+                |  ./gradlew build                         # Build and test all
+                |  ./gradlew buildMac                      # Quick macOS ARM64 build
+                |
+                |═══════════════════════════════════════════════════════════════════════════════
+                |
+            """.trimMargin())
+        }
+    }
 }
 
 //compilations.all {
