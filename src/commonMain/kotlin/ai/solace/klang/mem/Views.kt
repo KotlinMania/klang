@@ -67,7 +67,10 @@ data class U8View(val base: Int, val length: Int) {
      * @param v The byte value to write (masked to 0-255).
      * @throws IllegalArgumentException if i is out of bounds.
      */
-    fun set(i: Int, v: Int) { require(i in 0 until length); GlobalHeap.sb(base + i, (v and 0xFF).toByte()) }
+    fun set(i: Int, v: Int) { 
+        require(i in 0 until length)
+        GlobalHeap.sb(base + i, (v and 0xFF).toByte())
+    }
     
     /**
      * Fills the entire view with a constant byte value.
@@ -117,7 +120,7 @@ data class U16View(val base: Int, val limbCount: Int) {
         val eng8 = BitShiftEngine(BitShiftConfig.defaultMode, 8)
         val lowByte = GlobalHeap.lbu(base + i*2).toLong()
         val highByte = GlobalHeap.lbu(base + i*2 + 1).toLong()
-        return (lowByte or eng8.byteShiftLeft(highByte, 1).value).toInt() and 0xFFFF
+        return ((lowByte or eng8.byteShiftLeft(highByte, 1).value).toInt() and 0xFFFF)
     }
     
     /**

@@ -1,6 +1,8 @@
 package ai.solace.klang.fp
 
 import ai.solace.klang.bitwise.Float32Math
+import ai.solace.klang.bitwise.BitShiftEngine
+import ai.solace.klang.bitwise.BitShiftConfig
 
 /**
  * CBF16: bfloat16 (1 sign, 8 exp, 7 frac, bias = 127) stored in 16 bits.
@@ -10,7 +12,10 @@ import ai.solace.klang.bitwise.Float32Math
 class CBF16 private constructor(private val bits: Short) {
     // --- basic access ---
     fun toBits(): Short = bits
-    fun toFloat(): Float = Float.fromBits((bits.toInt() and 0xFFFF) shl 16)
+    fun toFloat(): Float {
+        val engine = BitShiftEngine(BitShiftConfig.defaultMode, 32)
+        return Float.fromBits(engine.leftShift((bits.toInt() and 0xFFFF).toLong(), 16).value.toInt())
+    }
 
     // operators (compute in f32, then round to bf16)
     operator fun plus(other: CBF16): CBF16 = fromFloat(Float32Math.add(this.toFloat(), other.toFloat()))
@@ -21,12 +26,14 @@ class CBF16 private constructor(private val bits: Short) {
     fun sqrt(): CBF16 = fromFloat(Float.fromBits(Float32Math.sqrtBits(this.toFloat().toRawBits())))
 
     fun isNaN(): Boolean {
-        val e = (bits.toInt() ushr 7) and 0xFF
+        val engine = BitShiftEngine(BitShiftConfig.defaultMode, 32)
+        val e = (engine.unsignedRightShift(bits.toInt().toLong(), 7).value.toInt() and 0xFF)
         val f = bits.toInt() and 0x7F
         return e == 0xFF && f != 0
     }
     fun isInf(): Boolean {
-        val e = (bits.toInt() ushr 7) and 0xFF
+        val engine = BitShiftEngine(BitShiftConfig.defaultMode, 32)
+        val e = (engine.unsignedRightShift(bits.toInt().toLong(), 7).value.toInt() and 0xFF)
         val f = bits.toInt() and 0x7F
         return e == 0xFF && f == 0
     }
@@ -42,29 +49,34 @@ class CBF16 private constructor(private val bits: Short) {
 
         // Round float32 -> bf16 using nearest‑even
         fun fromFloatBits(fBits: Int): CBF16 {
+            val engine = BitShiftEngine(BitShiftConfig.defaultMode, 32)
             val signExpFrac = fBits
             val sign = signExpFrac and 0x80000000.toInt()
-            val exp = (signExpFrac ushr 23) and 0xFF
+            val exp = (engine.unsignedRightShift(signExpFrac.toLong(), 23).value.toInt() and 0xFF)
             val frac = signExpFrac and 0x007FFFFF
 
             // NaN: preserve payload; ensure quiet NaN
             if (exp == 0xFF) {
                 if (frac == 0) {
                     // Infinity: just shift sign|exp
-                    val out = ((sign ushr 16) and 0x8000) or (0xFF shl 7)
+                    val out = ((engine.unsignedRightShift(sign.toLong(), 16).value.toInt() and 0x8000) or 
+                               engine.leftShift(0xFF.toLong(), 7).value.toInt())
                     return CBF16(out.toShort())
                 }
                 // NaN: propagate payload; ensure quiet
-                val outTop = (sign ushr 16) and 0x8000
-                var outBody = (0xFF shl 7) or ((frac ushr 16) and 0x7F)
-                if ((outBody and 0x7F) == 0) outBody = (0xFF shl 7) or 0x40
+                val outTop = (engine.unsignedRightShift(sign.toLong(), 16).value.toInt() and 0x8000)
+                var outBody = (engine.leftShift(0xFF.toLong(), 7).value.toInt() or 
+                              (engine.unsignedRightShift(frac.toLong(), 16).value.toInt() and 0x7F))
+                if ((outBody and 0x7F) == 0) {
+                    outBody = (engine.leftShift(0xFF.toLong(), 7).value.toInt() or 0x40)
+                }
                 return CBF16((outTop or outBody).toShort())
             }
 
             // Regular rounding
-            val roundBias = 0x7FFF + (((signExpFrac ushr 16) and 1))
+            val roundBias = 0x7FFF + ((engine.unsignedRightShift(signExpFrac.toLong(), 16).value.toInt() and 1))
             val rounded = signExpFrac + roundBias
-            val bf = (rounded ushr 16) and 0xFFFF
+            val bf = (engine.unsignedRightShift(rounded.toLong(), 16).value.toInt() and 0xFFFF)
             return CBF16(bf.toShort())
         }
     }

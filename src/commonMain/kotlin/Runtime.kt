@@ -78,6 +78,10 @@ public/*!*/ abstract class AbstractRuntime(val REQUESTED_HEAP_SIZE: Int = 0, val
     var STACK_PTR: Int = if (REQUESTED_STACK_PTR == 0) HEAP_SIZE else REQUESTED_STACK_PTR // 0.5 MB
     var HEAP_PTR: Int = 128
 
+    // Bit shift engines for memory operations
+    private val engine32 = ai.solace.klang.bitwise.BitShiftEngine(ai.solace.klang.bitwise.BitShiftConfig.defaultMode, 32)
+    private val engine64 = ai.solace.klang.bitwise.BitShiftEngine(ai.solace.klang.bitwise.BitShiftConfig.defaultMode, 64)
+
     ///////////////////////////////////
     // MEMORY TRANSFER / STRING/MEMORY OPERATIONS
     ///////////////////////////////////
@@ -99,14 +103,30 @@ public/*!*/ abstract class AbstractRuntime(val REQUESTED_HEAP_SIZE: Int = 0, val
     fun lhu(ptr: Int): Int = lh(ptr).toInt() and 0xFFFF
     fun lwu(ptr: Int): Long = lw(ptr).toLong() and 0xFFFFFFFFL
 
-    open fun lh(ptr: Int): Short = ((lbu(ptr) shl 0) or (lbu(ptr + 1) shl 8)).toShort()
-    open fun sh(ptr: Int, value: Short): Unit { sb(ptr, (value.toInt() ushr 0).toByte()); sb(ptr + 1, (value.toInt() ushr 8).toByte()) }
+    open fun lh(ptr: Int): Short = (engine32.leftShift(lbu(ptr).toLong(), 0).value.toInt() or 
+        engine32.leftShift(lbu(ptr + 1).toLong(), 8).value.toInt()).toShort()
+    open fun sh(ptr: Int, value: Short): Unit { 
+        sb(ptr, engine32.unsignedRightShift(value.toInt().toLong(), 0).value.toByte())
+        sb(ptr + 1, engine32.unsignedRightShift(value.toInt().toLong(), 8).value.toByte())
+    }
 
-    open fun lw(ptr: Int): Int = ((lbu(ptr) shl 0) or (lbu(ptr + 1) shl 8) or (lbu(ptr + 2) shl 16) or (lbu(ptr + 3) shl 24))
-    open fun sw(ptr: Int, value: Int): Unit { sb(ptr + 0, (value ushr 0).toByte()); sb(ptr + 1, (value ushr 8).toByte()); sb(ptr + 2, (value ushr 16).toByte()); sb(ptr + 3, (value ushr 24).toByte()) }
+    open fun lw(ptr: Int): Int = (engine32.leftShift(lbu(ptr).toLong(), 0).value.toInt() or 
+        engine32.leftShift(lbu(ptr + 1).toLong(), 8).value.toInt() or 
+        engine32.leftShift(lbu(ptr + 2).toLong(), 16).value.toInt() or 
+        engine32.leftShift(lbu(ptr + 3).toLong(), 24).value.toInt())
+    open fun sw(ptr: Int, value: Int): Unit { 
+        sb(ptr + 0, engine32.unsignedRightShift(value.toLong(), 0).value.toByte())
+        sb(ptr + 1, engine32.unsignedRightShift(value.toLong(), 8).value.toByte())
+        sb(ptr + 2, engine32.unsignedRightShift(value.toLong(), 16).value.toByte())
+        sb(ptr + 3, engine32.unsignedRightShift(value.toLong(), 24).value.toByte())
+    }
 
-    open fun ld(ptr: Int): Long = (lwu(ptr) shl 0) or (lwu(ptr + 4) shl 32)
-    open fun sd(ptr: Int, value: Long): Unit { sw(ptr, (value ushr 0).toInt()); sw(ptr + 4, (value ushr 32).toInt()) }
+    open fun ld(ptr: Int): Long = (engine64.leftShift(lwu(ptr), 0).value or 
+        engine64.leftShift(lwu(ptr + 4), 32).value)
+    open fun sd(ptr: Int, value: Long): Unit { 
+        sw(ptr, engine64.unsignedRightShift(value, 0).value.toInt())
+        sw(ptr + 4, engine64.unsignedRightShift(value, 32).value.toInt())
+    }
 
     open fun lwf(ptr: Int): Float = Float.fromBits(lw(ptr))
     open fun swf(ptr: Int, value: Float): Unit { sw(ptr, value.toRawBits()) }

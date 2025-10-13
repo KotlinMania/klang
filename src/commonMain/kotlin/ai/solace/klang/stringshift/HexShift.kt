@@ -1,5 +1,7 @@
 package ai.solace.klang.stringshift
 
+import ai.solace.klang.bitwise.BitShiftEngine
+import ai.solace.klang.bitwise.BitShiftConfig
 import kotlin.math.min
 
 /**
@@ -50,14 +52,15 @@ private data class NibbleShift(val out: Char, val carry: Int)
  */
 private fun buildLeftNibbleTable(r: Int): Array<NibbleShift> {
     require(r in 1..3)
-    val table = Array((1 shl r) * 16) { NibbleShift('0', 0) }
+    val engine = BitShiftEngine(BitShiftConfig.defaultMode, 32)
+    val table = Array(engine.leftShift(1L, r).value.toInt() * 16) { NibbleShift('0', 0) }
     val maskOut = 0xF
-    val carryMask = (1 shl r) - 1
+    val carryMask = engine.leftShift(1L, r).value.toInt() - 1
     for (carry in 0..carryMask) {
         for (n in 0..15) {
-            val combined = (n shl r) or carry
+            val combined = (engine.leftShift(n.toLong(), r).value.toInt() or carry)
             val outNibble = combined and maskOut
-            val newCarry = (combined ushr 4) and carryMask
+            val newCarry = (engine.unsignedRightShift(combined.toLong(), 4).value.toInt() and carryMask)
             table[carry * 16 + n] = NibbleShift(outNibble.toString(16)[0], newCarry)
         }
     }
@@ -76,12 +79,14 @@ private fun buildLeftNibbleTable(r: Int): Array<NibbleShift> {
  */
 private fun buildRightNibbleTable(r: Int): Array<NibbleShift> {
     require(r in 1..3)
-    val table = Array((1 shl r) * 16) { NibbleShift('0', 0) }
-    val carryMask = (1 shl r) - 1
+    val engine = BitShiftEngine(BitShiftConfig.defaultMode, 32)
+    val table = Array(engine.leftShift(1L, r).value.toInt() * 16) { NibbleShift('0', 0) }
+    val carryMask = engine.leftShift(1L, r).value.toInt() - 1
     val leftBits = 4 - r
     for (carry in 0..carryMask) {
         for (n in 0..15) {
-            val outNibble = ((n ushr r) or ((carry shl leftBits) and 0xF)) and 0xF
+            val outNibble = ((engine.unsignedRightShift(n.toLong(), r).value.toInt() or 
+                            ((engine.leftShift(carry.toLong(), leftBits).value.toInt() and 0xF))) and 0xF)
             val newCarry = n and carryMask // pass low r bits to next nibble (to the right)
             table[carry * 16 + n] = NibbleShift(outNibble.toString(16)[0], newCarry)
         }
