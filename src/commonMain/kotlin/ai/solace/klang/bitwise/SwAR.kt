@@ -215,11 +215,13 @@ object SwAR {
     fun refAvgU8Trunc(a: Int, b: Int): Int {
         var out = 0
         var shift = 0
+        val mask8 = BitShiftEngine.mask(8)
         repeat(4) {
-            val av = (a ushr shift) and 0xFF
-            val bv = (b ushr shift) and 0xFF
+            val av = BitShiftEngine.and(BitShiftEngine.shiftRight(a, shift, BitShiftMode.ARITHMETIC), mask8)
+            val bv = BitShiftEngine.and(BitShiftEngine.shiftRight(b, shift, BitShiftMode.ARITHMETIC), mask8)
             val r = (av + bv) / 2
-            out = out or ((r and 0xFF) shl shift)
+            val maskedR = BitShiftEngine.and(r, mask8)
+            out = BitShiftEngine.or(out, BitShiftEngine.shiftLeft(maskedR, shift, BitShiftMode.ARITHMETIC))
             shift += 8
         }
         return out
@@ -229,11 +231,13 @@ object SwAR {
     fun refAvgU8Round(a: Int, b: Int): Int {
         var out = 0
         var shift = 0
+        val mask8 = BitShiftEngine.mask(8)
         repeat(4) {
-            val av = (a ushr shift) and 0xFF
-            val bv = (b ushr shift) and 0xFF
+            val av = BitShiftEngine.and(BitShiftEngine.shiftRight(a, shift, BitShiftMode.ARITHMETIC), mask8)
+            val bv = BitShiftEngine.and(BitShiftEngine.shiftRight(b, shift, BitShiftMode.ARITHMETIC), mask8)
             val r = (av + bv + 1) / 2
-            out = out or ((r and 0xFF) shl shift)
+            val maskedR = BitShiftEngine.and(r, mask8)
+            out = BitShiftEngine.or(out, BitShiftEngine.shiftLeft(maskedR, shift, BitShiftMode.ARITHMETIC))
             shift += 8
         }
         return out
@@ -241,23 +245,29 @@ object SwAR {
 
     /** Scalar per-lane u16 trunc average (reference). */
     fun refAvgU16Trunc(a: Int, b: Int): Int {
-        val a0 = a and 0xFFFF
-        val a1 = (a ushr 16) and 0xFFFF
-        val b0 = b and 0xFFFF
-        val b1 = (b ushr 16) and 0xFFFF
+        val mask16 = BitShiftEngine.mask(16)
+        val a0 = BitShiftEngine.and(a, mask16)
+        val a1 = BitShiftEngine.and(BitShiftEngine.shiftRight(a, 16, BitShiftMode.ARITHMETIC), mask16)
+        val b0 = BitShiftEngine.and(b, mask16)
+        val b1 = BitShiftEngine.and(BitShiftEngine.shiftRight(b, 16, BitShiftMode.ARITHMETIC), mask16)
         val r0 = (a0 + b0) / 2
         val r1 = (a1 + b1) / 2
-        return (r0 and 0xFFFF) or ((r1 and 0xFFFF) shl 16)
+        val maskedR0 = BitShiftEngine.and(r0, mask16)
+        val maskedR1 = BitShiftEngine.and(r1, mask16)
+        return BitShiftEngine.or(maskedR0, BitShiftEngine.shiftLeft(maskedR1, 16, BitShiftMode.ARITHMETIC))
     }
 
     /** Scalar per-lane u16 round-to-nearest (ties up). */
     fun refAvgU16Round(a: Int, b: Int): Int {
-        val a0 = a and 0xFFFF
-        val a1 = (a ushr 16) and 0xFFFF
-        val b0 = b and 0xFFFF
-        val b1 = (b ushr 16) and 0xFFFF
+        val mask16 = BitShiftEngine.mask(16)
+        val a0 = BitShiftEngine.and(a, mask16)
+        val a1 = BitShiftEngine.and(BitShiftEngine.shiftRight(a, 16, BitShiftMode.ARITHMETIC), mask16)
+        val b0 = BitShiftEngine.and(b, mask16)
+        val b1 = BitShiftEngine.and(BitShiftEngine.shiftRight(b, 16, BitShiftMode.ARITHMETIC), mask16)
         val r0 = (a0 + b0 + 1) / 2
         val r1 = (a1 + b1 + 1) / 2
-        return (r0 and 0xFFFF) or ((r1 and 0xFFFF) shl 16)
+        val maskedR0 = BitShiftEngine.and(r0, mask16)
+        val maskedR1 = BitShiftEngine.and(r1, mask16)
+        return BitShiftEngine.or(maskedR0, BitShiftEngine.shiftLeft(maskedR1, 16, BitShiftMode.ARITHMETIC))
     }
 }
