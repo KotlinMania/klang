@@ -1,5 +1,8 @@
 package ai.solace.klang.mem
 
+import ai.solace.klang.bitwise.BitShiftEngine
+import ai.solace.klang.bitwise.BitShiftConfig
+
 /**
  * Typed views over [GlobalHeap] memory with little-endian semantics.
  *
@@ -109,7 +112,13 @@ data class U16View(val base: Int, val limbCount: Int) {
      * @return The 16-bit value (0-65535).
      * @throws IllegalArgumentException if i is out of bounds.
      */
-    fun get(i: Int): Int { require(i in 0 until limbCount); return (GlobalHeap.lbu(base + i*2) or (GlobalHeap.lbu(base + i*2 + 1) shl 8)) and 0xFFFF }
+    fun get(i: Int): Int {
+        require(i in 0 until limbCount)
+        val eng8 = BitShiftEngine(BitShiftConfig.defaultMode, 8)
+        val lowByte = GlobalHeap.lbu(base + i*2).toLong()
+        val highByte = GlobalHeap.lbu(base + i*2 + 1).toLong()
+        return (lowByte or eng8.byteShiftLeft(highByte, 1).value).toInt() and 0xFFFF
+    }
     
     /**
      * Writes an unsigned 16-bit value at index [i] (little-endian).
@@ -118,7 +127,14 @@ data class U16View(val base: Int, val limbCount: Int) {
      * @param v The 16-bit value to write (masked to 0-65535).
      * @throws IllegalArgumentException if i is out of bounds.
      */
-    fun set(i: Int, v: Int) { require(i in 0 until limbCount); val vv=v and 0xFFFF; GlobalHeap.sb(base+i*2,(vv and 0xFF).toByte()); GlobalHeap.sb(base+i*2+1,((vv ushr 8) and 0xFF).toByte()) }
+    fun set(i: Int, v: Int) {
+        require(i in 0 until limbCount)
+        val eng8 = BitShiftEngine(BitShiftConfig.defaultMode, 8)
+        val vv = v and 0xFFFF
+        GlobalHeap.sb(base+i*2, (vv and 0xFF).toByte())
+        val highByte = eng8.byteShiftRight(vv.toLong(), 1)
+        GlobalHeap.sb(base+i*2+1, (highByte.value.toInt() and 0xFF).toByte())
+    }
     
     /**
      * Fills the entire view with zeros.

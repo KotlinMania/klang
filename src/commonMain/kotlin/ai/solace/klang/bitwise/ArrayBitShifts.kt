@@ -337,16 +337,29 @@ object ArrayBitShifts {
     fun shl16LEInPlace(baseAddr: Int, fromLimb: Int, len: Int, s: Int, carryIn: Int = 0): ShiftResult {
         require(s in 0..15) { "s must be in 0..15" }
         if (len <= 0 || s == 0) return ShiftResult(carryIn and 0xFFFF, false)
-        val carryMask = (1 shl s) - 1
+        
+        val eng8 = BitShiftEngine(BitShiftConfig.defaultMode, 8)
+        val eng16 = BitShiftEngine(BitShiftConfig.defaultMode, 16)
+        val carryMask = eng16.leftShift(1L, s).value.toInt() - 1
         var carry = carryIn and carryMask
         var i = 0
+        
         while (i < len) {
             val off = baseAddr + (fromLimb + i) * 2
-            val v = GlobalHeap.lbu(off) or (GlobalHeap.lbu(off + 1) shl 8)
-            val newLow = ((v shl s) and 0xFFFF) or carry
+            val lowByte = GlobalHeap.lbu(off).toLong()
+            val highByte = GlobalHeap.lbu(off + 1).toLong()
+            // Compose 16-bit value from bytes
+            val v = lowByte or eng8.byteShiftLeft(highByte, 1).value
+            
+            val shiftResult = eng16.leftShift(v, s)
+            val newLow = (shiftResult.value.toInt() and 0xFFFF) or carry
+            
+            // Decompose back to bytes
             GlobalHeap.sb(off, (newLow and 0xFF).toByte())
-            GlobalHeap.sb(off + 1, ((newLow ushr 8) and 0xFF).toByte())
-            carry = (v ushr (16 - s)) and carryMask
+            val highByteResult = eng8.byteShiftRight(newLow.toLong(), 1)
+            GlobalHeap.sb(off + 1, (highByteResult.value.toInt() and 0xFF).toByte())
+            
+            carry = eng16.unsignedRightShift(v, 16 - s).value.toInt() and carryMask
             i++
         }
         return ShiftResult(carry and 0xFFFF, false)
@@ -355,19 +368,32 @@ object ArrayBitShifts {
     fun rsh16LEInPlace(baseAddr: Int, fromLimb: Int, len: Int, s: Int): ShiftResult {
         require(s in 0..15) { "s must be in 0..15" }
         if (len <= 0 || s == 0) return ShiftResult(0, false)
-        val carryMask = (1 shl s) - 1
+        
+        val eng8 = BitShiftEngine(BitShiftConfig.defaultMode, 8)
+        val eng16 = BitShiftEngine(BitShiftConfig.defaultMode, 16)
+        val carryMask = eng16.leftShift(1L, s).value.toInt() - 1
         var sticky = false
         var carry = 0 // carry holds low s bits from the next (higher-index) limb
         var i = len - 1
+        
         while (i >= 0) {
             val off = baseAddr + (fromLimb + i) * 2
-            val v = GlobalHeap.lbu(off) or (GlobalHeap.lbu(off + 1) shl 8)
-            val dropped = v and carryMask
+            val lowByte = GlobalHeap.lbu(off).toLong()
+            val highByte = GlobalHeap.lbu(off + 1).toLong()
+            // Compose 16-bit value from bytes
+            val v = lowByte or eng8.byteShiftLeft(highByte, 1).value
+            
+            val dropped = v.toInt() and carryMask
             sticky = sticky or (dropped != 0)
-            val hi = (v ushr s) and 0xFFFF
-            val combined = (hi or ((carry shl (16 - s)) and 0xFFFF)) and 0xFFFF
+            val hi = eng16.unsignedRightShift(v, s).value.toInt() and 0xFFFF
+            val carryShifted = eng16.leftShift(carry.toLong(), 16 - s).value.toInt() and 0xFFFF
+            val combined = (hi or carryShifted) and 0xFFFF
+            
+            // Decompose back to bytes
             GlobalHeap.sb(off, (combined and 0xFF).toByte())
-            GlobalHeap.sb(off + 1, ((combined ushr 8) and 0xFF).toByte())
+            val highByteResult = eng8.byteShiftRight(combined.toLong(), 1)
+            GlobalHeap.sb(off + 1, (highByteResult.value.toInt() and 0xFF).toByte())
+            
             carry = dropped
             i--
         }

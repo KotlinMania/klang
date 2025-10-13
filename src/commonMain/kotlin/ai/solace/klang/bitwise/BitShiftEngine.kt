@@ -580,4 +580,83 @@ class BitShiftEngine(
         val highByte = shifter16.unsignedRightShift(value.toLong(), 8).value.toByte()
         return Pair(lowByte, highByte)
     }
+    
+    /**
+     * Shift a value left by a multiple of 8 bits (byte positions).
+     *
+     * This is optimized for byte-level shifting common in multi-precision arithmetic,
+     * binary protocols, and memory operations. Shifts by full bytes rather than individual bits.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
+     * 
+     * // Shift left by 1 byte (8 bits)
+     * val result = engine.byteShiftLeft(0x12345678, 1)
+     * // result.value: 0x34567800
+     * 
+     * // Shift left by 2 bytes (16 bits)
+     * val result2 = engine.byteShiftLeft(0x12345678, 2)
+     * // result2.value: 0x56780000
+     * ```
+     *
+     * @param value Value to shift
+     * @param bytes Number of byte positions to shift (0 to bitWidth/8 - 1)
+     * @return [ShiftResult] with shifted value, carry, and overflow
+     *
+     * ## Complexity
+     * - NATIVE: O(1) - single shift operation
+     * - ARITHMETIC: O(bytes) - iterative byte-by-byte shifting
+     */
+    fun byteShiftLeft(value: Long, bytes: Int): ShiftResult {
+        if (bytes < 0 || bytes >= bitWidth / 8) {
+            return ShiftResult(0L, 0L, true)
+        }
+        if (bytes == 0) {
+            return ShiftResult(normalize(value), 0L, false)
+        }
+        
+        val bitShift = bytes * 8
+        return leftShift(value, bitShift)
+    }
+    
+    /**
+     * Shift a value right by a multiple of 8 bits (byte positions).
+     *
+     * This is optimized for byte-level shifting common in multi-precision arithmetic,
+     * binary protocols, and memory operations. Shifts by full bytes rather than individual bits.
+     * This is an unsigned (zero-fill) right shift.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
+     * 
+     * // Shift right by 1 byte (8 bits)
+     * val result = engine.byteShiftRight(0x12345678, 1)
+     * // result.value: 0x00123456
+     * 
+     * // Shift right by 2 bytes (16 bits)
+     * val result2 = engine.byteShiftRight(0x12345678, 2)
+     * // result2.value: 0x00001234
+     * ```
+     *
+     * @param value Value to shift
+     * @param bytes Number of byte positions to shift (0 to bitWidth/8 - 1)
+     * @return [ShiftResult] with shifted value
+     *
+     * ## Complexity
+     * - NATIVE: O(1) - single shift operation
+     * - ARITHMETIC: O(bytes) - iterative byte-by-byte shifting
+     */
+    fun byteShiftRight(value: Long, bytes: Int): ShiftResult {
+        if (bytes < 0 || bytes >= bitWidth / 8) {
+            return ShiftResult(0L, 0L, false)
+        }
+        if (bytes == 0) {
+            return ShiftResult(normalize(value), 0L, false)
+        }
+        
+        val bitShift = bytes * 8
+        return unsignedRightShift(value, bitShift)
+    }
 }
