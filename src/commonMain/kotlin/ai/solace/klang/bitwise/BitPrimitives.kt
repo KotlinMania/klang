@@ -1,6 +1,12 @@
 package ai.solace.klang.bitwise
 
 /**
+ * @native-bitshift-allowed This is a core BitShift implementation file.
+ * Native bitwise operations (shl, shr, ushr, and, or) are permitted here
+ * as this file provides the foundation for the BitShift engine.
+ */
+
+/**
  * Low-level helpers that mirror common C bit-manipulation intrinsics. These
  * operations are written once here so ports can rely on a single, consistent
  * implementation rather than sprinkling ad-hoc shifts throughout the codebase.

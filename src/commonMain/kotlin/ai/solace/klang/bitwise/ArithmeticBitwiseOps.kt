@@ -5,6 +5,10 @@ import ai.solace.klang.common.ZlibLogger
 
 /**
  * ArithmeticBitwiseOps: Pure arithmetic bitwise operations for cross-platform determinism.
+ * 
+ * @native-bitshift-allowed This is a core BitShift implementation file.
+ * Native bitwise operations (shl, shr, ushr, and, or) are permitted here
+ * as this file provides the foundation for the BitShift engine.
  *
  * Provides arithmetic-only implementations of bitwise operations (AND, OR, XOR, shifts)
  * that work identically across all Kotlin platforms without using native bitwise operators.

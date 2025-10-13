@@ -16,6 +16,10 @@ package ai.solace.klang.bitwise
  * differs from Kotlin's native `ushr` operator.
  *
  * This class now integrates with BitShiftEngine for configurable operation modes.
+ * 
+ * @native-bitshift-allowed This is a core BitShift implementation file.
+ * Native bitwise operations (shl, shr, ushr, and, or) are permitted here
+ * as this file provides the foundation for the BitShift engine.
  */
 object BitwiseOps {
         // Default engines use global mode

@@ -2,6 +2,12 @@
 package ai.solace.klang.bitwise
 
 /**
+ * @native-bitshift-allowed This is a core BitShift implementation file.
+ * Native bitwise operations (shl, shr, ushr, and, or) are permitted here
+ * as this file provides the foundation for the BitShift engine.
+ */
+
+/**
  * BitShiftMode: Strategy for performing bit shift operations.
  *
  * Determines whether shifts use native Kotlin operations or pure arithmetic
@@ -348,9 +354,12 @@ class BitShiftEngine(
             }
 
             BitShiftMode.ARITHMETIC -> {
+                // Note: ARITHMETIC mode only supports bitWidth ≤ 32.
                 if (arithmeticOps == null) {
-                    // Fallback to native for 64-bit
-                    return this.withMode(BitShiftMode.NATIVE).leftShift(value, bits)
+                    throw IllegalStateException(
+                        "ARITHMETIC mode is not supported for bitWidth > 32. " +
+                        "Current bitWidth: $bitWidth. Use NATIVE mode instead."
+                    )
                 }
 
                 val originalValue = normalize(value)
@@ -425,8 +434,12 @@ class BitShiftEngine(
             }
 
             BitShiftMode.ARITHMETIC -> {
+                // Note: ARITHMETIC mode only supports bitWidth ≤ 32.
                 if (arithmeticOps == null) {
-                    return this.withMode(BitShiftMode.NATIVE).rightShift(value, bits)
+                    throw IllegalStateException(
+                        "ARITHMETIC mode is not supported for bitWidth > 32. " +
+                        "Current bitWidth: $bitWidth. Use NATIVE mode instead."
+                    )
                 }
 
                 val result = arithmeticOps.rightShift(normalize(value), bits)
@@ -488,8 +501,12 @@ class BitShiftEngine(
             }
 
             BitShiftMode.ARITHMETIC -> {
+                // Note: ARITHMETIC mode only supports bitWidth ≤ 32.
                 if (arithmeticOps == null) {
-                    return this.withMode(BitShiftMode.NATIVE).unsignedRightShift(value, bits)
+                    throw IllegalStateException(
+                        "ARITHMETIC mode is not supported for bitWidth > 32. " +
+                        "Current bitWidth: $bitWidth. Use NATIVE mode instead."
+                    )
                 }
 
                 val result = arithmeticOps.rightShift(normalize(value), bits)
@@ -617,7 +634,115 @@ class BitShiftEngine(
             return maxValue
         }
         
-        return arithmeticOps.createMask(bits)
+        return if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
+            arithmeticOps.createMask(bits)
+        } else {
+            // Native mode - direct computation
+            (1L shl bits) - 1L
+        }
+    }
+    
+    /**
+     * Performs bitwise AND operation on two values according to the configured mode.
+     *
+     * **ARITHMETIC mode**: Uses [ArithmeticBitwiseOps.and] for deterministic behavior
+     * **NATIVE mode**: Uses Kotlin's native `and` operator
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.ARITHMETIC, 16)
+     * val masked = engine.bitwiseAnd(0xFF, 0x0F)  // 0x0F
+     * ```
+     *
+     * @param value1 First value
+     * @param value2 Second value
+     * @return Result of value1 AND value2
+     * @see ArithmeticBitwiseOps.and
+     * @since 0.1.0
+     */
+    fun bitwiseAnd(value1: Long, value2: Long): Long {
+        return if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
+            arithmeticOps.and(value1, value2)
+        } else {
+            value1 and value2
+        }
+    }
+    
+    /**
+     * Performs bitwise OR operation on two values according to the configured mode.
+     *
+     * **ARITHMETIC mode**: Uses [ArithmeticBitwiseOps.or] for deterministic behavior
+     * **NATIVE mode**: Uses Kotlin's native `or` operator
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.ARITHMETIC, 16)
+     * val combined = engine.bitwiseOr(0xF0, 0x0F)  // 0xFF
+     * ```
+     *
+     * @param value1 First value
+     * @param value2 Second value
+     * @return Result of value1 OR value2
+     * @see ArithmeticBitwiseOps.or
+     * @since 0.1.0
+     */
+    fun bitwiseOr(value1: Long, value2: Long): Long {
+        return if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
+            arithmeticOps.or(value1, value2)
+        } else {
+            value1 or value2
+        }
+    }
+    
+    /**
+     * Performs bitwise XOR operation on two values according to the configured mode.
+     *
+     * **ARITHMETIC mode**: Uses [ArithmeticBitwiseOps.xor] for deterministic behavior
+     * **NATIVE mode**: Uses Kotlin's native `xor` operator
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.ARITHMETIC, 16)
+     * val flipped = engine.bitwiseXor(0xFF, 0x0F)  // 0xF0
+     * ```
+     *
+     * @param value1 First value
+     * @param value2 Second value
+     * @return Result of value1 XOR value2
+     * @see ArithmeticBitwiseOps.xor
+     * @since 0.1.0
+     */
+    fun bitwiseXor(value1: Long, value2: Long): Long {
+        return if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
+            arithmeticOps.xor(value1, value2)
+        } else {
+            value1 xor value2
+        }
+    }
+    
+    /**
+     * Performs bitwise NOT operation on a value according to the configured mode.
+     *
+     * **ARITHMETIC mode**: Uses [ArithmeticBitwiseOps.not] for deterministic behavior
+     * **NATIVE mode**: Uses Kotlin's native `inv` operator with masking
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.ARITHMETIC, 8)
+     * val inverted = engine.bitwiseNot(0x0F)  // 0xF0 (within 8 bits)
+     * ```
+     *
+     * @param value Value to invert
+     * @return Result of NOT value
+     * @see ArithmeticBitwiseOps.not
+     * @since 0.1.0
+     */
+    fun bitwiseNot(value: Long): Long {
+        return if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
+            arithmeticOps.not(value)
+        } else {
+            value.inv() and maxValue
+        }
     }
     
     /**
@@ -657,7 +782,10 @@ class BitShiftEngine(
     fun composeBytes(lowByte: Long, highByte: Long): Long {
         // Use 16-bit shifter for the composition
         val shifter16 = BitShiftEngine(mode, 16)
-        return (lowByte and 0xFFL) or shifter16.leftShift(highByte and 0xFFL, 8).value
+        val lowMasked = shifter16.bitwiseAnd(lowByte, 0xFFL)
+        val highMasked = shifter16.bitwiseAnd(highByte, 0xFFL)
+        val highShifted = shifter16.leftShift(highMasked, 8).value
+        return shifter16.bitwiseOr(lowMasked, highShifted)
     }
     
     /**
@@ -679,7 +807,7 @@ class BitShiftEngine(
     fun decomposeBytes(value: Int): Pair<Byte, Byte> {
         // Use 16-bit shifter for the decomposition
         val shifter16 = BitShiftEngine(mode, 16)
-        val lowByte = (value and 0xFF).toByte()
+        val lowByte = shifter16.bitwiseAnd(value.toLong(), 0xFF).toByte()
         val highByte = shifter16.unsignedRightShift(value.toLong(), 8).value.toByte()
         return Pair(lowByte, highByte)
     }

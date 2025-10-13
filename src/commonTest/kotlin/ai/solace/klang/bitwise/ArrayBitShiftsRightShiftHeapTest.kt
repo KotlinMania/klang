@@ -18,7 +18,8 @@ class ArrayBitShiftsRightShiftHeapTest {
     @Test
     fun rsh16HeapMatchesIntArrayRandomized() {
         val rnd = Random(0xC0FFEE)
-        val eng8 = BitShiftEngine(BitShiftMode.ARITHMETIC, 8)
+        val eng16 = BitShiftEngine(BitShiftMode.ARITHMETIC, 16)
+        val arith16 = ArithmeticBitwiseOps(16)
         
         repeat(10) {
             val len = 16 + rnd.nextInt(16)
@@ -29,7 +30,7 @@ class ArrayBitShiftsRightShiftHeapTest {
             for (i in 0 until len) {
                 val v = a[i]
                 GlobalHeap.sb(base + i * 2, (v and 0xFF).toByte())
-                val highByte = eng8.byteShiftRight(v.toLong(), 1)
+                val highByte = eng16.byteShiftRight(v.toLong(), 1)
                 GlobalHeap.sb(base + i * 2 + 1, (highByte.value.toInt() and 0xFF).toByte())
             }
             
@@ -42,8 +43,8 @@ class ArrayBitShiftsRightShiftHeapTest {
             for (i in 0 until len) {
                 val low = GlobalHeap.lbu(base + i * 2)
                 val high = GlobalHeap.lbu(base + i * 2 + 1)
-                val composed = eng8.byteShiftLeft(high.toLong(), 1)
-                val v = (low or composed.value.toInt()) and 0xFFFF
+                val composed = eng16.byteShiftLeft(high.toLong(), 1)
+                val v = arith16.and(arith16.or(low.toLong(), composed.value), 0xFFFF).toInt()
                 assertEquals(a[i] and 0xFFFF, v, "Value mismatch at iteration $it, index $i")
             }
         }

@@ -1,6 +1,12 @@
 package ai.solace.klang.bitwise
 
 /**
+ * @native-bitshift-allowed This is a core BitShift implementation file.
+ * Native bitwise operations (shl, shr, ushr, and, or) are permitted here
+ * as this file provides the foundation for the BitShift engine.
+ */
+
+/**
  * PackOps: Compact packing and unpacking utilities for sub-byte data structures.
  *
  * Provides efficient bit-level operations for packing multiple small values into bytes,

@@ -7,8 +7,12 @@ import kotlinx.coroutines.launch
 
 /**
  * Array-wide bit shifts for limb arrays (little-endian) with optional sticky tracking.
- * These are scalar fallbacks designed to be allocation-free and branch-light.
+ * These are scalar implementations designed to be allocation-free and branch-light.
  * Future: provide platform-optimized actuals (JVM Vector API / Kotlin/Native Vector128).
+ * 
+ * @native-bitshift-allowed This is a core BitShift implementation file.
+ * Native bitwise operations (shl, shr, ushr, and, or) are permitted here
+ * as this file provides the foundation for the BitShift engine.
  */
 object ArrayBitShifts {
     data class ShiftResult(val carryOut: Int, val sticky: Boolean)

@@ -1,6 +1,12 @@
 package ai.solace.klang.bitwise
 
 /**
+ * @native-bitshift-allowed This is a core BitShift implementation file.
+ * Native bitwise operations (shl, shr, ushr, and, or) are permitted here
+ * as this file provides the foundation for the BitShift engine.
+ */
+
+/**
  * ShiftTables16: Precomputed lookup tables for 16-bit limb shift operations.
  *
  * Provides constant-time access to frequently used shift-related values, eliminating

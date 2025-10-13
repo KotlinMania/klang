@@ -6,7 +6,7 @@ import kotlin.math.abs
 /**
  * Float128Math - placeholder quad-precision support built on top of the limb-based SWAR engine.
  *
- * NOTE: arithmetic operators are currently implemented via double fallbacks while the
+ * NOTE: arithmetic operators are currently implemented via double conversions while the
  * limb-based mantissa math is being rebuilt. The bit-level conversions mirror the previous
  * implementation so that constants round-trip through the limb representation.
  */
@@ -82,7 +82,7 @@ object Float128Math {
         }
     }
 
-    // Arithmetic (temporary double fallbacks) --------------------------------------------------
+    // Arithmetic (temporary double conversions) ------------------------------------------------
 
     fun addBits(a: HeapUInt128, b: HeapUInt128): HeapUInt128 {
         if (isNaN(a) || isNaN(b)) return NAN_BITS

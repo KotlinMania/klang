@@ -16,7 +16,7 @@ object Float32Math {
     private const val TYPE_WIDTH = 24 + 3 // 24 significand bits plus R/G/S
 
     private const val CANONICAL_NAN = 0x7FC00000.toInt()
-    private val SHIFT64 = BitShiftEngine(BitShiftMode.ARITHMETIC, 64)
+    private val SHIFT64 = BitShiftEngine(BitShiftMode.NATIVE, 64)
 
     fun mul(a: Float, b: Float): Float = Float.fromBits(mulBits(a.toRawBits(), b.toRawBits()))
 
