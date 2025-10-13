@@ -518,6 +518,109 @@ class BitShiftEngine(
         }
 
     /**
+     * Perform bitwise AND operation.
+     *
+     * Uses ArithmeticBitwiseOps for ARITHMETIC mode when available (≤32 bits),
+     * or native Kotlin `and` operator otherwise.
+     *
+     * @param a First value
+     * @param b Second value
+     * @return a AND b, masked to bit width
+     */
+    fun bitwiseAnd(a: Long, b: Long): Long {
+        val result = if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
+            arithmeticOps.and(a, b)
+        } else {
+            a and b
+        }
+        return normalize(result)
+    }
+
+    /**
+     * Perform bitwise OR operation.
+     *
+     * Uses ArithmeticBitwiseOps for ARITHMETIC mode when available (≤32 bits),
+     * or native Kotlin `or` operator otherwise.
+     *
+     * @param a First value
+     * @param b Second value
+     * @return a OR b, masked to bit width
+     */
+    fun bitwiseOr(a: Long, b: Long): Long {
+        val result = if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
+            arithmeticOps.or(a, b)
+        } else {
+            a or b
+        }
+        return normalize(result)
+    }
+
+    /**
+     * Perform bitwise XOR operation.
+     *
+     * Uses ArithmeticBitwiseOps for ARITHMETIC mode when available (≤32 bits),
+     * or native Kotlin `xor` operator otherwise.
+     *
+     * @param a First value
+     * @param b Second value
+     * @return a XOR b, masked to bit width
+     */
+    fun bitwiseXor(a: Long, b: Long): Long {
+        val result = if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
+            arithmeticOps.xor(a, b)
+        } else {
+            a xor b
+        }
+        return normalize(result)
+    }
+
+    /**
+     * Perform bitwise NOT operation.
+     *
+     * Inverts all bits within the configured bit width.
+     * Uses ArithmeticBitwiseOps for ARITHMETIC mode when available (≤32 bits),
+     * or native Kotlin `inv` operator otherwise.
+     *
+     * @param value Value to invert
+     * @return NOT value, masked to bit width
+     */
+    fun bitwiseNot(value: Long): Long {
+        val result = if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
+            arithmeticOps.not(value)
+        } else {
+            value.inv()
+        }
+        return normalize(result)
+    }
+
+    /**
+     * Generate a mask for a specific number of bits.
+     *
+     * Creates a bit mask with the specified number of low bits set to 1.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
+     * engine.getMask(8) // 0xFF
+     * engine.getMask(16) // 0xFFFF
+     * ```
+     *
+     * @param bits Number of bits (1 to bitWidth)
+     * @return Mask with specified bits set
+     */
+    fun getMask(bits: Int): Long {
+        require(bits in 1..bitWidth) {
+            "Bits $bits out of range for bitWidth $bitWidth"
+        }
+        
+        if (bits == bitWidth) {
+            return maxValue
+        }
+        
+        return arithmeticOps.createMask(bits)
+    }
+    
+    /**
      * Create a copy with a different mode.
      *
      * @param newMode New shift strategy
@@ -658,5 +761,326 @@ class BitShiftEngine(
         
         val bitShift = bytes * 8
         return unsignedRightShift(value, bitShift)
+    }
+    
+    // ============================================================================
+    // Helper Functions for Common Operations
+    // ============================================================================
+    
+    /**
+     * Extract a specific byte from a value.
+     *
+     * Returns the byte at the given index (0 = LSB, bitWidth/8 - 1 = MSB).
+     * Result is zero-extended to Long for easier manipulation.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
+     * val value = 0x12345678L
+     * 
+     * engine.extractByte(value, 0) // 0x78
+     * engine.extractByte(value, 1) // 0x56
+     * engine.extractByte(value, 2) // 0x34
+     * engine.extractByte(value, 3) // 0x12
+     * ```
+     *
+     * @param value Source value
+     * @param byteIndex Byte position (0 to bitWidth/8 - 1)
+     * @return Byte value as Long (0x00 to 0xFF)
+     */
+    fun extractByte(value: Long, byteIndex: Int): Long {
+        require(byteIndex >= 0 && byteIndex < bitWidth / 8) {
+            "Byte index $byteIndex out of range for bitWidth $bitWidth"
+        }
+        
+        val shifted = byteShiftRight(value, byteIndex).value
+        return bitwiseAnd(shifted, 0xFFL)
+    }
+    
+    /**
+     * Replace a specific byte in a value.
+     *
+     * Sets the byte at the given index while preserving other bytes.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
+     * val original = 0x12345678L
+     * 
+     * engine.replaceByte(original, 1, 0xAB) // 0x1234AB78
+     * ```
+     *
+     * @param value Original value
+     * @param byteIndex Byte position to replace (0 to bitWidth/8 - 1)
+     * @param newByte New byte value (only lowest 8 bits used)
+     * @return Modified value
+     */
+    fun replaceByte(value: Long, byteIndex: Int, newByte: Long): Long {
+        require(byteIndex >= 0 && byteIndex < bitWidth / 8) {
+            "Byte index $byteIndex out of range for bitWidth $bitWidth"
+        }
+        
+        // Mask for the byte position
+        val byteMask = byteShiftLeft(0xFFL, byteIndex).value
+        val invertedMask = bitwiseNot(byteMask)
+        
+        // Clear the target byte
+        val cleared = bitwiseAnd(value, invertedMask)
+        
+        // Insert the new byte
+        val maskedNewByte = bitwiseAnd(newByte, 0xFFL)
+        val positioned = byteShiftLeft(maskedNewByte, byteIndex).value
+        
+        return bitwiseOr(cleared, positioned)
+    }
+    
+    /**
+     * Check if a specific bit is set.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 8)
+     * engine.isBitSet(0b10101010, 1) // true
+     * engine.isBitSet(0b10101010, 0) // false
+     * ```
+     *
+     * @param value Value to test
+     * @param bitIndex Bit position (0 to bitWidth - 1)
+     * @return true if bit is set (1), false if clear (0)
+     */
+    fun isBitSet(value: Long, bitIndex: Int): Boolean {
+        require(bitIndex >= 0 && bitIndex < bitWidth) {
+            "Bit index $bitIndex out of range for bitWidth $bitWidth"
+        }
+        
+        val mask = leftShift(1L, bitIndex).value
+        return bitwiseAnd(value, mask) != 0L
+    }
+    
+    /**
+     * Set a specific bit to 1.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 8)
+     * engine.setBit(0b00000000, 3) // 0b00001000
+     * ```
+     *
+     * @param value Original value
+     * @param bitIndex Bit position to set (0 to bitWidth - 1)
+     * @return Modified value with bit set
+     */
+    fun setBit(value: Long, bitIndex: Int): Long {
+        require(bitIndex >= 0 && bitIndex < bitWidth) {
+            "Bit index $bitIndex out of range for bitWidth $bitWidth"
+        }
+        
+        val mask = leftShift(1L, bitIndex).value
+        return bitwiseOr(value, mask)
+    }
+    
+    /**
+     * Clear a specific bit to 0.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 8)
+     * engine.clearBit(0b11111111, 3) // 0b11110111
+     * ```
+     *
+     * @param value Original value
+     * @param bitIndex Bit position to clear (0 to bitWidth - 1)
+     * @return Modified value with bit cleared
+     */
+    fun clearBit(value: Long, bitIndex: Int): Long {
+        require(bitIndex >= 0 && bitIndex < bitWidth) {
+            "Bit index $bitIndex out of range for bitWidth $bitWidth"
+        }
+        
+        val mask = leftShift(1L, bitIndex).value
+        val invertedMask = bitwiseNot(mask)
+        return bitwiseAnd(value, invertedMask)
+    }
+    
+    /**
+     * Toggle a specific bit (0→1, 1→0).
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 8)
+     * engine.toggleBit(0b10101010, 0) // 0b10101011
+     * engine.toggleBit(0b10101010, 1) // 0b10101000
+     * ```
+     *
+     * @param value Original value
+     * @param bitIndex Bit position to toggle (0 to bitWidth - 1)
+     * @return Modified value with bit toggled
+     */
+    fun toggleBit(value: Long, bitIndex: Int): Long {
+        require(bitIndex >= 0 && bitIndex < bitWidth) {
+            "Bit index $bitIndex out of range for bitWidth $bitWidth"
+        }
+        
+        val mask = leftShift(1L, bitIndex).value
+        return bitwiseXor(value, mask)
+    }
+    
+    /**
+     * Count the number of set bits (population count / Hamming weight).
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 8)
+     * engine.popCount(0b10101010) // 4
+     * engine.popCount(0b11111111) // 8
+     * engine.popCount(0b00000000) // 0
+     * ```
+     *
+     * @param value Value to count
+     * @return Number of bits set to 1
+     */
+    fun popCount(value: Long): Int {
+        var count = 0
+        var v = normalize(value)
+        
+        for (i in 0 until bitWidth) {
+            if (isBitSet(v, i)) {
+                count++
+            }
+        }
+        
+        return count
+    }
+    
+    /**
+     * Sign-extend a value from a smaller bit width.
+     *
+     * Takes a value with `sourceBits` width and extends it to the engine's bitWidth,
+     * preserving the sign bit.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
+     * 
+     * // Sign-extend an 8-bit value
+     * engine.signExtend(0xFF, 8) // 0xFFFFFFFF (negative)
+     * engine.signExtend(0x7F, 8) // 0x0000007F (positive)
+     * ```
+     *
+     * @param value Value to extend
+     * @param sourceBits Original bit width of the value
+     * @return Sign-extended value
+     */
+    fun signExtend(value: Long, sourceBits: Int): Long {
+        require(sourceBits > 0 && sourceBits <= bitWidth) {
+            "Source bits $sourceBits must be in range 1..$bitWidth"
+        }
+        
+        if (sourceBits == bitWidth) {
+            return normalize(value)
+        }
+        
+        // Check sign bit
+        val signBitPos = sourceBits - 1
+        val isNegative = isBitSet(value, signBitPos)
+        
+        if (!isNegative) {
+            // Positive: just mask to source width
+            val mask = getMask(sourceBits)
+            return bitwiseAnd(value, mask)
+        } else {
+            // Negative: set all upper bits
+            val mask = getMask(sourceBits)
+            val masked = bitwiseAnd(value, mask)
+            val upperMask = bitwiseNot(mask)
+            return bitwiseOr(masked, upperMask)
+        }
+    }
+    
+    /**
+     * Zero-extend a value from a smaller bit width.
+     *
+     * Takes a value with `sourceBits` width and extends it to the engine's bitWidth,
+     * filling upper bits with zeros.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
+     * 
+     * // Zero-extend an 8-bit value
+     * engine.zeroExtend(0xFF, 8) // 0x000000FF
+     * engine.zeroExtend(0x7F, 8) // 0x0000007F
+     * ```
+     *
+     * @param value Value to extend
+     * @param sourceBits Original bit width of the value
+     * @return Zero-extended value
+     */
+    fun zeroExtend(value: Long, sourceBits: Int): Long {
+        require(sourceBits > 0 && sourceBits <= bitWidth) {
+            "Source bits $sourceBits must be in range 1..$bitWidth"
+        }
+        
+        val mask = getMask(sourceBits)
+        return bitwiseAnd(value, mask)
+    }
+    
+    /**
+     * Compose multiple bytes into a larger value (little-endian).
+     *
+     * Combines bytes from LSB to MSB.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
+     * 
+     * // Compose 4 bytes into a 32-bit value
+     * val bytes = longArrayOf(0x78, 0x56, 0x34, 0x12)
+     * engine.composeBytes(bytes) // 0x12345678
+     * ```
+     *
+     * @param bytes Array of byte values (LSB first)
+     * @return Composed value
+     */
+    fun composeBytes(bytes: LongArray): Long {
+        require(bytes.size <= bitWidth / 8) {
+            "Too many bytes (${bytes.size}) for bitWidth $bitWidth"
+        }
+        
+        var result = 0L
+        for (i in bytes.indices) {
+            val byte = bitwiseAnd(bytes[i], 0xFFL)
+            val shifted = byteShiftLeft(byte, i).value
+            result = bitwiseOr(result, shifted)
+        }
+        
+        return result
+    }
+    
+    /**
+     * Decompose a value into individual bytes (little-endian).
+     *
+     * Splits a value into bytes from LSB to MSB.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
+     * 
+     * val bytes = engine.decomposeBytes(0x12345678, 4)
+     * // bytes = [0x78, 0x56, 0x34, 0x12]
+     * ```
+     *
+     * @param value Value to decompose
+     * @param byteCount Number of bytes to extract
+     * @return Array of byte values (LSB first)
+     */
+    fun decomposeBytes(value: Long, byteCount: Int): LongArray {
+        require(byteCount > 0 && byteCount <= bitWidth / 8) {
+            "Byte count $byteCount out of range for bitWidth $bitWidth"
+        }
+        
+        return LongArray(byteCount) { i ->
+            extractByte(value, i)
+        }
     }
 }
