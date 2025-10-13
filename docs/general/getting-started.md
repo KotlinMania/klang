@@ -27,8 +27,8 @@ For detailed component documentation, see:
 
 ## Key Achievements
 
-✅ **198 tests** (100% pass rate on macOS ARM64)
-✅ **Zero-copy operations** across all major components
-✅ **Cross-platform determinism** (JS, Native)
-✅ **Production-ready** memory management
-✅ **IEEE-754 compliant** floating-point operations
+- **198 tests** (100% pass rate on macOS ARM64)
+- **Zero-copy operations** across all major components
+- **Cross-platform determinism** (JS, Native)
+- **Production-ready** memory management
+- **IEEE-754 compliant** floating-point operations

@@ -104,10 +104,10 @@ val fast = native.leftShift(value, 8)  // Fast, but requires validation
 - Zero-copy heap operations
 
 **Critical Rules**:
-- ❌ FORBIDDEN: Raw Kotlin bitwise operators outside BitShiftEngine
-- ❌ FORBIDDEN: Hard-coded masks (0xFF, 0xFFFF, etc.)
-- ✅ REQUIRED: All bitwise ops through BitShiftEngine
-- ✅ REQUIRED: Use getMask(bits) for bit-width-safe masking
+- FORBIDDEN: Raw Kotlin bitwise operators outside BitShiftEngine
+- FORBIDDEN: Hard-coded masks (0xFF, 0xFFFF, etc.)
+- REQUIRED: All bitwise ops through BitShiftEngine
+- REQUIRED: Use getMask(bits) for bit-width-safe masking
 
 ### 2. C-Compatible Type System
 
@@ -171,13 +171,13 @@ val value = GlobalHeap.lw(ptr)  // Load word from offset
 **Solution**: All types store data directly in the heap:
 
 ```kotlin
-// ❌ BAD: Copying to/from arrays
+// BAD: Copying to/from arrays
 val limbs = UIntArray(4)  // Allocates Kotlin array
 heap.copyTo(limbs)        // Copy from heap
 compute(limbs)            // Compute on array
 heap.copyFrom(limbs)      // Copy back to heap
 
-// ✅ GOOD: Direct heap operations
+// GOOD: Direct heap operations
 val ptr: Int = ...        // Heap offset
 compute(heap, ptr, 4)     // Operate directly on heap
 ```
@@ -191,60 +191,60 @@ compute(heap, ptr, 4)     // Operate directly on heap
 
 ### 1. Pure Kotlin Multiplatform
 
-✅ **DO**:
+**DO**:
 - Implement all C semantics in pure Kotlin
 - Write platform-agnostic code
 - Use `expect`/`actual` only for true platform differences
 
-❌ **DON'T**:
+**DON'T**:
 - Use cinterop or FFI
 - Depend on native libraries
 - Use JVM-specific features
 
 ### 2. Bit-Exact C Replication
 
-✅ **DO**:
+**DO**:
 - Match C behavior exactly, bit for bit
 - Test against C reference implementations
 - Use ARITHMETIC mode for initial ports
 
-❌ **DON'T**:
+**DON'T**:
 - Assume Kotlin operators match C
 - Use platform-specific optimizations before validation
 - Tolerate "close enough" results
 
 ### 3. Zero-Copy, In-Place Operations
 
-✅ **DO**:
+**DO**:
 - Operate directly on GlobalHeap
 - Use typed load/store operations
 - Pass heap offsets between functions
 
-❌ **DON'T**:
+**DON'T**:
 - Copy data to Kotlin arrays for processing
 - Create temporary allocations in hot paths
 - Store persistent data in Kotlin collections
 
 ### 4. Enforce Through Architecture
 
-✅ **DO**:
+**DO**:
 - Centralize bitwise operations in BitShiftEngine
 - Provide type-safe APIs that prevent misuse
 - Make incorrect code impossible to write
 
-❌ **DON'T**:
+**DON'T**:
 - Trust developers to follow guidelines
 - Allow raw operator access
 - Permit hard-coded masks
 
 ### 5. Document Everything
 
-✅ **DO**:
+**DO**:
 - Write comprehensive KDoc for all public APIs
 - Explain why each design decision was made
 - Provide examples of correct usage
 
-❌ **DON'T**:
+**DON'T**:
 - Assume intent is obvious
 - Leave edge cases undocumented
 - Skip rationale for constraints
@@ -346,7 +346,7 @@ Test boundary conditions:
 
 ## Common Pitfalls
 
-### ❌ Using Raw Bitwise Operators
+### Using Raw Bitwise Operators
 
 ```kotlin
 // WRONG - Platform-specific behavior
@@ -359,7 +359,7 @@ val engine = BitShiftEngine(BitShiftMode.ARITHMETIC, 32)
 val result = engine.leftShift(value, 8).value
 ```
 
-### ❌ Hard-Coded Masks
+### Hard-Coded Masks
 
 ```kotlin
 // WRONG - Only works for 8-bit values
@@ -372,7 +372,7 @@ val engine = BitShiftEngine(BitShiftMode.ARITHMETIC, bitWidth)
 val masked = engine.bitwiseAnd(value, engine.getMask(8))
 ```
 
-### ❌ Copying to/from Arrays
+### Copying to/from Arrays
 
 ```kotlin
 // WRONG - Inefficient copying
@@ -387,7 +387,7 @@ heap.copyFrom(array, offset, size)
 process(heap, offset, size)
 ```
 
-### ❌ Assuming Kotlin == C
+### Assuming Kotlin == C
 
 ```kotlin
 // WRONG - Kotlin rounds differently
@@ -403,14 +403,14 @@ val result = CFloat128.fma(a, b, CFloat128.multiply(c, d))
 
 A KLang implementation is successful when:
 
-1. ✅ Produces bit-identical results to C reference on all platforms
-2. ✅ No raw Kotlin bitwise operators outside BitShiftEngine
-3. ✅ No hard-coded masks anywhere in codebase
-4. ✅ All operations in-place on GlobalHeap
-5. ✅ 100% test coverage with dual-mode validation
-6. ✅ Comprehensive KDoc documentation
-7. ✅ Performance within 2-5× of C (ARITHMETIC mode)
-8. ✅ Performance within 1.2× of C (NATIVE mode, after validation)
+1. Produces bit-identical results to C reference on all platforms
+2. No raw Kotlin bitwise operators outside BitShiftEngine
+3. No hard-coded masks anywhere in codebase
+4. All operations in-place on GlobalHeap
+5. 100% test coverage with dual-mode validation
+6. Comprehensive KDoc documentation
+7. Performance within 2-5× of C (ARITHMETIC mode)
+8. Performance within 1.2× of C (NATIVE mode, after validation)
 
 ## Future Directions
 

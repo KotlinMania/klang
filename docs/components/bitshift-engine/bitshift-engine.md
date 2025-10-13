@@ -276,14 +276,14 @@ Klang exists to enable **exact C code porting to pure Kotlin multiplatform**. Th
 **Why?** Kotlin's operators have platform-specific behavior that breaks C algorithm ports. Even a single `shl` or `and 0xFF` can produce different results than C on different platforms, breaking cryptography, compression, and HPC code.
 
 ```kotlin
-// ❌ FORBIDDEN - Raw operators
+// FORBIDDEN - Raw operators
 val bad1 = value shl 8
 val bad2 = value shr 4
 val bad3 = value and 0xFF
 val bad4 = value or 0xF0
 val bad5 = value xor 0xAA
 
-// ✅ CORRECT - Use BitShiftEngine
+// CORRECT - Use BitShiftEngine
 val engine = BitShiftEngine(BitShiftMode.NATIVE, bitWidth)
 val good1 = engine.leftShift(value, 8).value
 val good2 = engine.rightShift(value, 4).value
@@ -299,12 +299,12 @@ val good5 = engine.bitwiseXor(value, 0xAA)
 **Why?** A mask like `0xFF` only works for 8-bit values. If applied to values of different bit widths, it produces incorrect results. C code often uses bit-width-aware masking, and hard-coded masks break that. Use `getMask(bits)` which generates the correct mask for any bit width.
 
 ```kotlin
-// ❌ FORBIDDEN - Hard-coded masks
+// FORBIDDEN - Hard-coded masks
 val bad1 = value and 0xFF
 val bad2 = value and 0xFFFF
 val bad3 = if ((value and 0x80) != 0L) ...
 
-// ✅ CORRECT - Use getMask
+// CORRECT - Use getMask
 val engine = BitShiftEngine(BitShiftMode.NATIVE, bitWidth)
 val good1 = engine.bitwiseAnd(value, engine.getMask(8))
 val good2 = engine.bitwiseAnd(value, engine.getMask(16))
@@ -348,13 +348,13 @@ val good3 = if (engine.isBitSet(value, 7)) ...
 4. **Choose appropriate bit width** - Don't use 64-bit for 8-bit data
 
 ```kotlin
-// ✅ Good - Reuse engine
+// Good - Reuse engine
 val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
 for (value in values) {
     process(engine.leftShift(value, 8).value)
 }
 
-// ❌ Bad - Create engine in loop
+// Bad - Create engine in loop
 for (value in values) {
     val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
     process(engine.leftShift(value, 8).value)
