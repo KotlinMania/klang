@@ -1,3 +1,7 @@
+package ai.solace.klang.internal
+
+import ai.solace.klang.internal.runtime.CPointer
+
 /**
  * C string extension functions for [CPointer]<[Byte]>.
  *

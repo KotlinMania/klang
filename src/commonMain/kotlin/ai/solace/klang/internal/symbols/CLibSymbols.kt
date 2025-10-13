@@ -1,3 +1,7 @@
+package ai.solace.klang.internal.symbols
+
+import ai.solace.klang.internal.runtime.CPointer
+
 /**
  * C standard library function symbols backed by [GlobalHeap].
  *

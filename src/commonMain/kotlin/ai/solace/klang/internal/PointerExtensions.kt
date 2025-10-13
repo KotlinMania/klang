@@ -1,3 +1,7 @@
+package ai.solace.klang.internal
+
+import ai.solace.klang.internal.runtime.CPointer
+
 /**
  * Typed pointer extensions for [CPointer].
  *

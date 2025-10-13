@@ -1,3 +1,5 @@
+package ai.solace.klang.internal.runtime
+
 /**
  * AbstractRuntime: C-compatible runtime environment for transpiled C code.
  *
