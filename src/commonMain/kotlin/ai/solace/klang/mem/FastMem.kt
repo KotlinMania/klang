@@ -1,5 +1,8 @@
 package ai.solace.klang.mem
 
+import ai.solace.klang.bitwise.BitShiftEngine
+import ai.solace.klang.bitwise.BitShiftMode
+
 /**
  * FastMem: High-performance word-at-a-time memory operations.
  *
@@ -32,6 +35,9 @@ package ai.solace.klang.mem
  * This is an internal object used by [GlobalHeap]. Applications should use the
  * higher-level GlobalHeap API rather than calling FastMem directly.
  *
+ * All bitwise operations use [BitShiftEngine] to ensure correct behavior across
+ * all platforms and to avoid Kotlin's type promotion issues.
+ *
  * @see GlobalHeap.memset
  * @see GlobalHeap.memcpy
  * @see GlobalHeap.memmove
@@ -39,43 +45,62 @@ package ai.solace.klang.mem
 internal object FastMem {
     private const val WORD_BYTES = 8
     private const val WORD_MASK = WORD_BYTES - 1
+    
+    // Use 64-bit shifter for word operations
+    private val shifter = BitShiftEngine(BitShiftMode.NATIVE, 64)
 
+    /**
+     * Replicate a byte value across all 8 bytes of a word.
+     * Uses BitShiftEngine for proper bit manipulation.
+     */
     private fun repeatByte(b: Int): Long {
-        val v = (b and 0xFF).toLong()
-        return v or (v shl 8) or (v shl 16) or (v shl 24) or (v shl 32) or (v shl 40) or (v shl 48) or (v shl 56)
+        return shifter.repeatByteToWord(b)
     }
 
+    /**
+     * Store a 64-bit word as 8 bytes in memory (little-endian).
+     * Uses BitShiftEngine for byte extraction.
+     */
     private fun storeWord(addr: Int, w: Long) {
-        var x = w
         for (i in 0 until WORD_BYTES) {
-            GlobalHeap.sb(addr + i, (x and 0xFF).toByte())
-            x = x ushr 8
+            val byte = shifter.extractByte(w, i)
+            GlobalHeap.sb(addr + i, byte.toByte())
         }
     }
 
+    /**
+     * Load 8 bytes from memory into a 64-bit word (little-endian).
+     * Uses BitShiftEngine for byte composition.
+     */
     private fun loadWord(addr: Int): Long {
-        var r = 0L
-        for (i in (WORD_BYTES - 1) downTo 0) {
-            r = (r shl 8) or GlobalHeap.lbu(addr + i).toLong()
+        val bytes = LongArray(WORD_BYTES) { i ->
+            shifter.bitwiseAnd(GlobalHeap.lbu(addr + i).toLong(), 0xFFL)
         }
-        return r
+        return shifter.composeBytes(bytes)
     }
 
     fun memset(addr: Int, value: Int, bytes: Int) {
         if (bytes <= 0) return
         var p = addr
         var n = bytes
+        val byteVal = shifter.bitwiseAnd(value.toLong(), 0xFFL).toInt()
+        
         // Align to word
-        while (n > 0 && (p and WORD_MASK) != 0) {
-            GlobalHeap.sb(p++, (value and 0xFF).toByte()); n--
+        while (n > 0 && shifter.bitwiseAnd(p.toLong(), WORD_MASK.toLong()) != 0L) {
+            GlobalHeap.sb(p++, byteVal.toByte())
+            n--
         }
         if (n >= WORD_BYTES) {
-            val w = repeatByte(value)
+            val w = repeatByte(byteVal)
             while (n >= WORD_BYTES) {
-                storeWord(p, w); p += WORD_BYTES; n -= WORD_BYTES
+                storeWord(p, w)
+                p += WORD_BYTES
+                n -= WORD_BYTES
             }
         }
-        while (n-- > 0) GlobalHeap.sb(p++, (value and 0xFF).toByte())
+        while (n-- > 0) {
+            GlobalHeap.sb(p++, byteVal.toByte())
+        }
     }
 
     /** memcpy: undefined behavior for overlap. */
@@ -85,17 +110,22 @@ internal object FastMem {
         var s = src
         var n = bytes
         // Align destination; copy bytes
-        while (n > 0 && (d and WORD_MASK) != 0) {
-            GlobalHeap.sb(d++, GlobalHeap.lb(s++)); n--
+        while (n > 0 && shifter.bitwiseAnd(d.toLong(), WORD_MASK.toLong()) != 0L) {
+            GlobalHeap.sb(d++, GlobalHeap.lb(s++))
+            n--
         }
         // Bulk words
         while (n >= WORD_BYTES) {
             val w = loadWord(s)
             storeWord(d, w)
-            d += WORD_BYTES; s += WORD_BYTES; n -= WORD_BYTES
+            d += WORD_BYTES
+            s += WORD_BYTES
+            n -= WORD_BYTES
         }
         // Tail
-        while (n-- > 0) GlobalHeap.sb(d++, GlobalHeap.lb(s++))
+        while (n-- > 0) {
+            GlobalHeap.sb(d++, GlobalHeap.lb(s++))
+        }
     }
 
     /** memmove: overlap-safe; chooses direction. */
@@ -107,16 +137,24 @@ internal object FastMem {
             var s = src + bytes
             var n = bytes
             // Align backward
-            while (n > 0 && (d and WORD_MASK) != 0) {
-                d--; s--; GlobalHeap.sb(d, GlobalHeap.lb(s)); n--
+            while (n > 0 && shifter.bitwiseAnd(d.toLong(), WORD_MASK.toLong()) != 0L) {
+                d--
+                s--
+                GlobalHeap.sb(d, GlobalHeap.lb(s))
+                n--
             }
             while (n >= WORD_BYTES) {
-                d -= WORD_BYTES; s -= WORD_BYTES
+                d -= WORD_BYTES
+                s -= WORD_BYTES
                 val w = loadWord(s)
                 storeWord(d, w)
                 n -= WORD_BYTES
             }
-            while (n-- > 0) { d--; s--; GlobalHeap.sb(d, GlobalHeap.lb(s)) }
+            while (n-- > 0) {
+                d--
+                s--
+                GlobalHeap.sb(d, GlobalHeap.lb(s))
+            }
         } else {
             memcpy(dst, src, bytes)
         }

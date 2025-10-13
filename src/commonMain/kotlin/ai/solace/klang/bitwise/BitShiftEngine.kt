@@ -1114,6 +1114,77 @@ class BitShiftEngine(
     // ========================================================================
     
     /**
+     * Replicate a byte value across all bytes in a word.
+     *
+     * Takes a single byte and replicates it into all byte positions of a 64-bit word.
+     * This is essential for fast memory operations like memset that need to fill
+     * memory with a repeated byte pattern.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 64)
+     * val word = engine.repeatByteToWord(0x42)
+     * // word: 0x4242424242424242
+     * ```
+     *
+     * @param byteValue Byte value to replicate (0x00 to 0xFF)
+     * @return 64-bit word with byte replicated in all positions
+     * @since 0.1.0
+     */
+    fun repeatByteToWord(byteValue: Int): Long {
+        val byte = bitwiseAnd(byteValue.toLong(), 0xFFL)
+        var result = byte
+        result = bitwiseOr(result, byteShiftLeft(byte, 1).value)
+        result = bitwiseOr(result, byteShiftLeft(byte, 2).value)
+        result = bitwiseOr(result, byteShiftLeft(byte, 3).value)
+        result = bitwiseOr(result, byteShiftLeft(byte, 4).value)
+        result = bitwiseOr(result, byteShiftLeft(byte, 5).value)
+        result = bitwiseOr(result, byteShiftLeft(byte, 6).value)
+        result = bitwiseOr(result, byteShiftLeft(byte, 7).value)
+        return result
+    }
+    
+    /**
+     * Pack 8 bytes into a 64-bit word (little-endian).
+     *
+     * Composes a 64-bit word from 8 individual bytes, with byte 0 as LSB.
+     * This is a specialized version of composeBytes() optimized for 8-byte words
+     * used in fast memory operations.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 64)
+     * val word = engine.packBytesToWord(
+     *     0x78, 0x56, 0x34, 0x12, 0xF0, 0xDE, 0xBC, 0x9A
+     * )
+     * // word: 0x9ABCDEF012345678
+     * ```
+     *
+     * @param b0 Byte 0 (LSB)
+     * @param b1 Byte 1
+     * @param b2 Byte 2
+     * @param b3 Byte 3
+     * @param b4 Byte 4
+     * @param b5 Byte 5
+     * @param b6 Byte 6
+     * @param b7 Byte 7 (MSB)
+     * @return 64-bit word composed from bytes
+     * @since 0.1.0
+     */
+    fun packBytesToWord(b0: Long, b1: Long, b2: Long, b3: Long, 
+                        b4: Long, b5: Long, b6: Long, b7: Long): Long {
+        var result = bitwiseAnd(b0, 0xFFL)
+        result = bitwiseOr(result, byteShiftLeft(bitwiseAnd(b1, 0xFFL), 1).value)
+        result = bitwiseOr(result, byteShiftLeft(bitwiseAnd(b2, 0xFFL), 2).value)
+        result = bitwiseOr(result, byteShiftLeft(bitwiseAnd(b3, 0xFFL), 3).value)
+        result = bitwiseOr(result, byteShiftLeft(bitwiseAnd(b4, 0xFFL), 4).value)
+        result = bitwiseOr(result, byteShiftLeft(bitwiseAnd(b5, 0xFFL), 5).value)
+        result = bitwiseOr(result, byteShiftLeft(bitwiseAnd(b6, 0xFFL), 6).value)
+        result = bitwiseOr(result, byteShiftLeft(bitwiseAnd(b7, 0xFFL), 7).value)
+        return result
+    }
+
+    /**
      * Left shift a Byte value, returning a Byte result.
      *
      * Performs left shift and masks the result back to 8 bits, returning as Byte.

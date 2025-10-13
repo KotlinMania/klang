@@ -1,7 +1,12 @@
 package ai.solace.klang.mem
 
+import ai.solace.klang.bitwise.BitShiftEngine
+import ai.solace.klang.bitwise.BitShiftMode
+
 /** CString helpers on top of GlobalHeap (addresses are Int byte offsets). */
 object CString {
+    private val shifter = BitShiftEngine(BitShiftMode.NATIVE, 8)
+    
     fun strlenz(addr: Int): Int {
         var i = 0
         while (true) {
@@ -26,7 +31,8 @@ object CString {
     fun write(addr: Int, s: String): Int {
         var i = 0
         while (i < s.length) {
-            GlobalHeap.sb(addr + i, (s[i].code and 0xFF).toByte())
+            val masked = shifter.bitwiseAnd(s[i].code.toLong(), 0xFF)
+            GlobalHeap.sb(addr + i, masked.toByte())
             i++
         }
         GlobalHeap.sb(addr + i, 0)

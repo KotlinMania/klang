@@ -1,5 +1,8 @@
 package ai.solace.klang.mem
 
+import ai.solace.klang.bitwise.BitShiftEngine
+import ai.solace.klang.bitwise.BitShiftMode
+
 /**
  * GlobalHeap: A single, deterministic heap for all C-like memory operations.
  *
@@ -74,6 +77,12 @@ object GlobalHeap {
     
     /** Heap pointer: next free address. Simple bump allocator. */
     private var hp: Int = 0
+    
+    // BitShift engines for multi-byte operations
+    private val shifter8 = BitShiftEngine(BitShiftMode.NATIVE, 8)
+    private val shifter16 = BitShiftEngine(BitShiftMode.NATIVE, 16)
+    private val shifter32 = BitShiftEngine(BitShiftMode.NATIVE, 32)
+    private val shifter64 = BitShiftEngine(BitShiftMode.NATIVE, 64)
 
     /**
      * Total heap size in bytes.
@@ -212,7 +221,11 @@ object GlobalHeap {
     private fun ensure(minSize: Int) {
         if (minSize <= mem.size) return
         var newSize = mem.size.coerceAtLeast(1024)
-        while (newSize < minSize) newSize = newSize + (newSize ushr 1) // 1.5x growth
+        // 1.5x growth: newSize + (newSize / 2)
+        while (newSize < minSize) {
+            val half = shifter32.unsignedRightShift(newSize.toLong(), 1).value.toInt()
+            newSize = newSize + half
+        }
         val next = ByteArray(newSize)
         mem.copyInto(next, 0, 0, mem.size)
         mem = next
@@ -254,7 +267,10 @@ object GlobalHeap {
      * @return Unsigned byte value (0..255)
      * @throws IndexOutOfBoundsException if addr is invalid
      */
-    fun lbu(addr: Int): Int = lb(addr).toInt() and 0xFF
+    fun lbu(addr: Int): Int {
+        val byte = lb(addr).toInt()
+        return shifter8.bitwiseAnd(byte.toLong(), 0xFF).toInt()
+    }
 
     /**
      * Load half-word (16-bit signed short, little-endian).
@@ -266,7 +282,9 @@ object GlobalHeap {
     fun lh(addr: Int): Short {
         val b0 = lbu(addr)
         val b1 = lbu(addr + 1)
-        return ((b0) or (b1 shl 8)).toShort()
+        val shifted = shifter16.leftShift(b1.toLong(), 8)
+        val combined = shifter16.bitwiseOr(b0.toLong(), shifted.value)
+        return combined.toShort()
     }
     
     /**
@@ -277,9 +295,12 @@ object GlobalHeap {
      * @throws IndexOutOfBoundsException if addr or addr+1 is invalid
      */
     fun sh(addr: Int, value: Short) {
-        val v = value.toInt() and 0xFFFF
-        sb(addr + 0, (v and 0xFF).toByte())
-        sb(addr + 1, ((v ushr 8) and 0xFF).toByte())
+        val v = shifter16.bitwiseAnd(value.toLong(), 0xFFFF)
+        val byte0 = shifter16.bitwiseAnd(v, 0xFF)
+        val byte1Shifted = shifter16.unsignedRightShift(v, 8)
+        val byte1 = shifter16.bitwiseAnd(byte1Shifted.value, 0xFF)
+        sb(addr + 0, byte0.toByte())
+        sb(addr + 1, byte1.toByte())
     }
 
     /**
@@ -290,27 +311,27 @@ object GlobalHeap {
      * @throws IndexOutOfBoundsException if addr to addr+3 is invalid
      */
     fun lw(addr: Int): Int {
-        val b0 = lbu(addr)
-        val b1 = lbu(addr + 1)
-        val b2 = lbu(addr + 2)
-        val b3 = lbu(addr + 3)
-        return b0 or (b1 shl 8) or (b2 shl 16) or (b3 shl 24)
+        val bytes = LongArray(4) { i -> lbu(addr + i).toLong() }
+        return shifter32.composeBytes(bytes).toInt()
     }
+    
     fun sw(addr: Int, value: Int) {
-        sb(addr + 0, (value and 0xFF).toByte())
-        sb(addr + 1, ((value ushr 8) and 0xFF).toByte())
-        sb(addr + 2, ((value ushr 16) and 0xFF).toByte())
-        sb(addr + 3, ((value ushr 24) and 0xFF).toByte())
+        for (i in 0 until 4) {
+            val byte = shifter32.extractByte(value.toLong(), i)
+            sb(addr + i, byte.toByte())
+        }
     }
 
     fun ld(addr: Int): Long {
-        var r = 0L
-        for (i in 7 downTo 0) r = (r shl 8) or lbu(addr + i).toLong()
-        return r
+        val bytes = LongArray(8) { i -> lbu(addr + i).toLong() }
+        return shifter64.composeBytes(bytes)
     }
+    
     fun sd(addr: Int, value: Long) {
-        var v = value
-        for (i in 0 until 8) { sb(addr + i, (v and 0xFF).toByte()); v = v ushr 8 }
+        for (i in 0 until 8) {
+            val byte = shifter64.extractByte(value, i)
+            sb(addr + i, byte.toByte())
+        }
     }
 
     fun lwf(addr: Int): Float = Float.fromBits(lw(addr))

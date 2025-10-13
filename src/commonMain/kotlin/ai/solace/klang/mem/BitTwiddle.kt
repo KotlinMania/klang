@@ -1,5 +1,8 @@
 package ai.solace.klang.mem
 
+import ai.solace.klang.bitwise.BitShiftEngine
+import ai.solace.klang.bitwise.BitShiftMode
+
 /**
  * BitTwiddle: Bit-level manipulation operations on [GlobalHeap] memory.
  *
@@ -30,9 +33,17 @@ package ai.solace.klang.mem
  * These operations involve byte reads/writes for each bit access. For bulk bit
  * operations, consider working at the byte or word level when possible.
  *
+ * All bitwise operations use [BitShiftEngine] to ensure correct behavior across
+ * all platforms and to avoid Kotlin's type promotion issues.
+ *
  * @see GlobalHeap For underlying memory operations
  */
 object BitTwiddle {
+    // Use 8-bit shifter for byte-level bit operations
+    private val shifter8 = BitShiftEngine(BitShiftMode.NATIVE, 8)
+    // Use 64-bit shifter for multi-byte operations
+    private val shifter64 = BitShiftEngine(BitShiftMode.NATIVE, 64)
+    
     /**
      * Reads a single bit from memory.
      *
@@ -41,10 +52,11 @@ object BitTwiddle {
      * @return 0 or 1.
      */
     fun getBit(addr: Int, bitOffset: Int): Int {
-        val byteIndex = addr + (bitOffset ushr 3)
-        val bitInByte = bitOffset and 7
+        val byteIndex = addr + shifter64.unsignedRightShift(bitOffset.toLong(), 3).value.toInt()
+        val bitInByte = shifter64.bitwiseAnd(bitOffset.toLong(), 7).toInt()
         val b = GlobalHeap.lbu(byteIndex)
-        return (b ushr bitInByte) and 1
+        val shifted = shifter8.unsignedRightShift(b.toLong(), bitInByte).value
+        return shifter8.bitwiseAnd(shifted, 1).toInt()
     }
 
     /**
@@ -55,12 +67,17 @@ object BitTwiddle {
      * @param value 0 or 1 (other values are masked).
      */
     fun setBit(addr: Int, bitOffset: Int, value: Int) {
-        val byteIndex = addr + (bitOffset ushr 3)
-        val bitInByte = bitOffset and 7
+        val byteIndex = addr + shifter64.unsignedRightShift(bitOffset.toLong(), 3).value.toInt()
+        val bitInByte = shifter64.bitwiseAnd(bitOffset.toLong(), 7).toInt()
         val b = GlobalHeap.lbu(byteIndex)
-        val mask = 1 shl bitInByte
-        val newB = if ((value and 1) != 0) (b or mask) else (b and mask.inv())
-        GlobalHeap.sb(byteIndex, (newB and 0xFF).toByte())
+        val mask = shifter8.leftShift(1, bitInByte).value.toInt()
+        val maskedValue = shifter8.bitwiseAnd(value.toLong(), 1).toInt()
+        val newB = if (maskedValue != 0) {
+            shifter8.bitwiseOr(b.toLong(), mask.toLong()).toInt()
+        } else {
+            shifter8.bitwiseAnd(b.toLong(), shifter8.bitwiseNot(mask.toLong())).toInt()
+        }
+        GlobalHeap.sb(byteIndex, shifter8.bitwiseAnd(newB.toLong(), 0xFF).toByte())
     }
 
     /**
@@ -83,7 +100,10 @@ object BitTwiddle {
         var cursorBit = bitOffset
         while (bitsLeft > 0) {
             val v = getBit(addr, cursorBit)
-            if (v != 0) out = out or (1L shl shift)
+            if (v != 0) {
+                val bitValue = shifter64.leftShift(1, shift).value
+                out = shifter64.bitwiseOr(out, bitValue)
+            }
             shift++
             cursorBit++
             bitsLeft--
@@ -98,8 +118,9 @@ object BitTwiddle {
         var cursorBit = bitOffset
         var bitsLeft = bitCount
         while (bitsLeft > 0) {
-            setBit(addr, cursorBit, (v and 1L).toInt())
-            v = v ushr 1
+            val bit = shifter64.bitwiseAnd(v, 1L).toInt()
+            setBit(addr, cursorBit, bit)
+            v = shifter64.unsignedRightShift(v, 1).value
             cursorBit++
             bitsLeft--
         }

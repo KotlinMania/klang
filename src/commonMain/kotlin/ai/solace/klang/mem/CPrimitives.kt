@@ -1,5 +1,8 @@
 package ai.solace.klang.mem
 
+import ai.solace.klang.bitwise.BitShiftEngine
+import ai.solace.klang.bitwise.BitShiftMode
+
 /**
  * C primitive helpers used by the GlobalHeap model.
  * Pure Kotlin, multiplatform, no interop.
@@ -13,7 +16,10 @@ object CPlatform {
 @Suppress("NOTHING_TO_INLINE")
 value class CChar(val raw: Byte) {
     inline fun toIntSigned(): Int = raw.toInt()
-    inline fun toIntUnsigned(): Int = raw.toInt() and 0xFF
+    inline fun toIntUnsigned(): Int {
+        val shifter = BitShiftEngine(BitShiftMode.NATIVE, 8)
+        return shifter.bitwiseAnd(raw.toLong(), 0xFF).toInt()
+    }
 }
 
 @Suppress("NOTHING_TO_INLINE")

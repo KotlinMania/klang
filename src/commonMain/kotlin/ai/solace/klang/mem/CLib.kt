@@ -1,5 +1,8 @@
 package ai.solace.klang.mem
 
+import ai.solace.klang.bitwise.BitShiftEngine
+import ai.solace.klang.bitwise.BitShiftMode
+
 /**
  * CLib: Standard C library string and memory functions for [GlobalHeap].
  *
@@ -125,6 +128,9 @@ package ai.solace.klang.mem
  * @since 0.1.0
  */
 object CLib {
+    // Use 8-bit shifter for byte operations
+    private val shifter = BitShiftEngine(BitShiftMode.NATIVE, 8)
+    
     /**
      * Calculate length of null-terminated string.
      *
@@ -243,7 +249,7 @@ object CLib {
         var i = 0
         while (true) {
             val b = GlobalHeap.lbu(src + i)
-            GlobalHeap.sb(dst + i, (b and 0xFF).toByte())
+            GlobalHeap.sb(dst + i, shifter.bitwiseAnd(b.toLong(), 0xFF).toByte())
             if (b == 0) return dst
             i++
         }
@@ -282,7 +288,7 @@ object CLib {
         var i = 0
         while (i < n) {
             val b = GlobalHeap.lbu(src + i)
-            GlobalHeap.sb(dst + i, (b and 0xFF).toByte())
+            GlobalHeap.sb(dst + i, shifter.bitwiseAnd(b.toLong(), 0xFF).toByte())
             i++
             if (b == 0) {
                 // pad the rest with NULs
@@ -381,7 +387,7 @@ object CLib {
      * O(n) where n = strlen(addr)
      */
     fun strchr(addr: Int, c: Int): Int {
-        val needle = c and 0xFF
+        val needle = shifter.bitwiseAnd(c.toLong(), 0xFF).toInt()
         var i = 0
         while (true) {
             val b = GlobalHeap.lbu(addr + i)
