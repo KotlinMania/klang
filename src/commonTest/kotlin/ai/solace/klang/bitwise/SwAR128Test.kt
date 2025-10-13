@@ -1,260 +1,22 @@
 package ai.solace.klang.bitwise
 
+import ai.solace.klang.int.hpc.HeapUInt128
 import ai.solace.klang.mem.GlobalHeap
 import ai.solace.klang.mem.KMalloc
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+/**
+ * Tests for SwAR128 heap-based operations.
+ * 
+ * Note: Legacy array-based UInt128 operations have been removed.
+ * Use HeapUInt128 for zero-copy 128-bit arithmetic.
+ */
 class SwAR128Test {
     private fun setup() {
         GlobalHeap.init(1 shl 20)  // 1MB
         KMalloc.init(1 shl 18)      // 256KB
-    }
-    
-    @Test
-    fun zeroConstruction() {
-        setup()
-        
-        val zero = SwAR128.zero()
-        for (i in 0 until SwAR128.LIMB_COUNT) {
-            assertEquals(0, zero.limbs[i], "Zero limb $i should be 0")
-        }
-    }
-    
-    @Test
-    fun oneConstruction() {
-        setup()
-        
-        val one = SwAR128.one()
-        assertEquals(1, one.limbs[0], "One limb[0] should be 1")
-        for (i in 1 until SwAR128.LIMB_COUNT) {
-            assertEquals(0, one.limbs[i], "One limb[$i] should be 0")
-        }
-    }
-    
-    @Test
-    fun fromULong() {
-        setup()
-        
-        val value = SwAR128.fromULong(0x12345678u)
-        
-        // Low limb: 0x5678 = 22136
-        assertEquals(0x5678, value.limbs[0], "Low limb incorrect")
-        
-        // Next limb: 0x1234 = 4660
-        assertEquals(0x1234, value.limbs[1], "Second limb incorrect")
-        
-        // Rest should be zero
-        for (i in 2 until SwAR128.LIMB_COUNT) {
-            assertEquals(0, value.limbs[i], "Limb $i should be 0")
-        }
-    }
-    
-    @Test
-    fun fromBigEndianHex() {
-        setup()
-        
-        val value = SwAR128.fromBigEndianHex("0x123456789ABCDEF0")
-        
-        // Check reconstruction
-        val hex = SwAR128.toBigEndianHex(value)
-        assertEquals("123456789abcdef0", hex, "Hex round-trip failed")
-    }
-    
-    @Test
-    fun additionSimple() {
-        setup()
-        
-        val a = SwAR128.fromULong(100u)
-        val b = SwAR128.fromULong(200u)
-        
-        val result = SwAR128.add(a, b)
-        
-        assertEquals(0, result.carryOut, "No carry expected")
-        assertEquals(300, result.value.limbs[0], "Sum should be 300")
-    }
-    
-    @Test
-    fun additionWithCarry() {
-        setup()
-        
-        // Create max value (all limbs = 0xFFFF)
-        val limbs = IntArray(SwAR128.LIMB_COUNT) { 0xFFFF }
-        val max = SwAR128.UInt128(limbs)
-        val one = SwAR128.one()
-        
-        val result = SwAR128.add(max, one)
-        
-        assertEquals(1, result.carryOut, "Should have carry out")
-        
-        // Result should be all zeros (overflow)
-        for (i in 0 until SwAR128.LIMB_COUNT) {
-            assertEquals(0, result.value.limbs[i], "Overflow result limb[$i] should be 0")
-        }
-    }
-    
-    @Test
-    fun subtractionSimple() {
-        setup()
-        
-        val a = SwAR128.fromULong(300u)
-        val b = SwAR128.fromULong(100u)
-        
-        val result = SwAR128.sub(a, b)
-        
-        assertEquals(0, result.borrowOut, "No borrow expected")
-        assertEquals(200, result.value.limbs[0], "Difference should be 200")
-    }
-    
-    @Test
-    fun subtractionWithBorrow() {
-        setup()
-        
-        val a = SwAR128.fromULong(100u)
-        val b = SwAR128.fromULong(200u)
-        
-        val result = SwAR128.sub(a, b)
-        
-        assertEquals(1, result.borrowOut, "Should have borrow out")
-    }
-    
-    @Test
-    fun incrementOperation() {
-        setup()
-        
-        val value = SwAR128.fromULong(42u)
-        val result = SwAR128.increment(value)
-        
-        assertEquals(0, result.carryOut, "No carry expected")
-        assertEquals(43, result.value.limbs[0], "Incremented value should be 43")
-    }
-    
-    @Test
-    fun decrementOperation() {
-        setup()
-        
-        val value = SwAR128.fromULong(42u)
-        val result = SwAR128.decrement(value)
-        
-        assertEquals(0, result.borrowOut, "No borrow expected")
-        assertEquals(41, result.value.limbs[0], "Decremented value should be 41")
-    }
-    
-    @Test
-    fun comparisonEqual() {
-        setup()
-        
-        val a = SwAR128.fromULong(12345u)
-        val b = SwAR128.fromULong(12345u)
-        
-        val cmp = SwAR128.compareUnsigned(a, b)
-        assertEquals(0, cmp, "Equal values should compare as 0")
-    }
-    
-    @Test
-    fun comparisonLess() {
-        setup()
-        
-        val a = SwAR128.fromULong(100u)
-        val b = SwAR128.fromULong(200u)
-        
-        val cmp = SwAR128.compareUnsigned(a, b)
-        assertTrue(cmp < 0, "Smaller value should compare as negative")
-    }
-    
-    @Test
-    fun comparisonGreater() {
-        setup()
-        
-        val a = SwAR128.fromULong(200u)
-        val b = SwAR128.fromULong(100u)
-        
-        val cmp = SwAR128.compareUnsigned(a, b)
-        assertTrue(cmp > 0, "Larger value should compare as positive")
-    }
-    
-    @Test
-    fun shiftLeftSimple() {
-        setup()
-        
-        val value = SwAR128.fromULong(1u)
-        val result = SwAR128.shiftLeft(value, 8)
-        
-        // 1 << 8 = 256
-        assertEquals(0uL, result.spill, "No spill expected")
-        assertEquals(256, result.value.limbs[0], "Shifted value should be 256")
-    }
-    
-    @Test
-    fun shiftLeftAcrossLimbs() {
-        setup()
-        
-        val value = SwAR128.fromULong(1u)
-        val result = SwAR128.shiftLeft(value, 16)
-        
-        // 1 << 16 moves to next limb
-        // Note: Implementation may report spill=1, needs investigation
-        // assertEquals(0uL, result.spill, "No spill expected")
-        assertEquals(0, result.value.limbs[0], "Low limb should be 0")
-        assertEquals(1, result.value.limbs[1], "Second limb should be 1")
-    }
-    
-    @Test
-    fun shiftLeftWithSpill() {
-        setup()
-        
-        val value = SwAR128.fromULong(1u)
-        val result = SwAR128.shiftLeft(value, 128)
-        
-        // Shifting by 128 bits moves everything out
-        assertTrue(result.spill != 0uL, "Should have spill")
-        
-        // Result should be zero
-        for (i in 0 until SwAR128.LIMB_COUNT) {
-            assertEquals(0, result.value.limbs[i], "Shifted out limb[$i] should be 0")
-        }
-    }
-    
-    @Test
-    fun shiftRightSimple() {
-        setup()
-        
-        val value = SwAR128.fromULong(256u)
-        val result = SwAR128.shiftRight(value, 8)
-        
-        // 256 >> 8 = 1
-        assertEquals(0uL, result.spill, "No spill expected")
-        assertEquals(1, result.value.limbs[0], "Shifted value should be 1")
-    }
-    
-    @Test
-    fun shiftRightAcrossLimbs() {
-        setup()
-        
-        // Create value with second limb = 1
-        val limbs = IntArray(SwAR128.LIMB_COUNT)
-        limbs[1] = 1
-        val value = SwAR128.UInt128(limbs)
-        
-        val result = SwAR128.shiftRight(value, 16)
-        
-        // Should move to first limb
-        assertEquals(0uL, result.spill, "No spill expected")
-        assertEquals(1, result.value.limbs[0], "Low limb should be 1")
-        assertEquals(0, result.value.limbs[1], "Second limb should be 0")
-    }
-    
-    @Test
-    fun shiftRightWithSpill() {
-        setup()
-        
-        val value = SwAR128.fromULong(0xFFu)
-        val result = SwAR128.shiftRight(value, 4)
-        
-        // 0xFF >> 4 = 0xF, with 0xF spilled out
-        assertEquals(0x0F, result.value.limbs[0], "Shifted value should be 0x0F")
-        assertTrue(result.spill != 0uL, "Should have spill")
     }
     
     @Test
@@ -363,26 +125,61 @@ class SwAR128Test {
     }
     
     @Test
-    fun limbNormalization() {
+    fun heapZeroOperation() {
         setup()
         
-        // Test that negative limbs are normalized correctly
-        val limbs = intArrayOf(-1, 0, 0, 0, 0, 0, 0, 0)
-        val value = SwAR128.UInt128(limbs)
+        val addr = KMalloc.malloc(16)
         
-        // -1 should normalize to 0xFFFF
-        assertEquals(0xFFFF, value.limbs[0], "Negative limb should normalize")
+        // Write garbage
+        GlobalHeap.sw(addr, 0xDEADBEEF.toInt())
+        
+        // Zero it
+        SwAR128.zeroHeap(addr)
+        
+        // Verify all bytes are zero
+        for (i in 0 until 16) {
+            assertEquals(0, GlobalHeap.lbu(addr + i), "Byte $i should be zero")
+        }
+        
+        KMalloc.free(addr)
     }
     
     @Test
-    fun hexRoundTrip() {
+    fun heapWriteULongOperation() {
         setup()
         
-        val original = "fedcba9876543210"
-        val value = SwAR128.fromBigEndianHex(original)
-        val restored = SwAR128.toBigEndianHex(value)
+        val addr = KMalloc.malloc(16)
         
-        assertEquals(original, restored, "Hex round-trip failed")
+        // Write ULong value
+        SwAR128.writeULongToHeap(addr, 0x123456789ABCDEFuL)
+        
+        // Read back and verify
+        val low = GlobalHeap.lw(addr)
+        val high = GlobalHeap.lw(addr + 4)
+        
+        // Low 32 bits
+        assertEquals(0x89ABCDEF.toInt(), low, "Low word should match")
+        // Next 32 bits
+        assertEquals(0x01234567, high, "High word should match")
+        
+        KMalloc.free(addr)
+    }
+    
+    @Test
+    fun heapToBigEndianHex() {
+        setup()
+        
+        val addr = KMalloc.malloc(16)
+        
+        // Write specific pattern
+        SwAR128.writeULongToHeap(addr, 0xFEDCBA9876543210uL)
+        
+        // Convert to hex
+        val hex = SwAR128.toBigEndianHexHeap(addr)
+        
+        assertEquals("fedcba9876543210", hex, "Hex conversion failed")
+        
+        KMalloc.free(addr)
     }
     
     @Test

@@ -1,5 +1,8 @@
 package ai.solace.klang.int.hpc
 
+import ai.solace.klang.bitwise.ArithmeticBitwiseOps
+import ai.solace.klang.bitwise.BitShiftEngine
+import ai.solace.klang.bitwise.BitShiftMode
 import ai.solace.klang.bitwise.SwAR128
 import ai.solace.klang.mem.GlobalHeap
 import ai.solace.klang.mem.KMalloc
@@ -222,7 +225,7 @@ class HeapUInt128 private constructor(val addr: Int) : Comparable<HeapUInt128> {
      * println(x.toHexString())  // "0x000000000000000000000000000000FF"
      * ```
      */
-    fun toHexString(): String = SwAR128.toBigEndianHex(SwAR128.UInt128(toIntArray()))
+    fun toHexString(): String = SwAR128.toBigEndianHexHeap(addr)
     
     /**
      * String representation (delegates to [toHexString]).
@@ -255,8 +258,10 @@ class HeapUInt128 private constructor(val addr: Int) : Comparable<HeapUInt128> {
     override fun hashCode(): Int {
         var result = 1
         for (i in 0 until SwAR128.LIMB_COUNT) {
-            val limb = GlobalHeap.lbu(addr + i * 2) or (GlobalHeap.lbu(addr + i * 2 + 1) shl 8)
-            result = 31 * result + limb
+            val lowByte = GlobalHeap.lbu(addr + i * 2).toLong()
+            val highByte = GlobalHeap.lbu(addr + i * 2 + 1).toLong()
+            val limb = byteShifter.composeBytes(lowByte, highByte)
+            result = 31 * result + limb.toInt()
         }
         return result
     }
@@ -383,6 +388,9 @@ class HeapUInt128 private constructor(val addr: Int) : Comparable<HeapUInt128> {
     }
 
     companion object {
+        /** BitShiftEngine for 8-bit byte operations (reading limbs from heap). */
+        private val byteShifter = BitShiftEngine(BitShiftMode.NATIVE, 8)
+        
         /**
          * Allocate a new uninitialized HeapUInt128.
          *
@@ -461,7 +469,9 @@ class HeapUInt128 private constructor(val addr: Int) : Comparable<HeapUInt128> {
          * println(x.toHexString())  // "0x00000000000000000000AB54A98CEB1F0AD2"
          * ```
          */
-        fun fromULong(value: ULong): HeapUInt128 = fromIntArray(SwAR128.fromULong(value).limbs)
+        fun fromULong(value: ULong): HeapUInt128 = alloc().also {
+            SwAR128.writeULongToHeap(it.addr, value)
+        }
 
         /**
          * Internal compatibility helper for code migrated from LimbUInt128.
@@ -473,6 +483,9 @@ class HeapUInt128 private constructor(val addr: Int) : Comparable<HeapUInt128> {
     }
 }
 
+/** BitShiftEngine for module-level byte operations. */
+private val byteShifter = BitShiftEngine(BitShiftMode.NATIVE, 8)
+
 /**
  * Read 8 limbs from heap into IntArray (creates a copy).
  *
@@ -482,7 +495,9 @@ class HeapUInt128 private constructor(val addr: Int) : Comparable<HeapUInt128> {
  * @return 8-element IntArray containing the limbs
  */
 private fun readLimbs(addr: Int): IntArray = IntArray(SwAR128.LIMB_COUNT) { i ->
-    GlobalHeap.lbu(addr + i * 2) or (GlobalHeap.lbu(addr + i * 2 + 1) shl 8)
+    val lowByte = GlobalHeap.lbu(addr + i * 2).toLong()
+    val highByte = GlobalHeap.lbu(addr + i * 2 + 1).toLong()
+    byteShifter.composeBytes(lowByte, highByte).toInt()
 }
 
 /**
@@ -496,11 +511,13 @@ private fun readLimbs(addr: Int): IntArray = IntArray(SwAR128.LIMB_COUNT) { i ->
  */
 private fun writeLimbs(addr: Int, limbs: IntArray) {
     require(limbs.size == SwAR128.LIMB_COUNT)
+    val ops16 = ArithmeticBitwiseOps.BITS_16
     var base = addr
     for (i in 0 until SwAR128.LIMB_COUNT) {
-        val v = limbs[i] and 0xFFFF
-        GlobalHeap.sb(base, (v and 0xFF).toByte())
-        GlobalHeap.sb(base + 1, ((v ushr 8) and 0xFF).toByte())
+        val v = ops16.and(limbs[i].toLong(), 0xFFFFL).toInt()
+        val (lowByte, highByte) = byteShifter.decomposeBytes(v)
+        GlobalHeap.sb(base, lowByte)
+        GlobalHeap.sb(base + 1, highByte)
         base += 2
     }
 }

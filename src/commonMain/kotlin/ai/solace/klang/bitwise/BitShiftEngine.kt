@@ -532,4 +532,52 @@ class BitShiftEngine(
      * @return New BitShiftEngine with specified bit width
      */
     fun withBitWidth(newBitWidth: Int): BitShiftEngine = BitShiftEngine(mode, newBitWidth)
+    
+    /**
+     * Compose two bytes into a 16-bit value.
+     *
+     * Useful for multi-precision limb operations where limbs are stored as
+     * separate bytes in memory. Combines low and high bytes using bit shifting.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val lowByte = 0x34L
+     * val highByte = 0x12L
+     * val composed = BitShiftEngine.composeBytes(lowByte, highByte)
+     * // Result: 0x1234
+     * ```
+     *
+     * @param lowByte Low 8 bits (least significant byte)
+     * @param highByte High 8 bits (most significant byte)
+     * @return 16-bit composed value
+     */
+    fun composeBytes(lowByte: Long, highByte: Long): Long {
+        // Use 16-bit shifter for the composition
+        val shifter16 = BitShiftEngine(mode, 16)
+        return (lowByte and 0xFFL) or shifter16.leftShift(highByte and 0xFFL, 8).value
+    }
+    
+    /**
+     * Decompose a 16-bit value into two bytes.
+     *
+     * Useful for multi-precision limb operations where limbs must be stored as
+     * separate bytes in memory. Splits value into low and high bytes using bit shifting.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val value = 0x1234
+     * val (low, high) = BitShiftEngine.decomposeBytes(value)
+     * // low: 0x34, high: 0x12
+     * ```
+     *
+     * @param value 16-bit value to decompose
+     * @return Pair of (lowByte, highByte)
+     */
+    fun decomposeBytes(value: Int): Pair<Byte, Byte> {
+        // Use 16-bit shifter for the decomposition
+        val shifter16 = BitShiftEngine(mode, 16)
+        val lowByte = (value and 0xFF).toByte()
+        val highByte = shifter16.unsignedRightShift(value.toLong(), 8).value.toByte()
+        return Pair(lowByte, highByte)
+    }
 }
