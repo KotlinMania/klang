@@ -1,7 +1,5 @@
 package ai.solace.klang.fp
 
-import ai.solace.klang.bitwise.Float32Math
-
 /**
  * VectorOps: Deterministic floating-point vector operations.
  *

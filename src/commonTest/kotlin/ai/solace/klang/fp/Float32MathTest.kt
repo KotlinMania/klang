@@ -1,4 +1,4 @@
-package ai.solace.klang.bitwise
+package ai.solace.klang.fp
 
 import ai.solace.klang.mem.GlobalHeap
 import ai.solace.klang.mem.KMalloc

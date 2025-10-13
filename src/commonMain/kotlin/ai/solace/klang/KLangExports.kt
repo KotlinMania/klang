@@ -28,7 +28,7 @@ package ai.solace.klang
  * Import types directly from their respective packages:
  *
  * ```kotlin
- * import ai.solace.klang.bitwise.CFloat32
+ * import ai.solace.klang.fp.CFloat32
  * import ai.solace.klang.fp.CDouble
  * import ai.solace.klang.int.C_UInt128
  * import ai.solace.klang.mem.GlobalHeap

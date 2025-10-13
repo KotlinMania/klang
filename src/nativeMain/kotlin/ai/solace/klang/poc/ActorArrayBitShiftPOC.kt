@@ -3,7 +3,7 @@ package ai.solace.klang.poc
 import ai.solace.klang.bitwise.ArrayBitShifts
 import ai.solace.klang.bitwise.BitShiftConfig
 import ai.solace.klang.bitwise.BitShiftMode
-import ai.solace.klang.bitwise.SwAR128
+import ai.solace.klang.int.SwAR128
 import ai.solace.klang.mem.GlobalHeap
 import ai.solace.klang.mem.KMalloc
 import kotlinx.coroutines.CoroutineScope

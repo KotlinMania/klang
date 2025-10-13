@@ -1,5 +1,7 @@
-package ai.solace.klang.bitwise
+package ai.solace.klang.fp
 
+import ai.solace.klang.bitwise.BitShiftEngine
+import ai.solace.klang.bitwise.BitShiftMode
 import kotlin.math.abs
 import kotlin.math.floor
 

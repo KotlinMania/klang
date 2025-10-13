@@ -1,6 +1,5 @@
 package ai.solace.klang.fp
 
-import ai.solace.klang.bitwise.Float32Math
 import ai.solace.klang.bitwise.BitShiftEngine
 import ai.solace.klang.bitwise.BitShiftConfig
 

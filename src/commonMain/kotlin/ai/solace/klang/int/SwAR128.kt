@@ -1,4 +1,8 @@
-package ai.solace.klang.bitwise
+package ai.solace.klang.int
+
+import ai.solace.klang.bitwise.ArithmeticBitwiseOps
+import ai.solace.klang.bitwise.BitShiftEngine
+import ai.solace.klang.bitwise.BitShiftMode
 
 /**
  * SwAR128 - arithmetic-only SIMD-Within-A-Register helpers for unsigned 128-bit integers.

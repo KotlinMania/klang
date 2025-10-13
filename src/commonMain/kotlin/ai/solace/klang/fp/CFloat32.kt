@@ -1,5 +1,6 @@
-package ai.solace.klang.bitwise
+package ai.solace.klang.fp
 
+import ai.solace.klang.bitwise.CFloatTrace
 import kotlin.math.abs
 
 /**

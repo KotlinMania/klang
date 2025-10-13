@@ -1,5 +1,8 @@
 package ai.solace.klang.bitwise
 
+import ai.solace.klang.fp.CFloat32
+import ai.solace.klang.fp.Float32Math
+
 /**
  * Float operator extensions for symmetric CFloat32 arithmetic.
  *

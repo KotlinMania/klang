@@ -1,7 +1,7 @@
 package ai.solace.klang.float128
 
 import ai.solace.klang.bitwise.Float128Math
-import ai.solace.klang.bitwise.SwAR128
+import ai.solace.klang.int.SwAR128
 import ai.solace.klang.int.hpc.HeapUInt128
 
 /**

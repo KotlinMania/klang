@@ -1,5 +1,7 @@
 package ai.solace.klang.bitwise
 
+import ai.solace.klang.fp.Float32Math
+
 /**
  * Float16Math - IEEE-754 binary16 (half precision) arithmetic operations.
  * 

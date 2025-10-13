@@ -1,4 +1,7 @@
-package ai.solace.klang.bitwise
+package ai.solace.klang.int
+
+import ai.solace.klang.bitwise.BitShiftEngine
+import ai.solace.klang.bitwise.BitShiftMode
 
 /**
  * SWAR (SIMD Within A Register) helpers for per-lane unsigned averages.

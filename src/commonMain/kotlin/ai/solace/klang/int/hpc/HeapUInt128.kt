@@ -3,7 +3,7 @@ package ai.solace.klang.int.hpc
 import ai.solace.klang.bitwise.ArithmeticBitwiseOps
 import ai.solace.klang.bitwise.BitShiftEngine
 import ai.solace.klang.bitwise.BitShiftMode
-import ai.solace.klang.bitwise.SwAR128
+import ai.solace.klang.int.SwAR128
 import ai.solace.klang.mem.GlobalHeap
 import ai.solace.klang.mem.KMalloc
 

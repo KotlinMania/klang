@@ -1,5 +1,6 @@
 package ai.solace.klang.bitwise
 
+import ai.solace.klang.int.SwAR128
 import ai.solace.klang.int.hpc.HeapUInt128
 import kotlin.math.abs
 
