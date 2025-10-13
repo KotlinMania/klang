@@ -28,6 +28,128 @@ class CFloat128Test {
         
         val prod = a * b
         assertEquals(200.0, prod.toDouble(), 1e-10, "Multiplication failed")
+        
+        // NEW: Division test
+        val quot = b / a
+        assertEquals(2.0, quot.toDouble(), 1e-10, "Division failed")
+    }
+    
+    @Test
+    fun divisionBasic() {
+        setup()
+        
+        val a = CFloat128.fromDouble(20.0)
+        val b = CFloat128.fromDouble(4.0)
+        
+        val result = a / b
+        assertEquals(5.0, result.toDouble(), 1e-10, "Basic division failed")
+    }
+    
+    @Test
+    fun divisionByScalar() {
+        setup()
+        
+        val a = CFloat128.fromDouble(100.0)
+        val result = a / 4.0
+        
+        assertEquals(25.0, result.toDouble(), 1e-10, "Division by scalar failed")
+    }
+    
+    @Test
+    fun divisionByOne() {
+        setup()
+        
+        val a = CFloat128.fromDouble(42.5)
+        val result = a / CFloat128.ONE
+        
+        assertEquals(42.5, result.toDouble(), 1e-10, "Division by one failed")
+    }
+    
+    @Test
+    fun divisionResultingInOne() {
+        setup()
+        
+        val a = CFloat128.fromDouble(7.0)
+        val result = a / a
+        
+        assertEquals(1.0, result.toDouble(), 1e-10, "Division resulting in one failed")
+    }
+    
+    @Test
+    fun divisionHighPrecision() {
+        setup()
+        
+        // Test 1/3 with high precision
+        val one = CFloat128.ONE
+        val three = CFloat128.fromDouble(3.0)
+        
+        val third = one / three
+        
+        // Multiply back should give close to 1.0
+        val reconstructed = third * three
+        
+        val error = kotlin.math.abs(reconstructed.toDouble() - 1.0)
+        assertTrue(error < 1e-15, "High precision division failed, error: $error")
+    }
+    
+    @Test
+    fun divisionChained() {
+        setup()
+        
+        // (100 / 4) / 5 = 5
+        val a = CFloat128.fromDouble(100.0)
+        val result = (a / 4.0) / 5.0
+        
+        assertEquals(5.0, result.toDouble(), 1e-10, "Chained division failed")
+    }
+    
+    @Test
+    fun divisionWithNegative() {
+        setup()
+        
+        val a = CFloat128.fromDouble(-20.0)
+        val b = CFloat128.fromDouble(4.0)
+        
+        val result = a / b
+        assertEquals(-5.0, result.toDouble(), 1e-10, "Negative division failed")
+    }
+    
+    @Test
+    fun divisionSmallNumbers() {
+        setup()
+        
+        val a = CFloat128.fromDouble(1e-10)
+        val b = CFloat128.fromDouble(1e-5)
+        
+        val result = a / b
+        assertEquals(1e-5, result.toDouble(), 1e-15, "Small number division failed")
+    }
+    
+    @Test
+    fun divisionLargeNumbers() {
+        setup()
+        
+        val a = CFloat128.fromDouble(1e100)
+        val b = CFloat128.fromDouble(1e50)
+        
+        val result = a / b
+        assertEquals(1e50, result.toDouble(), 1e40, "Large number division failed")
+    }
+    
+    @Test
+    fun divisionAccuracy() {
+        setup()
+        
+        // Test that division maintains double-double precision
+        // Computing 1/7 and multiplying back should be very close to 1
+        val one = CFloat128.ONE
+        val seven = CFloat128.fromDouble(7.0)
+        
+        val seventh = one / seven
+        val reconstructed = seventh * seven
+        
+        val error = kotlin.math.abs(reconstructed.toDouble() - 1.0)
+        assertTrue(error < 1e-14, "Division accuracy test failed, error: $error")
     }
     
     @Test

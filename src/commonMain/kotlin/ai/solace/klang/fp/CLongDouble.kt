@@ -63,8 +63,8 @@ class CLongDouble private constructor(
     operator fun div(other: CLongDouble): CLongDouble = operate(other) { a, b ->
         when (flavorResolved()) {
             Flavor.DOUBLE64 -> ofDouble(a.d!!.toDouble() / b.d!!.toDouble(), Flavor.DOUBLE64)
-            Flavor.EXTENDED80 -> ofCFloat128(div128(a.q!!, b.q!!), Flavor.EXTENDED80)
-            Flavor.IEEE128 -> ofCFloat128(roundToIeee128(div128(a.q!!, b.q!!)), Flavor.IEEE128)
+            Flavor.EXTENDED80 -> ofCFloat128(a.q!! / b.q!!, Flavor.EXTENDED80)
+            Flavor.IEEE128 -> ofCFloat128(roundToIeee128(a.q!! / b.q!!), Flavor.IEEE128)
             else -> error("unreachable")
         }
     }
@@ -81,8 +81,14 @@ class CLongDouble private constructor(
     }
 
     companion object {
-        fun ofDouble(value: Double, flavor: Flavor = Flavor.AUTO): CLongDouble =
-            CLongDouble(flavor, CDouble.fromDouble(value), null)
+        fun ofDouble(value: Double, flavor: Flavor = Flavor.AUTO): CLongDouble {
+            val resolvedFlavor = if (flavor == Flavor.AUTO) DefaultFlavorProvider.default else flavor
+            return when (resolvedFlavor) {
+                Flavor.DOUBLE64 -> CLongDouble(resolvedFlavor, CDouble.fromDouble(value), null)
+                Flavor.EXTENDED80, Flavor.IEEE128 -> CLongDouble(resolvedFlavor, null, CFloat128.fromDouble(value))
+                Flavor.AUTO -> error("AUTO must be resolved")
+            }
+        }
 
         fun ofCFloat128(value: CFloat128, flavor: Flavor): CLongDouble =
             CLongDouble(flavor, null, value)
@@ -102,19 +108,6 @@ class CLongDouble private constructor(
         private fun roundToIeee128(v: CFloat128): CFloat128 {
             // TODO: Implement mantissa truncation to 113 bits. For now pass-through.
             return v
-        }
-
-        // Division using double-double core (naive for now)
-        private fun div128(a: CFloat128, b: CFloat128): CFloat128 {
-            // Use reciprocal via Newton-Raphson as a starting point (simple fallback):
-            val x0 = 1.0 / b.toDouble()
-            var x = CFloat128.fromDouble(x0)
-            // One refinement step: x = x * (2 - b*x)
-            val two = CFloat128.fromDouble(2.0)
-            val bx = b * x
-            val corr = two - bx
-            x = x * corr
-            return a * x
         }
 
         private fun coerceFlavor(v: CLongDouble, flavor: Flavor): CLongDouble = when (flavor) {

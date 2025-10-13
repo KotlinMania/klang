@@ -33,10 +33,6 @@ class CLongDoubleTest {
         assertEquals(2.0, quot.toDouble(), 1e-10, "DOUBLE64 division failed")
     }
     
-    // TODO: These tests fail with NPE - CFloat128 operations need investigation
-    // Keeping them commented out for now, to be fixed when CFloat128 division is implemented
-    
-    /*
     @Test
     fun flavorExtended80Arithmetic() {
         setup()
@@ -52,6 +48,9 @@ class CLongDoubleTest {
         
         val prod = a * b
         assertEquals(200.0, prod.toDouble(), 1e-10, "EXTENDED80 multiplication failed")
+        
+        val quot = b / a
+        assertEquals(2.0, quot.toDouble(), 1e-8, "EXTENDED80 division failed")
     }
     
     @Test
@@ -69,8 +68,10 @@ class CLongDoubleTest {
         
         val prod = a * b
         assertEquals(200.0, prod.toDouble(), 1e-10, "IEEE128 multiplication failed")
+        
+        val quot = b / a
+        assertEquals(2.0, quot.toDouble(), 1e-8, "IEEE128 division failed")
     }
-    */
     
     @Test
     fun flavorAutoDefaultsToDouble64() {
@@ -86,7 +87,6 @@ class CLongDoubleTest {
         assertEquals(52.0, sum.toDouble(), 1e-10, "AUTO (DOUBLE64) addition failed")
     }
     
-    /*
     @Test
     fun changeDefaultFlavor() {
         setup()
@@ -116,7 +116,6 @@ class CLongDoubleTest {
         
         assertEquals(123.456, cf128.toDouble(), 1e-10, "Conversion to CFloat128 failed")
     }
-    */
     
     @Test
     fun fromCDouble() {
@@ -151,7 +150,6 @@ class CLongDoubleTest {
         assertEquals(30.0, sum.toDouble(), 1e-10, "Mixed flavor addition failed")
     }
     
-    /*
     @Test
     fun highPrecisionWithExtended80() {
         setup()
@@ -183,7 +181,6 @@ class CLongDoubleTest {
         val error = abs(diff.toDouble() - 1e-16)
         assertTrue(error < 1e-15, "IEEE128 precision test failed, error: $error")
     }
-    */
     
     @Test
     fun divisionAccuracy() {

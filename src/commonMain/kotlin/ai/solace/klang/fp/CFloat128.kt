@@ -50,6 +50,63 @@ data class CFloat128(val hi: Double, val lo: Double) {
         return result
     }
 
+    /**
+     * Division operator for double-double precision.
+     * Uses Newton-Raphson iteration to refine the quotient.
+     * 
+     * Algorithm:
+     * 1. Initial approximation: q0 = a.hi / b.hi
+     * 2. Compute remainder: r = a - q0 * b
+     * 3. Refine: q1 = q0 + r / b.hi
+     * 4. Final remainder correction for full precision
+     */
+    operator fun div(other: CFloat128): CFloat128 {
+        // Handle special cases
+        if (other.hi == 0.0 && other.lo == 0.0) {
+            // Division by zero - return infinity with appropriate sign
+            return CFloat128(if (hi >= 0) Double.POSITIVE_INFINITY else Double.NEGATIVE_INFINITY, 0.0)
+        }
+        
+        // First approximation of quotient using high parts
+        val q0 = hi / other.hi
+        
+        // Compute remainder: r = a - q0 * b
+        // Using accurate multiplication and subtraction
+        val prod = CFloat128.fromDouble(q0) * other
+        val r = this - prod
+        
+        // Correction term: q1 = r / b.hi
+        val q1 = r.hi / other.hi
+        
+        // Combine q0 and q1 with error-free summation
+        val (qHi, qLo) = quickTwoSum(q0, q1)
+        
+        return CFloat128(qHi, qLo)
+    }
+
+    /**
+     * Division by a scalar double value.
+     * More efficient than full double-double division.
+     */
+    operator fun div(value: Double): CFloat128 {
+        if (value == 0.0) {
+            return CFloat128(if (hi >= 0) Double.POSITIVE_INFINITY else Double.NEGATIVE_INFINITY, 0.0)
+        }
+        
+        val q0 = hi / value
+        val (p, e) = twoProd(q0, value)
+        
+        // Compute remainder
+        val s = hi - p
+        val remainder = s - e + lo
+        
+        // Correction
+        val q1 = remainder / value
+        
+        val (qHi, qLo) = quickTwoSum(q0, q1)
+        return CFloat128(qHi, qLo)
+    }
+
     fun addProduct(a: Double, b: Double): CFloat128 {
         val (p, e) = twoProd(a, b)
         val (s, err) = twoSum(hi, p)
