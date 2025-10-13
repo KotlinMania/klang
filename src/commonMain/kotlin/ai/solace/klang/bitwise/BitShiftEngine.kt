@@ -643,109 +643,6 @@ class BitShiftEngine(
     }
     
     /**
-     * Performs bitwise AND operation on two values according to the configured mode.
-     *
-     * **ARITHMETIC mode**: Uses [ArithmeticBitwiseOps.and] for deterministic behavior
-     * **NATIVE mode**: Uses Kotlin's native `and` operator
-     *
-     * ## Usage Example
-     * ```kotlin
-     * val engine = BitShiftEngine(BitShiftMode.ARITHMETIC, 16)
-     * val masked = engine.bitwiseAnd(0xFF, 0x0F)  // 0x0F
-     * ```
-     *
-     * @param value1 First value
-     * @param value2 Second value
-     * @return Result of value1 AND value2
-     * @see ArithmeticBitwiseOps.and
-     * @since 0.1.0
-     */
-    fun bitwiseAnd(value1: Long, value2: Long): Long {
-        return if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
-            arithmeticOps.and(value1, value2)
-        } else {
-            value1 and value2
-        }
-    }
-    
-    /**
-     * Performs bitwise OR operation on two values according to the configured mode.
-     *
-     * **ARITHMETIC mode**: Uses [ArithmeticBitwiseOps.or] for deterministic behavior
-     * **NATIVE mode**: Uses Kotlin's native `or` operator
-     *
-     * ## Usage Example
-     * ```kotlin
-     * val engine = BitShiftEngine(BitShiftMode.ARITHMETIC, 16)
-     * val combined = engine.bitwiseOr(0xF0, 0x0F)  // 0xFF
-     * ```
-     *
-     * @param value1 First value
-     * @param value2 Second value
-     * @return Result of value1 OR value2
-     * @see ArithmeticBitwiseOps.or
-     * @since 0.1.0
-     */
-    fun bitwiseOr(value1: Long, value2: Long): Long {
-        return if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
-            arithmeticOps.or(value1, value2)
-        } else {
-            value1 or value2
-        }
-    }
-    
-    /**
-     * Performs bitwise XOR operation on two values according to the configured mode.
-     *
-     * **ARITHMETIC mode**: Uses [ArithmeticBitwiseOps.xor] for deterministic behavior
-     * **NATIVE mode**: Uses Kotlin's native `xor` operator
-     *
-     * ## Usage Example
-     * ```kotlin
-     * val engine = BitShiftEngine(BitShiftMode.ARITHMETIC, 16)
-     * val flipped = engine.bitwiseXor(0xFF, 0x0F)  // 0xF0
-     * ```
-     *
-     * @param value1 First value
-     * @param value2 Second value
-     * @return Result of value1 XOR value2
-     * @see ArithmeticBitwiseOps.xor
-     * @since 0.1.0
-     */
-    fun bitwiseXor(value1: Long, value2: Long): Long {
-        return if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
-            arithmeticOps.xor(value1, value2)
-        } else {
-            value1 xor value2
-        }
-    }
-    
-    /**
-     * Performs bitwise NOT operation on a value according to the configured mode.
-     *
-     * **ARITHMETIC mode**: Uses [ArithmeticBitwiseOps.not] for deterministic behavior
-     * **NATIVE mode**: Uses Kotlin's native `inv` operator with masking
-     *
-     * ## Usage Example
-     * ```kotlin
-     * val engine = BitShiftEngine(BitShiftMode.ARITHMETIC, 8)
-     * val inverted = engine.bitwiseNot(0x0F)  // 0xF0 (within 8 bits)
-     * ```
-     *
-     * @param value Value to invert
-     * @return Result of NOT value
-     * @see ArithmeticBitwiseOps.not
-     * @since 0.1.0
-     */
-    fun bitwiseNot(value: Long): Long {
-        return if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
-            arithmeticOps.not(value)
-        } else {
-            value.inv() and maxValue
-        }
-    }
-    
-    /**
      * Create a copy with a different mode.
      *
      * @param newMode New shift strategy
@@ -1210,5 +1107,199 @@ class BitShiftEngine(
         return LongArray(byteCount) { i ->
             extractByte(value, i)
         }
+    }
+    
+    // ========================================================================
+    // Type-Preserving Shift Operations
+    // ========================================================================
+    
+    /**
+     * Left shift a Byte value, returning a Byte result.
+     *
+     * Performs left shift and masks the result back to 8 bits, returning as Byte.
+     * This is essential for ByteArray operations where you need to maintain type compatibility.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 8)
+     * val result: Byte = engine.leftShiftByte(0x12, 4)  // 0x20
+     * ```
+     *
+     * @param value Byte value to shift (as Int to avoid Kotlin's promotion)
+     * @param bits Number of positions to shift left
+     * @return Shifted result as Byte
+     * @since 0.1.0
+     */
+    fun leftShiftByte(value: Int, bits: Int): Byte {
+        val result = leftShift(value.toLong() and 0xFFL, bits)
+        return (result.value and 0xFFL).toByte()
+    }
+    
+    /**
+     * Right shift a Byte value, returning a Byte result.
+     *
+     * Performs right shift and masks the result back to 8 bits, returning as Byte.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 8)
+     * val result: Byte = engine.rightShiftByte(0x84, 2)  // 0x21
+     * ```
+     *
+     * @param value Byte value to shift (as Int to avoid Kotlin's promotion)
+     * @param bits Number of positions to shift right
+     * @return Shifted result as Byte
+     * @since 0.1.0
+     */
+    fun rightShiftByte(value: Int, bits: Int): Byte {
+        val result = rightShift(value.toLong() and 0xFFL, bits)
+        return (result.value and 0xFFL).toByte()
+    }
+    
+    /**
+     * Unsigned right shift a Byte value, returning a Byte result.
+     *
+     * Performs unsigned right shift and masks the result back to 8 bits, returning as Byte.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 8)
+     * val result: Byte = engine.unsignedRightShiftByte(0x84, 2)  // 0x21
+     * ```
+     *
+     * @param value Byte value to shift (as Int to avoid Kotlin's promotion)
+     * @param bits Number of positions to shift right
+     * @return Shifted result as Byte
+     * @since 0.1.0
+     */
+    fun unsignedRightShiftByte(value: Int, bits: Int): Byte {
+        val result = unsignedRightShift(value.toLong() and 0xFFL, bits)
+        return (result.value and 0xFFL).toByte()
+    }
+    
+    /**
+     * Left shift a Short value, returning a Short result.
+     *
+     * Performs left shift and masks the result back to 16 bits, returning as Short.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 16)
+     * val result: Short = engine.leftShiftShort(0x1234, 4)  // 0x2340
+     * ```
+     *
+     * @param value Short value to shift
+     * @param bits Number of positions to shift left
+     * @return Shifted result as Short
+     * @since 0.1.0
+     */
+    fun leftShiftShort(value: Int, bits: Int): Short {
+        val result = leftShift(value.toLong() and 0xFFFFL, bits)
+        return (result.value and 0xFFFFL).toShort()
+    }
+    
+    /**
+     * Right shift a Short value, returning a Short result.
+     *
+     * Performs right shift and masks the result back to 16 bits, returning as Short.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 16)
+     * val result: Short = engine.rightShiftShort(0x8421, 4)  // 0x0842
+     * ```
+     *
+     * @param value Short value to shift
+     * @param bits Number of positions to shift right
+     * @return Shifted result as Short
+     * @since 0.1.0
+     */
+    fun rightShiftShort(value: Int, bits: Int): Short {
+        val result = rightShift(value.toLong() and 0xFFFFL, bits)
+        return (result.value and 0xFFFFL).toShort()
+    }
+    
+    /**
+     * Unsigned right shift a Short value, returning a Short result.
+     *
+     * Performs unsigned right shift and masks the result back to 16 bits, returning as Short.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 16)
+     * val result: Short = engine.unsignedRightShiftShort(0x8421, 4)  // 0x0842
+     * ```
+     *
+     * @param value Short value to shift
+     * @param bits Number of positions to shift right
+     * @return Shifted result as Short
+     * @since 0.1.0
+     */
+    fun unsignedRightShiftShort(value: Int, bits: Int): Short {
+        val result = unsignedRightShift(value.toLong() and 0xFFFFL, bits)
+        return (result.value and 0xFFFFL).toShort()
+    }
+    
+    /**
+     * Left shift an Int value, returning an Int result.
+     *
+     * Performs left shift and masks the result back to 32 bits, returning as Int.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
+     * val result: Int = engine.leftShiftInt(0x12345678, 4)  // 0x23456780
+     * ```
+     *
+     * @param value Int value to shift
+     * @param bits Number of positions to shift left
+     * @return Shifted result as Int
+     * @since 0.1.0
+     */
+    fun leftShiftInt(value: Int, bits: Int): Int {
+        val result = leftShift(value.toLong() and 0xFFFFFFFFL, bits)
+        return (result.value and 0xFFFFFFFFL).toInt()
+    }
+    
+    /**
+     * Right shift an Int value, returning an Int result.
+     *
+     * Performs right shift and masks the result back to 32 bits, returning as Int.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
+     * val result: Int = engine.rightShiftInt(0x84218421, 4)  // 0x08421842
+     * ```
+     *
+     * @param value Int value to shift
+     * @param bits Number of positions to shift right
+     * @return Shifted result as Int
+     * @since 0.1.0
+     */
+    fun rightShiftInt(value: Int, bits: Int): Int {
+        val result = rightShift(value.toLong() and 0xFFFFFFFFL, bits)
+        return (result.value and 0xFFFFFFFFL).toInt()
+    }
+    
+    /**
+     * Unsigned right shift an Int value, returning an Int result.
+     *
+     * Performs unsigned right shift and masks the result back to 32 bits, returning as Int.
+     *
+     * ## Usage Example
+     * ```kotlin
+     * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
+     * val result: Int = engine.unsignedRightShiftInt(0x84218421, 4)  // 0x08421842
+     * ```
+     *
+     * @param value Int value to shift
+     * @param bits Number of positions to shift right
+     * @return Shifted result as Int
+     * @since 0.1.0
+     */
+    fun unsignedRightShiftInt(value: Int, bits: Int): Int {
+        val result = unsignedRightShift(value.toLong() and 0xFFFFFFFFL, bits)
+        return (result.value and 0xFFFFFFFFL).toInt()
     }
 }
