@@ -345,7 +345,6 @@ object ArrayBitShifts {
         val pow2s = ShiftTables16.POW2[s]
         val mask16 = ShiftTables16.MASK16
         val maskLowS = ShiftTables16.LOW_MASK[s]
-        val eng8 = BitShiftEngine(BitShiftConfig.defaultMode, 8)
         val eng16Local = BitShiftEngine(BitShiftConfig.defaultMode, 16)
         
         var carry = carryIn and 0xFFFF // @native-bitshift-allowed
@@ -356,7 +355,7 @@ object ArrayBitShifts {
             val lowByte = GlobalHeap.lbu(off)
             val highByte = GlobalHeap.lbu(off + 1)
             // Compose 16-bit value from bytes (little-endian) using BitShiftEngine
-            val highShifted = eng8.byteShiftLeft(highByte.toLong(), 1)
+            val highShifted = eng16Local.byteShiftLeft(highByte.toLong(), 1)
             val orResult = eng16Local.bitwiseOr(lowByte.toLong(), highShifted.value)
             val cur = eng16Local.bitwiseAnd(orResult, mask16.toLong()).toInt()
             
@@ -367,13 +366,14 @@ object ArrayBitShifts {
             val result = (combined % BASE16)
             
             // Decompose back to bytes (little-endian) using BitShiftEngine
-            val resultByte0 = eng8.bitwiseAnd(result.toLong(), 0xFF)
+            val resultByte0 = eng16Local.bitwiseAnd(result.toLong(), 0xFF)
             GlobalHeap.sb(off, resultByte0.toByte())
-            val highByteResult = eng8.byteShiftRight(result.toLong(), 1)
-            val resultByte1 = eng8.bitwiseAnd(highByteResult.value, 0xFF)
+            val highByteResult = eng16Local.byteShiftRight(result.toLong(), 1)
+            val resultByte1 = eng16Local.bitwiseAnd(highByteResult.value, 0xFF)
             GlobalHeap.sb(off + 1, resultByte1.toByte())
             
-            carry = if (maskLowS == 0) 0 else (rs.carry.toInt() % (maskLowS + 1))
+            // Compute carry as top s bits of original value (shifted out)
+            carry = if (maskLowS == 0) 0 else ((cur / ShiftTables16.POW2[16 - s]) % (maskLowS + 1))
         }
         return ShiftResult(carry and 0xFFFF, sticky) // @native-bitshift-allowed
     }
@@ -384,7 +384,6 @@ object ArrayBitShifts {
         
         val pow2s = ShiftTables16.POW2[s]
         val mask16 = ShiftTables16.MASK16
-        val eng8 = BitShiftEngine(BitShiftConfig.defaultMode, 8)
         val eng16Local = BitShiftEngine(BitShiftConfig.defaultMode, 16)
         
         var nextCarry = 0
@@ -396,7 +395,7 @@ object ArrayBitShifts {
             val lowByte = GlobalHeap.lbu(off)
             val highByte = GlobalHeap.lbu(off + 1)
             // Compose 16-bit value from bytes (little-endian) using BitShiftEngine
-            val highShifted = eng8.byteShiftLeft(highByte.toLong(), 1)
+            val highShifted = eng16Local.byteShiftLeft(highByte.toLong(), 1)
             val orResult = eng16Local.bitwiseOr(lowByte.toLong(), highShifted.value)
             val cur = eng16Local.bitwiseAnd(orResult, mask16.toLong()).toInt()
             
@@ -412,10 +411,10 @@ object ArrayBitShifts {
             val result = (out % BASE16)
             
             // Decompose back to bytes (little-endian) using BitShiftEngine
-            val resultByte0 = eng8.bitwiseAnd(result.toLong(), 0xFF)
+            val resultByte0 = eng16Local.bitwiseAnd(result.toLong(), 0xFF)
             GlobalHeap.sb(off, resultByte0.toByte())
-            val highByteResult = eng8.byteShiftRight(result.toLong(), 1)
-            val resultByte1 = eng8.bitwiseAnd(highByteResult.value, 0xFF)
+            val highByteResult = eng16Local.byteShiftRight(result.toLong(), 1)
+            val resultByte1 = eng16Local.bitwiseAnd(highByteResult.value, 0xFF)
             GlobalHeap.sb(off + 1, resultByte1.toByte())
             
             nextCarry = dropped
