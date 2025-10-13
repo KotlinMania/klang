@@ -25,24 +25,37 @@ package ai.solace.klang
  *
  * ## Usage
  *
- * Import the public API to access all KLang types:
+ * Import types directly from their respective packages:
  *
  * ```kotlin
- * import ai.solace.klang.api.CFloat32
- * import ai.solace.klang.api.GlobalHeap
+ * import ai.solace.klang.bitwise.CFloat32
+ * import ai.solace.klang.fp.CDouble
+ * import ai.solace.klang.int.C_UInt128
+ * import ai.solace.klang.mem.GlobalHeap
+ * import ai.solace.klang.bitwise.BitShiftEngine
  *
+ * // Create C-compatible floats
  * val x = CFloat32.fromFloat(3.14f)
+ * val y = CDouble.fromDouble(2.718)
+ *
+ * // Allocate memory
  * val ptr = GlobalHeap.mallocBytes(100)
+ * GlobalHeap.sb(ptr.ptr, 42)
+ * val value = GlobalHeap.lbu(ptr.ptr)
+ * GlobalHeap.free(ptr)
+ *
+ * // 128-bit integer operations
+ * val a = C_UInt128.fromLongs(0, 1)
+ * val b = C_UInt128.fromLongs(0, 2)
+ * val sum = a + b
  * ```
  *
- * ## Architecture
+ * ## Package Structure
  *
- * - api/: Public API surface (stable)
- * - bitwise/: Bit shift engine and arithmetic operations
- * - fp/: Floating point types
- * - int/: Extended precision integers
- * - mem/: Memory management and heap
- * - internal/: Implementation details (unstable)
- *
- * @see ai.solace.klang.api.PublicAPI For the complete public API
+ * - [ai.solace.klang.bitwise]: Bit shift engine and bitwise operations
+ * - [ai.solace.klang.fp]: Floating point types (CDouble, CFloat16, CFloat128, etc.)
+ * - [ai.solace.klang.int]: Extended precision integers (C_UInt128, C_Int128)
+ * - [ai.solace.klang.mem]: Memory management, heap, malloc/free, pointers
+ * - [ai.solace.klang.common]: Common utilities and logging
+ * - [ai.solace.klang.internal]: Internal implementation (unstable, do not use directly)
  */

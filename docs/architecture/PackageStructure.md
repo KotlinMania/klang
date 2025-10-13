@@ -2,51 +2,48 @@
 
 ## Overview
 
-KLang follows a clear organizational structure that separates the public API surface from internal implementation details. This design enables:
+KLang follows a clear organizational structure that separates public packages from internal implementation details. This design enables:
 
-- **API Stability**: Public types have stable interfaces that won't break between versions
+- **Clear Boundaries**: Public packages are stable and documented
 - **Internal Flexibility**: Implementation details can evolve without affecting consumers
-- **Clear Documentation**: Users know exactly what they should and shouldn't use
+- **Direct Imports**: Users import directly from component packages
 - **Maintainability**: Related functionality is logically grouped
 
 ## Package Organization
 
 ```
 ai.solace.klang/
-├── api/                    # PUBLIC API - Stable, documented type aliases
-│   └── PublicAPI.kt       # Central point for all public types
-│
-├── bitwise/               # Bit manipulation and shift operations
+├── bitwise/               # PUBLIC - Bit manipulation and shift operations
 │   ├── BitShiftEngine.kt  # Arithmetic-mode bit shifting
 │   ├── CFloat32.kt        # 32-bit IEEE-754 float
 │   ├── SwAR.kt           # SIMD Within A Register operations
 │   └── ... (other bitwise utilities)
 │
-├── fp/                    # Floating point types
+├── fp/                    # PUBLIC - Floating point types
 │   ├── CDouble.kt        # 64-bit double
 │   ├── CFloat16.kt       # 16-bit half precision
 │   ├── CBF16.kt          # Brain Float 16
 │   ├── CFloat128.kt      # 128-bit quad precision
 │   └── CLongDouble.kt    # Platform long double
 │
-├── int/                   # Extended precision integers
+├── int/                   # PUBLIC - Extended precision integers
 │   ├── C_UInt128.kt      # Unsigned 128-bit integer
 │   ├── C_Int128.kt       # Signed 128-bit integer
 │   └── hpc/              # High-performance computing variants
 │       └── HeapUInt128.kt
 │
-├── mem/                   # Memory management
+├── mem/                   # PUBLIC - Memory management
 │   ├── GlobalArrayHeap.kt # Global heap allocator
 │   ├── KMalloc.kt        # malloc/free implementation
 │   ├── CLib.kt           # C standard library functions
 │   ├── CString.kt        # Null-terminated strings
 │   └── CScalars.kt       # Heap-backed scalar variables
 │
-├── common/               # Shared utilities
+├── common/               # PUBLIC - Shared utilities
 │   ├── StatOps.kt
 │   └── StructLayout.kt
 │
-├── stringshift/          # String manipulation
+├── stringshift/          # PUBLIC - String manipulation
 │   └── HexShift.kt
 │
 ├── internal/             # INTERNAL - May change without notice
@@ -60,17 +57,19 @@ ai.solace.klang/
 └── KLangExports.kt       # Main library documentation
 ```
 
-## Public API Usage
+
+## Public Package Usage
 
 ### Importing Types
 
-Users should import from the `api` package for all public types:
+Users import directly from component packages:
 
 ```kotlin
-import ai.solace.klang.api.CFloat32
-import ai.solace.klang.api.C_UInt128
-import ai.solace.klang.api.GlobalHeap
-import ai.solace.klang.api.BitShiftEngine
+import ai.solace.klang.bitwise.CFloat32
+import ai.solace.klang.bitwise.BitShiftEngine
+import ai.solace.klang.fp.CDouble
+import ai.solace.klang.int.C_UInt128
+import ai.solace.klang.mem.GlobalHeap
 
 // Use the types
 val x = CFloat32.fromFloat(3.14f)
@@ -78,23 +77,28 @@ val y = C_UInt128.fromLongs(0, 1)
 val ptr = GlobalHeap.mallocBytes(100)
 ```
 
-### What's Public?
+### Public Packages
 
-The `ai.solace.klang.api.PublicAPI` file defines all stable, public types:
+**ai.solace.klang.bitwise**
+- `CFloat32`, `BitShiftEngine`, `BitShiftConfig`, `BitwiseOps`
+- `BitPrimitives`, `Float32Math`, `Float64Math`
+- `SwAR`, `SwAR128`, `DoubleDouble`
 
-**Floating Point**
-- `CFloat32`, `CDouble`, `CFloat16`, `CBF16`, `CFloat128`, `CLongDouble`
+**ai.solace.klang.fp**
+- `CDouble`, `CFloat16`, `CBF16`, `CFloat128`, `CLongDouble`
 
-**Integers**
+**ai.solace.klang.int**
 - `C_UInt128`, `C_Int128`
 
-**Memory Management**
+**ai.solace.klang.mem**
 - `CPointer<T>`, `GlobalHeap`, `KMalloc`, `CLib`, `CString`
 - `CByteVar`, `CShortVar`, `CIntVar`, `CLongVar`, `CFloatVar`, `CDoubleVar`
 
-**Bit Manipulation**
-- `BitShiftEngine`, `BitShiftConfig`, `BitwiseOps`, `BitPrimitives`
-- `Float32Math`, `Float64Math`
+**ai.solace.klang.common**
+- `StatOps`, `StructLayout`, `ZlibLogger`
+
+**ai.solace.klang.stringshift**
+- `HexShift`
 
 ## Internal Implementation
 
@@ -119,12 +123,14 @@ import ai.solace.klang.internal.symbols.strdupCString
 
 ## Design Principles
 
-### 1. Public API Stability
+### 1. Package Stability
 
-Types in `ai.solace.klang.api` follow semantic versioning:
-- **Major version**: Breaking changes to public API
+Public packages follow semantic versioning:
+- **Major version**: Breaking changes to public packages
 - **Minor version**: New features, backward compatible
 - **Patch version**: Bug fixes only
+
+Internal packages may change without notice.
 
 ### 2. Zero-Copy Operations
 
@@ -147,36 +153,35 @@ All code is pure Kotlin/Common:
 - Same behavior on JVM, JS, Native
 - No native interop required
 
-## Migration Guide
+## Migration from Old Structure
 
-If you're using old code that imported directly from implementation packages:
+Previously, KLang used an `api` package with type aliases. The new structure uses direct imports.
 
 ### Before
-```kotlin
-import ai.solace.klang.bitwise.CFloat32
-import ai.solace.klang.mem.GlobalArrayHeap
-```
-
-### After
 ```kotlin
 import ai.solace.klang.api.CFloat32
 import ai.solace.klang.api.GlobalHeap
 ```
 
+### After
+```kotlin
+import ai.solace.klang.bitwise.CFloat32
+import ai.solace.klang.mem.GlobalHeap
+```
+
 ## Adding New Public Types
 
-When adding a new type to the public API:
+When adding a new type to the library:
 
-1. Implement the type in the appropriate component package (`fp/`, `int/`, etc.)
-2. Add a typealias in `api/PublicAPI.kt`
-3. Document the type thoroughly with KDoc
-4. Add usage examples
-5. Update this document
+1. Implement the type in the appropriate component package (`bitwise/`, `fp/`, `int/`, `mem/`, etc.)
+2. Document the type thoroughly with KDoc
+3. Add usage examples
+4. Update this document
 
 ## Performance Considerations
 
 The package structure has zero runtime overhead:
-- Type aliases are compile-time only
+- Direct imports resolve to actual classes
 - No wrapper objects or delegation
 - Direct function calls after inlining
 
