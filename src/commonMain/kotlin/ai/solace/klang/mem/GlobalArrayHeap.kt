@@ -267,71 +267,95 @@ object GlobalHeap {
      * @return Unsigned byte value (0..255)
      * @throws IndexOutOfBoundsException if addr is invalid
      */
-    fun lbu(addr: Int): Int {
-        val byte = lb(addr).toInt()
-        return shifter8.bitwiseAnd(byte.toLong(), 0xFF).toInt()
-    }
+    fun lbu(addr: Int): Int = mem[addr].toInt() and 0xFF
 
     /**
      * Load half-word (16-bit signed short, little-endian).
+     *
+     * Fast-path: inline little-endian assembly without BitShiftEngine overhead.
      *
      * @param addr Address to load from (should be 2-byte aligned for best performance)
      * @return Signed short value
      * @throws IndexOutOfBoundsException if addr or addr+1 is invalid
      */
     fun lh(addr: Int): Short {
-        val b0 = lbu(addr)
-        val b1 = lbu(addr + 1)
-        val shifted = shifter16.leftShift(b1.toLong(), 8)
-        val combined = shifter16.bitwiseOr(b0.toLong(), shifted.value)
-        return combined.toShort()
+        return ((mem[addr].toInt() and 0xFF) or
+                ((mem[addr + 1].toInt() and 0xFF) shl 8)).toShort()
     }
-    
+
     /**
      * Store half-word (16-bit short, little-endian).
+     *
+     * Fast-path: inline little-endian store without BitShiftEngine overhead.
      *
      * @param addr Address to store at
      * @param value Short value to store
      * @throws IndexOutOfBoundsException if addr or addr+1 is invalid
      */
     fun sh(addr: Int, value: Short) {
-        val v = shifter16.bitwiseAnd(value.toLong(), 0xFFFF)
-        val byte0 = shifter16.bitwiseAnd(v, 0xFF)
-        val byte1Shifted = shifter16.unsignedRightShift(v, 8)
-        val byte1 = shifter16.bitwiseAnd(byte1Shifted.value, 0xFF)
-        sb(addr + 0, byte0.toByte())
-        sb(addr + 1, byte1.toByte())
+        val v = value.toInt()
+        mem[addr] = v.toByte()
+        mem[addr + 1] = (v shr 8).toByte()
     }
 
     /**
      * Load word (32-bit signed int, little-endian).
+     *
+     * Fast-path: inline little-endian assembly without BitShiftEngine overhead.
      *
      * @param addr Address to load from (should be 4-byte aligned for best performance)
      * @return Signed int value
      * @throws IndexOutOfBoundsException if addr to addr+3 is invalid
      */
     fun lw(addr: Int): Int {
-        val bytes = LongArray(4) { i -> lbu(addr + i).toLong() }
-        return shifter32.composeBytes(bytes).toInt()
-    }
-    
-    fun sw(addr: Int, value: Int) {
-        for (i in 0 until 4) {
-            val byte = shifter32.extractByte(value.toLong(), i)
-            sb(addr + i, byte.toByte())
-        }
+        return (mem[addr].toInt() and 0xFF) or
+               ((mem[addr + 1].toInt() and 0xFF) shl 8) or
+               ((mem[addr + 2].toInt() and 0xFF) shl 16) or
+               ((mem[addr + 3].toInt() and 0xFF) shl 24)
     }
 
-    fun ld(addr: Int): Long {
-        val bytes = LongArray(8) { i -> lbu(addr + i).toLong() }
-        return shifter64.composeBytes(bytes)
+    /**
+     * Store word (32-bit int, little-endian).
+     *
+     * Fast-path: inline little-endian store without BitShiftEngine overhead.
+     */
+    fun sw(addr: Int, value: Int) {
+        mem[addr] = value.toByte()
+        mem[addr + 1] = (value shr 8).toByte()
+        mem[addr + 2] = (value shr 16).toByte()
+        mem[addr + 3] = (value shr 24).toByte()
     }
-    
+
+    /**
+     * Load doubleword (64-bit signed long, little-endian).
+     *
+     * Fast-path: inline little-endian assembly without BitShiftEngine overhead.
+     */
+    fun ld(addr: Int): Long {
+        return (mem[addr].toLong() and 0xFF) or
+               ((mem[addr + 1].toLong() and 0xFF) shl 8) or
+               ((mem[addr + 2].toLong() and 0xFF) shl 16) or
+               ((mem[addr + 3].toLong() and 0xFF) shl 24) or
+               ((mem[addr + 4].toLong() and 0xFF) shl 32) or
+               ((mem[addr + 5].toLong() and 0xFF) shl 40) or
+               ((mem[addr + 6].toLong() and 0xFF) shl 48) or
+               ((mem[addr + 7].toLong() and 0xFF) shl 56)
+    }
+
+    /**
+     * Store doubleword (64-bit long, little-endian).
+     *
+     * Fast-path: inline little-endian store without BitShiftEngine overhead.
+     */
     fun sd(addr: Int, value: Long) {
-        for (i in 0 until 8) {
-            val byte = shifter64.extractByte(value, i)
-            sb(addr + i, byte.toByte())
-        }
+        mem[addr] = value.toByte()
+        mem[addr + 1] = (value shr 8).toByte()
+        mem[addr + 2] = (value shr 16).toByte()
+        mem[addr + 3] = (value shr 24).toByte()
+        mem[addr + 4] = (value shr 32).toByte()
+        mem[addr + 5] = (value shr 40).toByte()
+        mem[addr + 6] = (value shr 48).toByte()
+        mem[addr + 7] = (value shr 56).toByte()
     }
 
     fun lwf(addr: Int): Float = Float.fromBits(lw(addr))
