@@ -183,6 +183,42 @@ class CFloatVar(override val addr: Int) : CVar {
 }
 
 /**
+ * CFloat32Var: C-style deterministic single-precision float variable.
+ * 
+ * Stores a [CFloat32] value in heap memory, providing bit-exact arithmetic
+ * that truncates to 32-bit precision after each operation (matching C behavior).
+ * 
+ * ## CFloat32 vs Float
+ * - **CFloat32**: Truncates after every operation (C-compatible)
+ * - **Float**: May use extended precision in intermediates (platform-dependent)
+ * 
+ * ## Usage Example
+ * ```kotlin
+ * KStack.withFrame {
+ *     val x = CAutos.float32(CFloat32.fromFloat(1.0f))
+ *     x.value = x.value + CFloat32.fromFloat(2.0f)
+ *     println(x.value.toFloat())  // 3.0
+ * }
+ * ```
+ * 
+ * @property addr Heap address (4-byte aligned recommended)
+ * @property value The CFloat32 value (mutable, accesses heap)
+ * @see ai.solace.klang.fp.CFloat32 For deterministic arithmetic operations
+ * @see CFloatVar For native Float storage (platform-dependent precision)
+ */
+class CFloat32Var(override val addr: Int) : CVar {
+    /**
+     * The CFloat32 value stored at [addr].
+     * 
+     * **Get**: Loads bits from heap, wraps in CFloat32
+     * **Set**: Unwraps CFloat32 bits, stores to heap
+     */
+    var value: ai.solace.klang.fp.CFloat32
+        get() = ai.solace.klang.fp.CFloat32.fromBits(GlobalHeap.lw(addr))
+        set(v) = GlobalHeap.sw(addr, v.toBits())
+}
+
+/**
  * CDoubleVar: C-style `double` variable (64-bit IEEE-754).
  *
  * Represents a double-precision float stored in heap memory.
@@ -235,6 +271,198 @@ class CDoubleVar(override val addr: Int) : CVar {
     var cdouble: CDouble
         get() = CDouble.fromBits(GlobalHeap.ld(addr))
         set(v) = GlobalHeap.sd(addr, v.toBits())
+}
+
+/**
+ * CFloat128Var: C-style quad-precision variable (double-double).
+ * 
+ * Stores a [CFloat128] value in heap memory using double-double representation
+ * (~106-bit mantissa precision). Ideal for high-precision accumulation without
+ * error drift in iterative calculations.
+ * 
+ * ## Storage
+ * - Size: 16 bytes (two 64-bit doubles)
+ * - Precision: ~31 decimal digits
+ * - Range: Same as Double (exponent shared)
+ * 
+ * ## Use Cases
+ * - Sum accumulation in ML inference
+ * - Financial calculations requiring exact decimal arithmetic
+ * - Scientific computing with error analysis
+ * 
+ * ## Usage Example
+ * ```kotlin
+ * KStack.withFrame {
+ *     val sum = CAutos.float128(CFloat128.ZERO)
+ *     for (i in 1..1000000) {
+ *         sum.value = sum.value + i.toDouble()
+ *     }
+ *     println(sum.value.toDouble())  // Accurate sum
+ * }
+ * ```
+ * 
+ * @property addr Heap address (16-byte aligned recommended)
+ * @property value The CFloat128 value (mutable, accesses heap)
+ * @see ai.solace.klang.fp.CFloat128 For high-precision arithmetic
+ */
+class CFloat128Var(override val addr: Int) : CVar {
+    /**
+     * The CFloat128 value stored at [addr].
+     * 
+     * **Get**: Loads two doubles from heap, constructs CFloat128
+     * **Set**: Extracts two doubles from CFloat128, stores to heap
+     */
+    var value: ai.solace.klang.fp.CFloat128
+        get() {
+            val hi = GlobalHeap.ldf(addr)
+            val lo = GlobalHeap.ldf(addr + 8)
+            return ai.solace.klang.fp.CFloat128(hi, lo)
+        }
+        set(v) {
+            GlobalHeap.sdf(addr, v.hi)
+            GlobalHeap.sdf(addr + 8, v.lo)
+        }
+}
+
+/**
+ * CLongDoubleVar: C-style `long double` variable (extended precision).
+ * 
+ * Stores a [CLongDouble] value in heap memory. This uses the default flavor
+ * for the platform (typically EXTENDED80 approximation via double-double).
+ * 
+ * ## Storage
+ * - Size: 16 bytes (double-double representation)
+ * - Format: Platform-dependent flavor selection
+ * 
+ * ## Usage Example
+ * ```kotlin
+ * KStack.withFrame {
+ *     val precise = CAutos.longdouble(CLongDouble.ofDouble(1.0))
+ *     // Use for high-precision calculations
+ * }
+ * ```
+ * 
+ * @property addr Heap address (16-byte aligned recommended)
+ * @property value The CLongDouble value (mutable, accesses heap)
+ * @see ai.solace.klang.fp.CLongDouble For extended-precision arithmetic
+ */
+class CLongDoubleVar(override val addr: Int) : CVar {
+    /**
+     * The CLongDouble value stored at [addr].
+     * 
+     * Stores as CFloat128 (double-double) internally for consistency.
+     * 
+     * **Get**: Loads double-double, converts to CLongDouble
+     * **Set**: Converts CLongDouble to CFloat128, stores double-double
+     */
+    var value: ai.solace.klang.fp.CLongDouble
+        get() {
+            val hi = GlobalHeap.ldf(addr)
+            val lo = GlobalHeap.ldf(addr + 8)
+            val f128 = ai.solace.klang.fp.CFloat128(hi, lo)
+            return ai.solace.klang.fp.CLongDouble.ofCFloat128(f128, ai.solace.klang.fp.CLongDouble.Flavor.AUTO)
+        }
+        set(v) {
+            val f128 = v.toCFloat128()
+            GlobalHeap.sdf(addr, f128.hi)
+            GlobalHeap.sdf(addr + 8, f128.lo)
+        }
+}
+
+/**
+ * CFloat16Var: C-style IEEE-754 binary16 variable (half-precision float).
+ * 
+ * Represents a 16-bit half-precision floating-point value stored in heap memory.
+ * Commonly used in machine learning, GPU computing, and memory-constrained applications.
+ * 
+ * ## IEEE-754 Binary16 Format
+ * - Sign: 1 bit (bit 15)
+ * - Exponent: 5 bits (bits 14-10, bias = 15)
+ * - Mantissa: 10 bits (bits 9-0, implicit leading 1)
+ * 
+ * ## Precision & Range
+ * - Mantissa precision: ~3.3 decimal digits
+ * - Exponent range: 2^-14 to 2^15
+ * - Max value: 65,504
+ * - Min positive: 6.1×10^-5
+ * 
+ * ## Usage Example
+ * ```kotlin
+ * KStack.withFrame {
+ *     val h = CAutos.float16(CFloat16.fromFloat(1.5f))
+ *     println(h.value.toFloat())  // 1.5
+ *     h.value = CFloat16.fromFloat(2.5f)
+ *     println(h.value.toFloat())  // 2.5
+ * }
+ * ```
+ * 
+ * @property addr Heap address of the float16 (2-byte aligned recommended)
+ * @property value The half-precision float value (mutable, directly accesses heap)
+ * @see GlobalHeap.lh Load halfword
+ * @see GlobalHeap.sh Store halfword
+ * @see ai.solace.klang.fp.CFloat16 For value type and arithmetic operations
+ */
+class CFloat16Var(override val addr: Int) : CVar {
+    /**
+     * The 16-bit half-precision float value stored at [addr].
+     * 
+     * **Get**: Loads from heap via [GlobalHeap.lh], converts to CFloat16
+     * **Set**: Converts CFloat16 to bits, stores via [GlobalHeap.sh]
+     */
+    var value: ai.solace.klang.fp.CFloat16
+        get() = ai.solace.klang.fp.CFloat16.fromBits(GlobalHeap.lh(addr).toInt())
+        set(v) = GlobalHeap.sh(addr, v.toBits().toShort())
+}
+
+/**
+ * CBF16Var: C-style bfloat16 variable (brain floating-point).
+ * 
+ * Represents a 16-bit brain floating-point value stored in heap memory.
+ * bfloat16 is widely used in deep learning (Google TPU, PyTorch, TensorFlow)
+ * because it preserves the exponent range of float32 while reducing precision.
+ * 
+ * ## bfloat16 Format
+ * - Sign: 1 bit (bit 15)
+ * - Exponent: 8 bits (bits 14-7, bias = 127, **same as float32**)
+ * - Mantissa: 7 bits (bits 6-0, implicit leading 1)
+ * 
+ * ## Why bfloat16?
+ * - **Same exponent range as float32** (2^-126 to 2^127)
+ * - **No overflow issues** when converting from float32
+ * - **Simple conversion**: Just truncate float32 to 16 bits
+ * - **Faster training**: Google TPU, NVIDIA Tensor Cores
+ * 
+ * ## Precision & Range
+ * - Mantissa precision: ~2 decimal digits (vs 7 for float32)
+ * - Exponent range: Same as float32
+ * - Trade-off: Range over precision
+ * 
+ * ## Usage Example
+ * ```kotlin
+ * KStack.withFrame {
+ *     val bf = CAutos.bfloat16(CBF16.fromFloat(3.14159f))
+ *     println(bf.value.toFloat())  // ~3.14
+ *     bf.value = CBF16.fromFloat(2.71828f)
+ *     println(bf.value.toFloat())  // ~2.72
+ * }
+ * ```
+ * 
+ * @property addr Heap address of the bfloat16 (2-byte aligned recommended)
+ * @property value The brain float value (mutable, directly accesses heap)
+ * @see GlobalHeap.lh Load halfword
+ * @see GlobalHeap.sh Store halfword
+ * @see ai.solace.klang.fp.CBF16 For value type and arithmetic operations
+ */
+class CBF16Var(override val addr: Int) : CVar {
+    /**
+     * The 16-bit bfloat16 value stored at [addr].
+     * 
+     * **Get**: Loads from heap via [GlobalHeap.lh], converts to CBF16
+     * **Set**: Converts CBF16 to bits, stores via [GlobalHeap.sh]
+     */
+    var value: ai.solace.klang.fp.CBF16
+        get() = ai.solace.klang.fp.CBF16.fromBits(GlobalHeap.lh(addr))
+        set(v) = GlobalHeap.sh(addr, v.toBits())
 }
 
 /**
@@ -369,6 +597,20 @@ object CAutos {
     }
     
     /**
+     * Allocate a float32 (deterministic single precision) on the stack.
+     * 
+     * @param init Initial value (default: CFloat32.ZERO)
+     * @param align Alignment (default: 4)
+     * @return CFloat32Var pointing to stack memory
+     * @see ai.solace.klang.fp.CFloat32 For bit-exact arithmetic
+     */
+    fun float32(init: ai.solace.klang.fp.CFloat32 = ai.solace.klang.fp.CFloat32.fromFloat(0f), align: Int = 4): CFloat32Var {
+        val p = KStack.alloca(4, align)
+        GlobalHeap.sw(p, init.toBits())
+        return CFloat32Var(p)
+    }
+    
+    /**
      * Allocate a double on the stack.
      *
      * @param init Initial value (default: 0.0)
@@ -379,6 +621,74 @@ object CAutos {
         val p = KStack.alloca(8, align)
         GlobalHeap.sdf(p, init)
         return CDoubleVar(p)
+    }
+    
+    /**
+     * Allocate a float128 (quad precision) on the stack.
+     * 
+     * Uses double-double representation with ~106-bit mantissa precision.
+     * Ideal for high-precision accumulation and error-sensitive calculations.
+     * 
+     * @param init Initial value (default: CFloat128.ZERO)
+     * @param align Alignment (default: 16 bytes)
+     * @return CFloat128Var pointing to stack memory
+     * @see ai.solace.klang.fp.CFloat128
+     */
+    fun float128(init: ai.solace.klang.fp.CFloat128 = ai.solace.klang.fp.CFloat128.ZERO, align: Int = 16): CFloat128Var {
+        val p = KStack.alloca(16, align)
+        GlobalHeap.sdf(p, init.hi)
+        GlobalHeap.sdf(p + 8, init.lo)
+        return CFloat128Var(p)
+    }
+    
+    /**
+     * Allocate a long double (extended precision) on the stack.
+     * 
+     * @param init Initial value (default: CLongDouble.ofDouble(0.0))
+     * @param align Alignment (default: 16 bytes)
+     * @return CLongDoubleVar pointing to stack memory
+     * @see ai.solace.klang.fp.CLongDouble
+     */
+    fun longdouble(init: ai.solace.klang.fp.CLongDouble = ai.solace.klang.fp.CLongDouble.ofDouble(0.0), align: Int = 16): CLongDoubleVar {
+        val p = KStack.alloca(16, align)
+        val f128 = init.toCFloat128()
+        GlobalHeap.sdf(p, f128.hi)
+        GlobalHeap.sdf(p + 8, f128.lo)
+        return CLongDoubleVar(p)
+    }
+    
+    /**
+     * Allocate a float16 (half-precision) on the stack.
+     * 
+     * IEEE-754 binary16 format, commonly used in ML for memory efficiency.
+     * Provides ~3.3 decimal digits of precision.
+     *
+     * @param init Initial value (default: CFloat16.ZERO)
+     * @param align Alignment (default: 2 bytes)
+     * @return CFloat16Var pointing to stack memory
+     * @see ai.solace.klang.fp.CFloat16
+     */
+    fun float16(init: ai.solace.klang.fp.CFloat16 = ai.solace.klang.fp.CFloat16.Companion.ZERO, align: Int = 2): CFloat16Var {
+        val p = KStack.alloca(2, align)
+        GlobalHeap.sh(p, init.toBits().toShort())
+        return CFloat16Var(p)
+    }
+    
+    /**
+     * Allocate a bfloat16 (brain float) on the stack.
+     * 
+     * bfloat16 format preserves float32 exponent range with reduced precision.
+     * Widely used in deep learning (Google TPU, PyTorch, TensorFlow).
+     * 
+     * @param init Initial value (default: CBF16.ZERO)
+     * @param align Alignment (default: 2 bytes)
+     * @return CBF16Var pointing to stack memory
+     * @see ai.solace.klang.fp.CBF16
+     */
+    fun bfloat16(init: ai.solace.klang.fp.CBF16 = ai.solace.klang.fp.CBF16.fromFloat(0f), align: Int = 2): CBF16Var {
+        val p = KStack.alloca(2, align)
+        GlobalHeap.sh(p, init.toBits())
+        return CBF16Var(p)
     }
 }
 
@@ -468,6 +778,79 @@ object CGlobals {
      * @return CDoubleVar pointing to global memory
      */
     fun double(name: String, init: Double = 0.0, align: Int = 8): CDoubleVar = CDoubleVar(GlobalData.defineF64(name, init, align))
+    
+    /**
+     * Define a global float32 variable.
+     *
+     * @param name Unique identifier for the variable
+     * @param init Initial value (default: CFloat32.fromFloat(0f))
+     * @param align Alignment (default: 4)
+     * @return CFloat32Var pointing to global memory
+     */
+    fun float32(name: String, init: ai.solace.klang.fp.CFloat32 = ai.solace.klang.fp.CFloat32.fromFloat(0f), align: Int = 4): CFloat32Var {
+        val addr = GlobalData.defineBss(name, 4, align)
+        GlobalHeap.sw(addr, init.toBits())
+        return CFloat32Var(addr)
+    }
+    
+    /**
+     * Define a global float128 variable.
+     *
+     * @param name Unique identifier for the variable
+     * @param init Initial value (default: CFloat128.ZERO)
+     * @param align Alignment (default: 16)
+     * @return CFloat128Var pointing to global memory
+     */
+    fun float128(name: String, init: ai.solace.klang.fp.CFloat128 = ai.solace.klang.fp.CFloat128.ZERO, align: Int = 16): CFloat128Var {
+        val addr = GlobalData.defineBss(name, 16, align)
+        GlobalHeap.sdf(addr, init.hi)
+        GlobalHeap.sdf(addr + 8, init.lo)
+        return CFloat128Var(addr)
+    }
+    
+    /**
+     * Define a global long double variable.
+     *
+     * @param name Unique identifier for the variable
+     * @param init Initial value (default: CLongDouble.ofDouble(0.0))
+     * @param align Alignment (default: 16)
+     * @return CLongDoubleVar pointing to global memory
+     */
+    fun longdouble(name: String, init: ai.solace.klang.fp.CLongDouble = ai.solace.klang.fp.CLongDouble.ofDouble(0.0), align: Int = 16): CLongDoubleVar {
+        val addr = GlobalData.defineBss(name, 16, align)
+        val f128 = init.toCFloat128()
+        GlobalHeap.sdf(addr, f128.hi)
+        GlobalHeap.sdf(addr + 8, f128.lo)
+        return CLongDoubleVar(addr)
+    }
+    
+    /**
+     * Define a global float16 variable.
+     *
+     * @param name Unique identifier for the variable
+     * @param init Initial value (default: CFloat16.ZERO)
+     * @param align Alignment (default: 2)
+     * @return CFloat16Var pointing to global memory
+     */
+    fun float16(name: String, init: ai.solace.klang.fp.CFloat16 = ai.solace.klang.fp.CFloat16.Companion.ZERO, align: Int = 2): CFloat16Var {
+        val addr = GlobalData.defineBss(name, 2, align)
+        GlobalHeap.sh(addr, init.toBits().toShort())
+        return CFloat16Var(addr)
+    }
+    
+    /**
+     * Define a global bfloat16 variable.
+     *
+     * @param name Unique identifier for the variable
+     * @param init Initial value (default: CBF16.ZERO)
+     * @param align Alignment (default: 2)
+     * @return CBF16Var pointing to global memory
+     */
+    fun bfloat16(name: String, init: ai.solace.klang.fp.CBF16 = ai.solace.klang.fp.CBF16.fromFloat(0f), align: Int = 2): CBF16Var {
+        val addr = GlobalData.defineBss(name, 2, align)
+        GlobalHeap.sh(addr, init.toBits())
+        return CBF16Var(addr)
+    }
 }
 
 /**
@@ -553,6 +936,76 @@ object CHeapVars {
     fun double(init: Double = 0.0): CDoubleVar {
         val p = KMalloc.malloc(8)
         GlobalHeap.sdf(p, init); return CDoubleVar(p)
+    }
+    
+    /**
+     * Allocate a float32 on the heap.
+     * 
+     * @param init Initial value (default: CFloat32.fromFloat(0f))
+     * @return CFloat32Var pointing to heap memory
+     * 
+     * **Important**: Must call [free] to avoid memory leak.
+     */
+    fun float32(init: ai.solace.klang.fp.CFloat32 = ai.solace.klang.fp.CFloat32.fromFloat(0f)): CFloat32Var {
+        val p = KMalloc.malloc(4)
+        GlobalHeap.sw(p, init.toBits()); return CFloat32Var(p)
+    }
+    
+    /**
+     * Allocate a float128 on the heap.
+     * 
+     * @param init Initial value (default: CFloat128.ZERO)
+     * @return CFloat128Var pointing to heap memory
+     * 
+     * **Important**: Must call [free] to avoid memory leak.
+     */
+    fun float128(init: ai.solace.klang.fp.CFloat128 = ai.solace.klang.fp.CFloat128.ZERO): CFloat128Var {
+        val p = KMalloc.malloc(16)
+        GlobalHeap.sdf(p, init.hi)
+        GlobalHeap.sdf(p + 8, init.lo)
+        return CFloat128Var(p)
+    }
+    
+    /**
+     * Allocate a long double on the heap.
+     * 
+     * @param init Initial value (default: CLongDouble.ofDouble(0.0))
+     * @return CLongDoubleVar pointing to heap memory
+     * 
+     * **Important**: Must call [free] to avoid memory leak.
+     */
+    fun longdouble(init: ai.solace.klang.fp.CLongDouble = ai.solace.klang.fp.CLongDouble.ofDouble(0.0)): CLongDoubleVar {
+        val p = KMalloc.malloc(16)
+        val f128 = init.toCFloat128()
+        GlobalHeap.sdf(p, f128.hi)
+        GlobalHeap.sdf(p + 8, f128.lo)
+        return CLongDoubleVar(p)
+    }
+    
+    /**
+     * Allocate a float16 on the heap.
+     * 
+     * @param init Initial value (default: CFloat16.ZERO)
+     * @return CFloat16Var pointing to heap memory
+     * 
+     * **Important**: Must call [free] to avoid memory leak.
+     */
+    fun float16(init: ai.solace.klang.fp.CFloat16 = ai.solace.klang.fp.CFloat16.Companion.ZERO): CFloat16Var {
+        val p = KMalloc.malloc(2)
+        GlobalHeap.sh(p, init.toBits().toShort()); return CFloat16Var(p)
+    }
+    
+    /**
+     * Allocate a bfloat16 on the heap.
+     * 
+     * @param init Initial value (default: CBF16.ZERO)
+     * @return CBF16Var pointing to heap memory
+     * 
+     * **Important**: Must call [free] to avoid memory leak.
+     */
+    fun bfloat16(init: ai.solace.klang.fp.CBF16 = ai.solace.klang.fp.CBF16.fromFloat(0f)): CBF16Var {
+        val p = KMalloc.malloc(2)
+        GlobalHeap.sh(p, init.toBits()); return CBF16Var(p)
     }
     
     /**
