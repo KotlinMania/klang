@@ -1,13 +1,13 @@
 package ai.solace.klang.fp
 
-import ai.solace.klang.bitwise.BitShiftEngine
-import ai.solace.klang.bitwise.BitShiftMode
 import kotlin.math.abs
 import kotlin.math.floor
 
 /**
  * Software IEEE-754 float32 multiply using integer bit manipulation and
  * round-to-nearest, ties-to-even. Handles zeros, subnormals, infinities, NaNs.
+ *
+ * Performance-optimized: Uses native shift operators instead of BitShiftEngine.
  */
 object Float32Math {
     private const val SIGN_MASK = 0x80000000.toInt()
@@ -18,7 +18,6 @@ object Float32Math {
     private const val TYPE_WIDTH = 24 + 3 // 24 significand bits plus R/G/S
 
     private const val CANONICAL_NAN = 0x7FC00000.toInt()
-    private val SHIFT64 = BitShiftEngine(BitShiftMode.NATIVE, 64)
 
     fun mul(a: Float, b: Float): Float = Float.fromBits(mulBits(a.toRawBits(), b.toRawBits()))
 
@@ -533,8 +532,9 @@ object Float32Math {
         val align = aExp - bExp
         if (align != 0) {
             if (align < TYPE_WIDTH) {
-                val sticky = (SHIFT64.leftShift(bSig, TYPE_WIDTH - align).value != 0L)
-                bSig = SHIFT64.rightShift(bSig, align).value or if (sticky) 1L else 0L
+                // Check if any bits would be shifted out (sticky bit detection)
+                val sticky = (bSig shl (64 - align)) != 0L
+                bSig = (bSig ushr align) or if (sticky) 1L else 0L
             } else {
                 bSig = 1 // sticky only
             }
@@ -564,8 +564,8 @@ object Float32Math {
         // Subnormal before rounding
         if (aExp <= 0) {
             val shift = 1 - aExp
-            val sticky = if (shift < TYPE_WIDTH) (SHIFT64.leftShift(aSig, TYPE_WIDTH - shift).value != 0L) else (aSig != 0L)
-            aSig = SHIFT64.rightShift(aSig, shift).value or (if (sticky) 1L else 0L)
+            val sticky = if (shift < TYPE_WIDTH) ((aSig shl (64 - shift)) != 0L) else (aSig != 0L)
+            aSig = (aSig ushr shift) or (if (sticky) 1L else 0L)
             aExp = 0
         }
 
@@ -679,8 +679,8 @@ object Float32Math {
         // Subnormal pack before rounding
         if (exp <= 0) {
             val shift = 1 - exp
-            val sticky = SHIFT64.leftShift(quo, shift).value != 0L || rem != 0L
-            quo = SHIFT64.rightShift(quo, shift).value or if (sticky) 1L else 0L
+            val sticky = ((quo shl (64 - shift)) != 0L) || rem != 0L
+            quo = (quo ushr shift) or if (sticky) 1L else 0L
             exp = 0
         }
 
