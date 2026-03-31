@@ -1,6 +1,8 @@
 @file:Suppress("unused", "UNUSED_PARAMETER")
 package ai.solace.klang.bitwise
 
+import ai.solace.klang.mem.PackedBuffer
+
 /**
  * @native-bitshift-allowed This is a core BitShift implementation file.
  * Native bitwise operations (shl, shr, ushr, and, or) are permitted here
@@ -1372,5 +1374,191 @@ class BitShiftEngine(
     fun unsignedRightShiftInt(value: Int, bits: Int): Int {
         val result = unsignedRightShift(value.toLong() and 0xFFFFFFFFL, bits)
         return (result.value and 0xFFFFFFFFL).toInt()
+    }
+
+    // ========================================================================
+    // PackedBuffer Direct Operations
+    // ========================================================================
+    //
+    // These overloads operate directly on heap-backed data in a PackedBuffer,
+    // using efficient Long-based operations without intermediate conversions.
+    // When CFloat32 or other heap-backed types use BitShiftEngine, these
+    // methods provide native-speed access.
+
+    /**
+     * Left shift a value stored in a PackedBuffer at the given address.
+     *
+     * Reads the value from the buffer, shifts it, and writes it back.
+     * Uses the engine's bitWidth to determine how many bytes to read/write.
+     *
+     * @param buffer The PackedBuffer containing the value
+     * @param addr Address of the value in the buffer
+     * @param bits Number of positions to shift left
+     * @return [ShiftResult] with the shifted value
+     */
+    fun leftShift(buffer: PackedBuffer, addr: Int, bits: Int): ShiftResult {
+        val value = when (bitWidth) {
+            8 -> buffer.getByte(addr).toLong()
+            16 -> buffer.getShort(addr).toLong() and 0xFFFFL
+            32 -> buffer.getInt(addr).toLong() and 0xFFFFFFFFL
+            64 -> buffer.getLong(addr)
+            else -> error("Unsupported bitWidth: $bitWidth")
+        }
+        val result = leftShift(value, bits)
+        when (bitWidth) {
+            8 -> buffer.setByte(addr, result.value.toInt())
+            16 -> buffer.setShort(addr, result.value.toInt().toShort())
+            32 -> buffer.setInt(addr, result.value.toInt())
+            64 -> buffer.setLong(addr, result.value)
+        }
+        return result
+    }
+
+    /**
+     * Right shift a value stored in a PackedBuffer at the given address.
+     *
+     * @param buffer The PackedBuffer containing the value
+     * @param addr Address of the value in the buffer
+     * @param bits Number of positions to shift right
+     * @return [ShiftResult] with the shifted value
+     */
+    fun rightShift(buffer: PackedBuffer, addr: Int, bits: Int): ShiftResult {
+        val value = when (bitWidth) {
+            8 -> buffer.getByte(addr).toLong()
+            16 -> buffer.getShort(addr).toLong() and 0xFFFFL
+            32 -> buffer.getInt(addr).toLong() and 0xFFFFFFFFL
+            64 -> buffer.getLong(addr)
+            else -> error("Unsupported bitWidth: $bitWidth")
+        }
+        val result = rightShift(value, bits)
+        when (bitWidth) {
+            8 -> buffer.setByte(addr, result.value.toInt())
+            16 -> buffer.setShort(addr, result.value.toInt().toShort())
+            32 -> buffer.setInt(addr, result.value.toInt())
+            64 -> buffer.setLong(addr, result.value)
+        }
+        return result
+    }
+
+    /**
+     * Unsigned right shift a value stored in a PackedBuffer at the given address.
+     *
+     * @param buffer The PackedBuffer containing the value
+     * @param addr Address of the value in the buffer
+     * @param bits Number of positions to shift right
+     * @return [ShiftResult] with the shifted value
+     */
+    fun unsignedRightShift(buffer: PackedBuffer, addr: Int, bits: Int): ShiftResult {
+        val value = when (bitWidth) {
+            8 -> buffer.getByte(addr).toLong()
+            16 -> buffer.getShort(addr).toLong() and 0xFFFFL
+            32 -> buffer.getInt(addr).toLong() and 0xFFFFFFFFL
+            64 -> buffer.getLong(addr)
+            else -> error("Unsupported bitWidth: $bitWidth")
+        }
+        val result = unsignedRightShift(value, bits)
+        when (bitWidth) {
+            8 -> buffer.setByte(addr, result.value.toInt())
+            16 -> buffer.setShort(addr, result.value.toInt().toShort())
+            32 -> buffer.setInt(addr, result.value.toInt())
+            64 -> buffer.setLong(addr, result.value)
+        }
+        return result
+    }
+
+    /**
+     * Read a value from a PackedBuffer without modifying it.
+     *
+     * Uses the engine's bitWidth to determine how many bytes to read.
+     *
+     * @param buffer The PackedBuffer to read from
+     * @param addr Address of the value
+     * @return The value as Long
+     */
+    fun load(buffer: PackedBuffer, addr: Int): Long {
+        return when (bitWidth) {
+            8 -> buffer.getByte(addr).toLong() and 0xFFL
+            16 -> buffer.getShort(addr).toLong() and 0xFFFFL
+            32 -> buffer.getInt(addr).toLong() and 0xFFFFFFFFL
+            64 -> buffer.getLong(addr)
+            else -> error("Unsupported bitWidth: $bitWidth")
+        }
+    }
+
+    /**
+     * Write a value to a PackedBuffer.
+     *
+     * Uses the engine's bitWidth to determine how many bytes to write.
+     *
+     * @param buffer The PackedBuffer to write to
+     * @param addr Address to write at
+     * @param value The value to store
+     */
+    fun store(buffer: PackedBuffer, addr: Int, value: Long) {
+        when (bitWidth) {
+            8 -> buffer.setByte(addr, (value and 0xFF).toInt())
+            16 -> buffer.setShort(addr, (value and 0xFFFF).toInt().toShort())
+            32 -> buffer.setInt(addr, (value and 0xFFFFFFFFL).toInt())
+            64 -> buffer.setLong(addr, value)
+        }
+    }
+
+    /**
+     * Perform bitwise AND on a value in the buffer.
+     *
+     * @param buffer The PackedBuffer containing the value
+     * @param addr Address of the value
+     * @param mask The mask to AND with
+     * @return The result
+     */
+    fun bitwiseAnd(buffer: PackedBuffer, addr: Int, mask: Long): Long {
+        val value = load(buffer, addr)
+        val result = bitwiseAnd(value, mask)
+        store(buffer, addr, result)
+        return result
+    }
+
+    /**
+     * Perform bitwise OR on a value in the buffer.
+     *
+     * @param buffer The PackedBuffer containing the value
+     * @param addr Address of the value
+     * @param mask The mask to OR with
+     * @return The result
+     */
+    fun bitwiseOr(buffer: PackedBuffer, addr: Int, mask: Long): Long {
+        val value = load(buffer, addr)
+        val result = bitwiseOr(value, mask)
+        store(buffer, addr, result)
+        return result
+    }
+
+    /**
+     * Perform bitwise XOR on a value in the buffer.
+     *
+     * @param buffer The PackedBuffer containing the value
+     * @param addr Address of the value
+     * @param mask The mask to XOR with
+     * @return The result
+     */
+    fun bitwiseXor(buffer: PackedBuffer, addr: Int, mask: Long): Long {
+        val value = load(buffer, addr)
+        val result = bitwiseXor(value, mask)
+        store(buffer, addr, result)
+        return result
+    }
+
+    /**
+     * Perform bitwise NOT on a value in the buffer.
+     *
+     * @param buffer The PackedBuffer containing the value
+     * @param addr Address of the value
+     * @return The inverted result
+     */
+    fun bitwiseNot(buffer: PackedBuffer, addr: Int): Long {
+        val value = load(buffer, addr)
+        val result = bitwiseNot(value)
+        store(buffer, addr, result)
+        return result
     }
 }

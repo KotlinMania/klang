@@ -12,30 +12,39 @@
 
 package ai.solace.klang.math
 
+import ai.solace.klang.bitwise.BitShiftConfig
+import ai.solace.klang.bitwise.BitShiftEngine
+
 /**
  * IEEE-754 compliant comparison functions.
- * 
+ *
  * These functions implement min/max operations with special handling for
  * NaN values and signed zeros according to IEEE-754 semantics.
- * 
+ *
+ * All bitwise operations are routed through [BitShiftEngine] for
+ * cross-platform determinism and C-compatible shift semantics.
+ *
  * ## Platform Support
  * - JavaScript (ES2015+)
  * - Native (macOS ARM64/x64, Linux x64/ARM64, Windows x64)
- * 
+ *
  * ## References
  * - IEEE-754-2008 Section 5.3.1: minNum, maxNum operations
  * - FreeBSD libm: `lib/msun/src/s_fmax.c`, `s_fmin.c`
- * 
+ *
  * @since 0.2.0
  */
 object Comparison {
-    
+
+    /** 64-bit shift engine for IEEE-754 bit extraction. */
+    private val shift64 get() = BitShiftEngine(BitShiftConfig.defaultMode, 64)
+
     /** Exponent mask for binary64: bits 62-52 */
     private const val EXP_MASK = 0x7FF0_0000_0000_0000L
-    
+
     /** Sign bit mask for binary64: bit 63 */
     private val SIGN_MASK = Long.MIN_VALUE
-    
+
     /** Mantissa mask for binary64: bits 51-0 */
     private const val FRAC_MASK = 0x000F_FFFF_FFFF_FFFFL
     
@@ -90,28 +99,29 @@ object Comparison {
      * @see Classification.isnan For NaN detection
      */
     fun fmax(x: Double, y: Double): Double {
+        val s = shift64
         val xBits = x.toRawBits()
         val yBits = y.toRawBits()
-        
-        val xExp = (xBits and EXP_MASK) ushr 52
-        val yExp = (yBits and EXP_MASK) ushr 52
-        
-        val xFrac = xBits and FRAC_MASK
-        val yFrac = yBits and FRAC_MASK
-        
+
+        val xExp = s.unsignedRightShift(s.bitwiseAnd(xBits, EXP_MASK), 52).value
+        val yExp = s.unsignedRightShift(s.bitwiseAnd(yBits, EXP_MASK), 52).value
+
+        val xFrac = s.bitwiseAnd(xBits, FRAC_MASK)
+        val yFrac = s.bitwiseAnd(yBits, FRAC_MASK)
+
         // Check for NaNs - return the non-NaN value
         if (xExp == 0x7FFL && xFrac != 0L) return y
         if (yExp == 0x7FFL && yFrac != 0L) return x
-        
+
         // Handle signed zeros: prefer positive zero
-        val xSign = (xBits and SIGN_MASK) ushr 63
-        val ySign = (yBits and SIGN_MASK) ushr 63
-        
+        val xSign = s.unsignedRightShift(s.bitwiseAnd(xBits, SIGN_MASK), 63).value
+        val ySign = s.unsignedRightShift(s.bitwiseAnd(yBits, SIGN_MASK), 63).value
+
         if (xSign != ySign) {
             // Different signs: return the positive one
             return if (xSign == 0L) x else y
         }
-        
+
         // Normal comparison
         return if (x > y) x else y
     }
@@ -167,28 +177,29 @@ object Comparison {
      * @see Classification.isnan For NaN detection
      */
     fun fmin(x: Double, y: Double): Double {
+        val s = shift64
         val xBits = x.toRawBits()
         val yBits = y.toRawBits()
-        
-        val xExp = (xBits and EXP_MASK) ushr 52
-        val yExp = (yBits and EXP_MASK) ushr 52
-        
-        val xFrac = xBits and FRAC_MASK
-        val yFrac = yBits and FRAC_MASK
-        
+
+        val xExp = s.unsignedRightShift(s.bitwiseAnd(xBits, EXP_MASK), 52).value
+        val yExp = s.unsignedRightShift(s.bitwiseAnd(yBits, EXP_MASK), 52).value
+
+        val xFrac = s.bitwiseAnd(xBits, FRAC_MASK)
+        val yFrac = s.bitwiseAnd(yBits, FRAC_MASK)
+
         // Check for NaNs - return the non-NaN value
         if (xExp == 0x7FFL && xFrac != 0L) return y
         if (yExp == 0x7FFL && yFrac != 0L) return x
-        
+
         // Handle signed zeros: prefer negative zero
-        val xSign = (xBits and SIGN_MASK) ushr 63
-        val ySign = (yBits and SIGN_MASK) ushr 63
-        
+        val xSign = s.unsignedRightShift(s.bitwiseAnd(xBits, SIGN_MASK), 63).value
+        val ySign = s.unsignedRightShift(s.bitwiseAnd(yBits, SIGN_MASK), 63).value
+
         if (xSign != ySign) {
             // Different signs: return the negative one
             return if (ySign == 1L) y else x
         }
-        
+
         // Normal comparison
         return if (x < y) x else y
     }
