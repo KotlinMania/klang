@@ -783,4 +783,195 @@ object Float32Math {
         // Return new significand with implicit bit set (still at bit23), exponent = 1 - shift
         return sig to (1 - shift)
     }
+
+    // =====================================================================
+    // Binary32 rounding/utility bit kernels.
+    // No `kotlin.math.*` calls — pure IEEE-754 bit-pattern manipulation.
+    // Layout: 1 sign + 8 exp (bias 127) + 23 mantissa, implicit leading 1.
+    // =====================================================================
+
+    private const val MANT_BITS_32 = 23
+    private const val EXP_MAX_32 = 0xFF
+    private const val POS_ZERO_32 = 0
+    private const val NEG_ZERO_32 = SIGN_MASK
+    private const val POS_ONE_32 = 0x3F800000.toInt()  // 1.0f
+    private const val NEG_ONE_32 = SIGN_MASK or POS_ONE_32
+
+    private fun rawExp32(b: Int): Int = (b ushr MANT_BITS_32) and EXP_MAX_32
+    private fun rawMant32(b: Int): Int = b and FRAC_MASK
+    private fun signBit32(b: Int): Int = b and SIGN_MASK
+    private fun isNaN32(b: Int): Boolean = rawExp32(b) == EXP_MAX_32 && rawMant32(b) != 0
+    private fun isInf32(b: Int): Boolean = rawExp32(b) == EXP_MAX_32 && rawMant32(b) == 0
+    private fun isZero32(b: Int): Boolean = (b and 0x7FFFFFFF.toInt()) == 0
+
+    private fun addUlpAtFracBits32(truncatedBits: Int, fracBits: Int): Int {
+        val sign = truncatedBits and SIGN_MASK
+        val mag = truncatedBits and SIGN_MASK.inv()
+        val step = 1 shl fracBits
+        return sign or (mag + step)
+    }
+
+    /** Round toward -∞ (binary32 bit kernel). */
+    fun floorBits(bits: Int): Int {
+        if (isNaN32(bits)) return CANONICAL_NAN
+        if (isInf32(bits) || isZero32(bits)) return bits
+        val e = rawExp32(bits) - EXP_BIAS
+        if (e >= MANT_BITS_32) return bits
+        if (e < 0) return if (signBit32(bits) != 0) NEG_ONE_32 else POS_ZERO_32
+        val fracBits = MANT_BITS_32 - e
+        val mask = (1 shl fracBits) - 1
+        val truncated = bits and mask.inv()
+        val droppedNonZero = (bits and mask) != 0
+        return if (signBit32(bits) != 0 && droppedNonZero) addUlpAtFracBits32(truncated, fracBits)
+        else truncated
+    }
+
+    /** Round toward +∞ (binary32 bit kernel). */
+    fun ceilBits(bits: Int): Int {
+        if (isNaN32(bits)) return CANONICAL_NAN
+        if (isInf32(bits) || isZero32(bits)) return bits
+        val e = rawExp32(bits) - EXP_BIAS
+        if (e >= MANT_BITS_32) return bits
+        if (e < 0) return if (signBit32(bits) != 0) NEG_ZERO_32 else POS_ONE_32
+        val fracBits = MANT_BITS_32 - e
+        val mask = (1 shl fracBits) - 1
+        val truncated = bits and mask.inv()
+        val droppedNonZero = (bits and mask) != 0
+        return if (signBit32(bits) == 0 && droppedNonZero) addUlpAtFracBits32(truncated, fracBits)
+        else truncated
+    }
+
+    /** Round toward zero (binary32 bit kernel). */
+    fun truncBits(bits: Int): Int {
+        if (isNaN32(bits)) return CANONICAL_NAN
+        if (isInf32(bits) || isZero32(bits)) return bits
+        val e = rawExp32(bits) - EXP_BIAS
+        if (e >= MANT_BITS_32) return bits
+        if (e < 0) return signBit32(bits)
+        val fracBits = MANT_BITS_32 - e
+        val mask = (1 shl fracBits) - 1
+        return bits and mask.inv()
+    }
+
+    /** Round half away from zero (C99 round; binary32 bit kernel). */
+    fun roundBits(bits: Int): Int {
+        if (isNaN32(bits)) return CANONICAL_NAN
+        if (isInf32(bits) || isZero32(bits)) return bits
+        val e = rawExp32(bits) - EXP_BIAS
+        if (e >= MANT_BITS_32) return bits
+        if (e < -1) return signBit32(bits)
+        if (e == -1) return if (signBit32(bits) != 0) NEG_ONE_32 else POS_ONE_32
+        val fracBits = MANT_BITS_32 - e
+        val mask = (1 shl fracBits) - 1
+        val guardBit = 1 shl (fracBits - 1)
+        val truncated = bits and mask.inv()
+        val halfOrMore = (bits and guardBit) != 0
+        return if (halfOrMore) addUlpAtFracBits32(truncated, fracBits) else truncated
+    }
+
+    /** Round half to even (banker's; binary32 bit kernel). */
+    fun roundEvenBits(bits: Int): Int {
+        if (isNaN32(bits)) return CANONICAL_NAN
+        if (isInf32(bits) || isZero32(bits)) return bits
+        val e = rawExp32(bits) - EXP_BIAS
+        if (e >= MANT_BITS_32) return bits
+        if (e < -1) return signBit32(bits)
+        if (e == -1) {
+            val mantNonZero = rawMant32(bits) != 0
+            return if (mantNonZero) (if (signBit32(bits) != 0) NEG_ONE_32 else POS_ONE_32)
+            else signBit32(bits)
+        }
+        val fracBits = MANT_BITS_32 - e
+        val mask = (1 shl fracBits) - 1
+        val guardBit = 1 shl (fracBits - 1)
+        val belowGuardMask = guardBit - 1
+        val truncated = bits and mask.inv()
+        val guardSet = (bits and guardBit) != 0
+        val belowGuardNonZero = (bits and belowGuardMask) != 0
+        val intLsbSet = (bits and (1 shl fracBits)) != 0
+        val roundUp = guardSet && (belowGuardNonZero || intLsbSet)
+        return if (roundUp) addUlpAtFracBits32(truncated, fracBits) else truncated
+    }
+
+    fun frexpBits(bits: Int): Pair<Int, Int> {
+        if (isZero32(bits) || isNaN32(bits) || isInf32(bits)) {
+            val out = if (isNaN32(bits)) CANONICAL_NAN or signBit32(bits) else bits
+            return out to 0
+        }
+        val sign = signBit32(bits)
+        val rawE = rawExp32(bits)
+        val mant = rawMant32(bits)
+        return if (rawE == 0) {
+            var m = mant
+            var shift = 0
+            while ((m and IMPLICIT_BIT) == 0) { m = m shl 1; shift++ }
+            val normM = m and FRAC_MASK
+            val unbiasedOriginal = 1 - EXP_BIAS - shift
+            val outE = unbiasedOriginal + 1
+            val outBits = sign or ((EXP_BIAS - 1) shl MANT_BITS_32) or normM
+            outBits to outE
+        } else {
+            val outE = rawE - EXP_BIAS + 1
+            val outBits = sign or ((EXP_BIAS - 1) shl MANT_BITS_32) or mant
+            outBits to outE
+        }
+    }
+
+    fun ldexpBits(bits: Int, exp: Int): Int {
+        if (isZero32(bits) || isNaN32(bits) || isInf32(bits) || exp == 0) return bits
+        val sign = signBit32(bits)
+        val rawE = rawExp32(bits)
+        val mant = rawMant32(bits)
+        val significand: Int
+        val unbiasedE: Int
+        if (rawE == 0) {
+            var m = mant
+            var shift = 0
+            while ((m and IMPLICIT_BIT) == 0) { m = m shl 1; shift++ }
+            significand = m
+            unbiasedE = 1 - EXP_BIAS - shift
+        } else {
+            significand = mant or IMPLICIT_BIT
+            unbiasedE = rawE - EXP_BIAS
+        }
+        val newE = unbiasedE + exp
+        if (newE > EXP_BIAS) return sign or EXP_MASK
+        if (newE < 1 - EXP_BIAS) {
+            val shift = (1 - EXP_BIAS) - newE
+            if (shift > MANT_BITS_32) return sign
+            val newMant = significand ushr shift
+            return sign or newMant
+        }
+        val newRawExp = (newE + EXP_BIAS) and EXP_MAX_32
+        val newMant = significand and FRAC_MASK
+        return sign or (newRawExp shl MANT_BITS_32) or newMant
+    }
+
+    fun modfBits(bits: Int): Pair<Int, Int> {
+        if (isNaN32(bits)) return CANONICAL_NAN to CANONICAL_NAN
+        if (isInf32(bits)) return bits to signBit32(bits)
+        if (isZero32(bits)) return bits to bits
+        val intBits = truncBits(bits)
+        val e = rawExp32(bits) - EXP_BIAS
+        if (e >= MANT_BITS_32) return intBits to signBit32(bits)
+        if (e < 0) return signBit32(bits) to bits
+        val fracBits = MANT_BITS_32 - e
+        val mask = (1 shl fracBits) - 1
+        val fracMantBits = bits and mask
+        if (fracMantBits == 0) return intBits to signBit32(bits)
+        var probe = fracBits - 1
+        while (probe >= 0 && (fracMantBits and (1 shl probe)) == 0) probe--
+        val leadPos = probe
+        val shiftLeft = MANT_BITS_32 - leadPos
+        val normalized = (fracMantBits shl shiftLeft) and FRAC_MASK
+        val fracExp = leadPos - fracBits
+        return if (fracExp + EXP_BIAS >= 1) {
+            val rawExpField = (fracExp + EXP_BIAS) and EXP_MAX_32
+            val fracOut = signBit32(bits) or (rawExpField shl MANT_BITS_32) or normalized
+            intBits to fracOut
+        } else {
+            val fracOut = signBit32(bits) or fracMantBits
+            intBits to fracOut
+        }
+    }
 }

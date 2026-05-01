@@ -1,6 +1,7 @@
 package ai.solace.klang.fp
 
 import ai.solace.klang.bitwise.Float16Math
+// Float32Math is in fp package — same package, no import needed
 
 /**
  * CFloat16: IEEE-754 binary16 (half-precision) floating-point with deterministic behavior.
@@ -119,7 +120,7 @@ import ai.solace.klang.bitwise.Float16Math
  * @property bits Raw IEEE-754 binary16 representation (stored in lower 16 bits of Int)
  * @constructor Private constructor; use companion object factory methods
  * @see Float16Math For underlying bit-level operations
- * @see CDouble For 64-bit precision
+ * @see CFloat64 For 64-bit precision
  * @see CFloat128 For 128-bit extended precision
  * @since 0.1.0
  */
@@ -220,6 +221,45 @@ class CFloat16 private constructor(private val bits: Int) {
      */
     operator fun div(other: CFloat16): CFloat16 {
         return fromBits(Float16Math.divBits(this.bits, other.bits))
+    }
+
+    // ===== Basic math: sqrt, rounding, FP utilities =====
+
+    /** IEEE-754 square root (computed in Float32 then rounded back to half). */
+    fun sqrt(): CFloat16 = fromFloat(Float.fromBits(Float32Math.sqrtBits(value.toRawBits())))
+
+    // Rounding & FP utilities are computed by widening the half-precision value to
+    // binary32, applying the binary32 bit kernel (no kotlin.math.*), and narrowing
+    // back via fromFloat. Since |round(x)| ≤ |x| (for floor/ceil/trunc/round),
+    // any half-representable input produces a half-representable result, so the
+    // narrowing is exact. ldexp/modf likewise.
+
+    /** Round toward -∞ (binary32 bit kernel). */
+    fun floor(): CFloat16 = fromFloat(Float.fromBits(Float32Math.floorBits(value.toRawBits())))
+
+    /** Round toward +∞ (binary32 bit kernel). */
+    fun ceil(): CFloat16 = fromFloat(Float.fromBits(Float32Math.ceilBits(value.toRawBits())))
+
+    /** Round toward zero (binary32 bit kernel). */
+    fun trunc(): CFloat16 = fromFloat(Float.fromBits(Float32Math.truncBits(value.toRawBits())))
+
+    /** Round half away from zero, C99 (binary32 bit kernel). */
+    fun round(): CFloat16 = fromFloat(Float.fromBits(Float32Math.roundBits(value.toRawBits())))
+
+    /** Decompose into (mantissa in [0.5,1.0), exponent). */
+    fun frexp(): Pair<CFloat16, Int> {
+        val (mBits, e) = Float32Math.frexpBits(value.toRawBits())
+        return fromFloat(Float.fromBits(mBits)) to e
+    }
+
+    /** Compute `this * 2^exp`. */
+    fun ldexp(exp: Int): CFloat16 =
+        fromFloat(Float.fromBits(Float32Math.ldexpBits(value.toRawBits(), exp)))
+
+    /** Decompose into integer and fractional parts. */
+    fun modf(): Pair<CFloat16, CFloat16> {
+        val (iBits, fBits) = Float32Math.modfBits(value.toRawBits())
+        return fromFloat(Float.fromBits(iBits)) to fromFloat(Float.fromBits(fBits))
     }
     
     /**

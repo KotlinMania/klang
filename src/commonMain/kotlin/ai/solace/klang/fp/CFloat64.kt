@@ -3,11 +3,11 @@ package ai.solace.klang.fp
 import ai.solace.klang.bitwise.Float64Math
 
 /**
- * CDouble: IEEE-754 binary64 floating-point with deterministic cross-platform behavior.
+ * CFloat64: IEEE-754 binary64 floating-point with deterministic cross-platform behavior.
  *
  * Represents a 64-bit double-precision floating-point number that behaves identically
  * across all Kotlin multiplatform targets (JavaScript, Native, JVM). Unlike Kotlin's
- * built-in [Double], CDouble guarantees bit-exact arithmetic through [Float64Math].
+ * built-in [Double], CFloat64 guarantees bit-exact arithmetic through [Float64Math].
  *
  * ## IEEE-754 Binary64 Format
  *
@@ -23,14 +23,14 @@ import ai.solace.klang.bitwise.Float64Math
  * - **Exponent**: bits 62-52 (11 bits, bias = 1023)
  * - **Mantissa**: bits 51-0 (52 bits, implicit leading 1)
  *
- * ## Why CDouble?
+ * ## Why CFloat64?
  *
  * Kotlin's [Double] arithmetic can vary between platforms due to:
  * - Different intermediate precision (x87 extended precision on some platforms)
  * - Compiler optimizations (FMA, contraction)
  * - Rounding mode differences
  *
- * **CDouble guarantees**:
+ * **CFloat64 guarantees**:
  * - Exact bit-level reproducibility across all platforms
  * - Deterministic rounding (round-to-nearest-even)
  * - Platform-independent special value handling (NaN, Infinity)
@@ -39,8 +39,8 @@ import ai.solace.klang.bitwise.Float64Math
  *
  * ```kotlin
  * // Create from Double
- * val a = CDouble.fromDouble(10.0)
- * val b = CDouble.fromDouble(20.0)
+ * val a = CFloat64.fromDouble(10.0)
+ * val b = CFloat64.fromDouble(20.0)
  *
  * // Arithmetic operations
  * val sum = a + b                     // 30.0
@@ -51,9 +51,9 @@ import ai.solace.klang.bitwise.Float64Math
  * val isLess = a < b                  // true
  *
  * // Special values
- * val zero = CDouble.ZERO
- * val infinity = CDouble.POSITIVE_INFINITY
- * val notANumber = CDouble.NaN
+ * val zero = CFloat64.ZERO
+ * val infinity = CFloat64.POSITIVE_INFINITY
+ * val notANumber = CFloat64.NaN
  *
  * // Conversion
  * val asDouble = a.toDouble()         // 10.0
@@ -69,7 +69,7 @@ import ai.solace.klang.bitwise.Float64Math
  *
  * ## Thread Safety
  *
- * CDouble instances are immutable and thread-safe. All operations return new instances.
+ * CFloat64 instances are immutable and thread-safe. All operations return new instances.
  *
  * @property bits Raw IEEE-754 binary64 representation
  * @constructor Private constructor; use companion object factory methods
@@ -78,13 +78,13 @@ import ai.solace.klang.bitwise.Float64Math
  * @see CLongDouble For intent-based precision selection
  * @since 0.1.0
  */
-class CDouble private constructor(private val bits: Long) {
+class CFloat64 private constructor(private val bits: Long) {
     
     /**
      * The value as a Kotlin [Double].
      *
      * Note: Converting to [Double] loses the determinism guarantee if used in
-     * further arithmetic. Use CDouble operations to maintain cross-platform consistency.
+     * further arithmetic. Use CFloat64 operations to maintain cross-platform consistency.
      */
     val value: Double get() = Double.fromBits(bits)
     
@@ -114,9 +114,9 @@ class CDouble private constructor(private val bits: Long) {
     /**
      * Unary negation operator.
      *
-     * @return A new CDouble with the sign bit flipped
+     * @return A new CFloat64 with the sign bit flipped
      */
-    operator fun unaryMinus(): CDouble = fromBits(Float64Math.negateBits(bits))
+    operator fun unaryMinus(): CFloat64 = fromBits(Float64Math.negateBits(bits))
     
     /**
      * Addition operator.
@@ -124,9 +124,9 @@ class CDouble private constructor(private val bits: Long) {
      * Performs IEEE-754 compliant addition with round-to-nearest-even.
      *
      * @param other Value to add
-     * @return A new CDouble representing the sum
+     * @return A new CFloat64 representing the sum
      */
-    operator fun plus(other: CDouble): CDouble {
+    operator fun plus(other: CFloat64): CFloat64 {
         return fromBits(Float64Math.addBits(this.bits, other.bits))
     }
     
@@ -134,9 +134,9 @@ class CDouble private constructor(private val bits: Long) {
      * Subtraction operator.
      *
      * @param other Value to subtract
-     * @return A new CDouble representing the difference
+     * @return A new CFloat64 representing the difference
      */
-    operator fun minus(other: CDouble): CDouble {
+    operator fun minus(other: CFloat64): CFloat64 {
         return fromBits(Float64Math.subBits(this.bits, other.bits))
     }
     
@@ -144,9 +144,9 @@ class CDouble private constructor(private val bits: Long) {
      * Multiplication operator.
      *
      * @param other Value to multiply by
-     * @return A new CDouble representing the product
+     * @return A new CFloat64 representing the product
      */
-    operator fun times(other: CDouble): CDouble {
+    operator fun times(other: CFloat64): CFloat64 {
         return fromBits(Float64Math.mulBits(this.bits, other.bits))
     }
     
@@ -154,12 +154,44 @@ class CDouble private constructor(private val bits: Long) {
      * Division operator.
      *
      * @param other Divisor
-     * @return A new CDouble representing the quotient
+     * @return A new CFloat64 representing the quotient
      */
-    operator fun div(other: CDouble): CDouble {
+    operator fun div(other: CFloat64): CFloat64 {
         return fromBits(Float64Math.divBits(this.bits, other.bits))
     }
-    
+
+    // ===== Basic math: sqrt, rounding modes, FP utilities =====
+
+    /** IEEE-754 square root. */
+    fun sqrt(): CFloat64 = fromDouble(ai.solace.klang.math.BasicMath.sqrt(value))
+
+    /** Round toward -∞. */
+    fun floor(): CFloat64 = fromDouble(ai.solace.klang.math.BasicMath.floor(value))
+
+    /** Round toward +∞. */
+    fun ceil(): CFloat64 = fromDouble(ai.solace.klang.math.BasicMath.ceil(value))
+
+    /** Round toward zero. */
+    fun trunc(): CFloat64 = fromDouble(ai.solace.klang.math.BasicMath.trunc(value))
+
+    /** Round half away from zero (C99 round). */
+    fun round(): CFloat64 = fromDouble(ai.solace.klang.math.BasicMath.round(value))
+
+    /** Decompose into (mantissa in [0.5,1.0), exponent). */
+    fun frexp(): Pair<CFloat64, Int> {
+        val (m, e) = ai.solace.klang.math.BasicMath.frexp(value)
+        return fromDouble(m) to e
+    }
+
+    /** Compute `this * 2^exp`. */
+    fun ldexp(exp: Int): CFloat64 = fromDouble(ai.solace.klang.math.BasicMath.ldexp(value, exp))
+
+    /** Decompose into integer and fractional parts. */
+    fun modf(): Pair<CFloat64, CFloat64> {
+        val (i, f) = ai.solace.klang.math.BasicMath.modf(value)
+        return fromDouble(i) to fromDouble(f)
+    }
+
     /**
      * Comparison operator.
      *
@@ -170,7 +202,7 @@ class CDouble private constructor(private val bits: Long) {
      * @param other Value to compare against
      * @return Negative if this < other, zero if equal, positive if this > other
      */
-    operator fun compareTo(other: CDouble): Int {
+    operator fun compareTo(other: CFloat64): Int {
         return Float64Math.compareBits(this.bits, other.bits)
     }
     
@@ -187,9 +219,9 @@ class CDouble private constructor(private val bits: Long) {
      * Note: NaN == NaN returns false (IEEE-754 semantics)
      *
      * @param other Object to compare against
-     * @return true if other is a CDouble with identical bit representation
+     * @return true if other is a CFloat64 with identical bit representation
      */
-    override fun equals(other: Any?): Boolean = other is CDouble && other.toBits() == bits
+    override fun equals(other: Any?): Boolean = other is CFloat64 && other.toBits() == bits
     
     /**
      * Hash code based on bit representation.
@@ -202,73 +234,73 @@ class CDouble private constructor(private val bits: Long) {
         /**
          * Positive zero (+0.0).
          */
-        val ZERO = CDouble(Float64Math.ZERO_BITS)
+        val ZERO = CFloat64(Float64Math.ZERO_BITS)
         
         /**
          * One (1.0).
          */
-        val ONE = CDouble(Float64Math.ONE_BITS)
+        val ONE = CFloat64(Float64Math.ONE_BITS)
         
         /**
          * Not-a-Number (NaN).
          */
-        val NaN = CDouble(Float64Math.NAN_BITS)
+        val NaN = CFloat64(Float64Math.NAN_BITS)
         
         /**
          * Positive infinity (+∞).
          */
-        val POSITIVE_INFINITY = CDouble(Float64Math.INF_BITS)
+        val POSITIVE_INFINITY = CFloat64(Float64Math.INF_BITS)
         
         /**
          * Negative infinity (-∞).
          */
-        val NEGATIVE_INFINITY = CDouble(Float64Math.NEG_INF_BITS)
+        val NEGATIVE_INFINITY = CFloat64(Float64Math.NEG_INF_BITS)
         
         /**
-         * Create CDouble from raw IEEE-754 bits.
+         * Create CFloat64 from raw IEEE-754 bits.
          *
          * @param bits 64-bit IEEE-754 binary64 representation
-         * @return A new CDouble with the specified bit pattern
+         * @return A new CFloat64 with the specified bit pattern
          */
-        fun fromBits(bits: Long): CDouble = CDouble(bits)
+        fun fromBits(bits: Long): CFloat64 = CFloat64(bits)
         
         /**
-         * Create CDouble from Kotlin [Double].
+         * Create CFloat64 from Kotlin [Double].
          *
          * @param value Double value to wrap
-         * @return A new CDouble representing the same value
+         * @return A new CFloat64 representing the same value
          */
-        fun fromDouble(value: Double): CDouble = CDouble(value.toRawBits())
+        fun fromDouble(value: Double): CFloat64 = CFloat64(value.toRawBits())
         
         /**
-         * Create CDouble from [Float] with proper widening conversion.
+         * Create CFloat64 from [Float] with proper widening conversion.
          *
          * Uses [Float64Math.fromFloat32Bits] for deterministic conversion.
          *
          * @param value Float value to convert
-         * @return A new CDouble representing the widened value
+         * @return A new CFloat64 representing the widened value
          */
-        fun fromFloat(value: Float): CDouble {
+        fun fromFloat(value: Float): CFloat64 {
             val f64bits = Float64Math.fromFloat32Bits(value.toRawBits())
-            return CDouble(f64bits)
+            return CFloat64(f64bits)
         }
         
         /**
-         * Create CDouble from [Int].
+         * Create CFloat64 from [Int].
          *
          * @param value Integer value to convert
-         * @return A new CDouble representing the value
+         * @return A new CFloat64 representing the value
          */
-        fun fromInt(value: Int): CDouble = fromDouble(value.toDouble())
+        fun fromInt(value: Int): CFloat64 = fromDouble(value.toDouble())
         
         /**
-         * Create CDouble from [Long].
+         * Create CFloat64 from [Long].
          *
          * Note: Precision may be lost for large Long values (> 2^53).
          *
          * @param value Long value to convert
-         * @return A new CDouble representing the value (may be approximate)
+         * @return A new CFloat64 representing the value (may be approximate)
          */
-        fun fromLong(value: Long): CDouble = fromDouble(value.toDouble())
+        fun fromLong(value: Long): CFloat64 = fromDouble(value.toDouble())
     }
 }

@@ -197,8 +197,8 @@ object F32Math {
      * @param srcAddr Source heap address
      */
     fun floor(destAddr: Int, srcAddr: Int) {
-        val value = GlobalHeap.lwf(srcAddr)
-        GlobalHeap.swf(destAddr, kotlin.math.floor(value))
+        val bits = GlobalHeap.lw(srcAddr)
+        GlobalHeap.sw(destAddr, Float32Math.floorBits(bits))
     }
     
     /**
@@ -207,8 +207,8 @@ object F32Math {
      * @param srcAddr Source heap address
      */
     fun ceil(destAddr: Int, srcAddr: Int) {
-        val value = GlobalHeap.lwf(srcAddr)
-        GlobalHeap.swf(destAddr, kotlin.math.ceil(value))
+        val bits = GlobalHeap.lw(srcAddr)
+        GlobalHeap.sw(destAddr, Float32Math.ceilBits(bits))
     }
     
     /**
@@ -217,8 +217,8 @@ object F32Math {
      * @param srcAddr Source heap address
      */
     fun trunc(destAddr: Int, srcAddr: Int) {
-        val value = GlobalHeap.lwf(srcAddr)
-        GlobalHeap.swf(destAddr, kotlin.math.truncate(value))
+        val bits = GlobalHeap.lw(srcAddr)
+        GlobalHeap.sw(destAddr, Float32Math.truncBits(bits))
     }
     
     /**
@@ -227,8 +227,9 @@ object F32Math {
      * @param srcAddr Source heap address
      */
     fun round(destAddr: Int, srcAddr: Int) {
-        val value = GlobalHeap.lwf(srcAddr)
-        GlobalHeap.swf(destAddr, kotlin.math.round(value))
+        val bits = GlobalHeap.lw(srcAddr)
+        // C99 round(): half away from zero.
+        GlobalHeap.sw(destAddr, Float32Math.roundBits(bits))
     }
     
     // ==================== Vector Operations ====================

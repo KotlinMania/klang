@@ -80,9 +80,16 @@ public/*!*/ abstract class AbstractRuntime(val REQUESTED_HEAP_SIZE: Int = 0, val
     var STACK_PTR: Int = if (REQUESTED_STACK_PTR == 0) HEAP_SIZE else REQUESTED_STACK_PTR // 0.5 MB
     var HEAP_PTR: Int = 128
 
-    // Bit shift engines for memory operations
+    // Bit shift engines for memory operations.
+    // BitShiftEngine handles only shifts; masking/OR-combining are routed through the
+    // arithmetic-only ArithmeticBitwiseOps / ArithmeticBitwiseOps64 to avoid raw
+    // Kotlin `and`/`or` operators and hardcoded hex masks (P0 audit compliance).
     private val engine32 = ai.solace.klang.bitwise.BitShiftEngine(ai.solace.klang.bitwise.BitShiftConfig.defaultMode, 32)
     private val engine64 = ai.solace.klang.bitwise.BitShiftEngine(ai.solace.klang.bitwise.BitShiftConfig.defaultMode, 64)
+    private val bits8: ai.solace.klang.bitwise.ArithmeticBitwiseOps = ai.solace.klang.bitwise.ArithmeticBitwiseOps(8)
+    private val bits16: ai.solace.klang.bitwise.ArithmeticBitwiseOps = ai.solace.klang.bitwise.ArithmeticBitwiseOps(16)
+    private val bits32: ai.solace.klang.bitwise.ArithmeticBitwiseOps = ai.solace.klang.bitwise.ArithmeticBitwiseOps(32)
+    private val bits64: ai.solace.klang.bitwise.ArithmeticBitwiseOps64 = ai.solace.klang.bitwise.ArithmeticBitwiseOps64
 
     ///////////////////////////////////
     // MEMORY TRANSFER / STRING/MEMORY OPERATIONS
@@ -101,31 +108,46 @@ public/*!*/ abstract class AbstractRuntime(val REQUESTED_HEAP_SIZE: Int = 0, val
     fun kfree(ptr: CPointer<Unit>) { ai.solace.klang.mem.KMalloc.free(ptr.ptr) }
     fun kdispose() { ai.solace.klang.mem.KMalloc.dispose() }
 
-    fun lbu(ptr: Int): Int = lb(ptr).toInt() and 0xFF
-    fun lhu(ptr: Int): Int = lh(ptr).toInt() and 0xFFFF
-    fun lwu(ptr: Int): Long = lw(ptr).toLong() and 0xFFFFFFFFL
+    // Unsigned narrow loads. The narrow type's bit width drives normalization, so
+    // ArithmeticBitwiseOps(N).normalize() replaces hardcoded 0xFF / 0xFFFF / 0xFFFFFFFFL masks.
+    fun lbu(ptr: Int): Int = bits8.normalize(lb(ptr).toLong()).toInt()
+    fun lhu(ptr: Int): Int = bits16.normalize(lh(ptr).toLong()).toInt()
+    fun lwu(ptr: Int): Long = bits32.normalize(lw(ptr).toLong())
 
-    open fun lh(ptr: Int): Short = (engine32.leftShift(lbu(ptr).toLong(), 0).value.toInt() or 
-        engine32.leftShift(lbu(ptr + 1).toLong(), 8).value.toInt()).toShort()
-    open fun sh(ptr: Int, value: Short): Unit { 
+    // Multi-byte loads: shifts via BitShiftEngine, byte-merging via ArithmeticBitwiseOps.or
+    // (no raw `or` operator, no hardcoded masks).
+    open fun lh(ptr: Int): Short = bits16.or(
+        engine32.leftShift(lbu(ptr).toLong(), 0).value,
+        engine32.leftShift(lbu(ptr + 1).toLong(), 8).value,
+    ).toShort()
+    open fun sh(ptr: Int, value: Short): Unit {
+        // .toByte() truncates the low 8 bits arithmetically — not a bitwise operator.
         sb(ptr, engine32.unsignedRightShift(value.toInt().toLong(), 0).value.toByte())
         sb(ptr + 1, engine32.unsignedRightShift(value.toInt().toLong(), 8).value.toByte())
     }
 
-    open fun lw(ptr: Int): Int = (engine32.leftShift(lbu(ptr).toLong(), 0).value.toInt() or 
-        engine32.leftShift(lbu(ptr + 1).toLong(), 8).value.toInt() or 
-        engine32.leftShift(lbu(ptr + 2).toLong(), 16).value.toInt() or 
-        engine32.leftShift(lbu(ptr + 3).toLong(), 24).value.toInt())
-    open fun sw(ptr: Int, value: Int): Unit { 
+    open fun lw(ptr: Int): Int {
+        val b0 = engine32.leftShift(lbu(ptr).toLong(), 0).value
+        val b1 = engine32.leftShift(lbu(ptr + 1).toLong(), 8).value
+        val b2 = engine32.leftShift(lbu(ptr + 2).toLong(), 16).value
+        val b3 = engine32.leftShift(lbu(ptr + 3).toLong(), 24).value
+        // OR-combine four byte-shifted values entirely through the 32-bit engine.
+        return bits32.or(bits32.or(b0, b1), bits32.or(b2, b3)).toInt()
+    }
+    open fun sw(ptr: Int, value: Int): Unit {
         sb(ptr + 0, engine32.unsignedRightShift(value.toLong(), 0).value.toByte())
         sb(ptr + 1, engine32.unsignedRightShift(value.toLong(), 8).value.toByte())
         sb(ptr + 2, engine32.unsignedRightShift(value.toLong(), 16).value.toByte())
         sb(ptr + 3, engine32.unsignedRightShift(value.toLong(), 24).value.toByte())
     }
 
-    open fun ld(ptr: Int): Long = (engine64.leftShift(lwu(ptr), 0).value or 
-        engine64.leftShift(lwu(ptr + 4), 32).value)
-    open fun sd(ptr: Int, value: Long): Unit { 
+    // 64-bit assembly: combine lo + (hi << 32) through ArithmeticBitwiseOps64.or — the
+    // 32-bit engine cannot represent the hi half once shifted into bits 32..63.
+    open fun ld(ptr: Int): Long = bits64.or(
+        engine64.leftShift(lwu(ptr), 0).value,
+        engine64.leftShift(lwu(ptr + 4), 32).value,
+    )
+    open fun sd(ptr: Int, value: Long): Unit {
         sw(ptr, engine64.unsignedRightShift(value, 0).value.toInt())
         sw(ptr + 4, engine64.unsignedRightShift(value, 32).value.toInt())
     }

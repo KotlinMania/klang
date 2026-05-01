@@ -37,9 +37,8 @@ object F16Math {
     fun sqrt(destAddr: Int, srcAddr: Int) {
         val bits = GlobalHeap.lh(srcAddr).toInt() and 0xFFFF
         val f32bits = Float16Math.toFloat32Bits(bits)
-        val f32 = Float.fromBits(f32bits)
-        val sqrtF32 = kotlin.math.sqrt(f32)
-        val resultBits = Float16Math.fromFloat32Bits(sqrtF32.toRawBits())
+        val sqrtF32Bits = ai.solace.klang.fp.Float32Math.sqrtBits(f32bits)
+        val resultBits = Float16Math.fromFloat32Bits(sqrtF32Bits)
         GlobalHeap.sh(destAddr, resultBits.toShort())
     }
     
@@ -207,9 +206,8 @@ object F16Math {
     fun floor(destAddr: Int, srcAddr: Int) {
         val bits = GlobalHeap.lh(srcAddr).toInt() and 0xFFFF
         val f32bits = Float16Math.toFloat32Bits(bits)
-        val value = Float.fromBits(f32bits)
-        val result = kotlin.math.floor(value)
-        val resultBits = Float16Math.fromFloat32Bits(result.toRawBits())
+        val resultF32Bits = ai.solace.klang.fp.Float32Math.floorBits(f32bits)
+        val resultBits = Float16Math.fromFloat32Bits(resultF32Bits)
         GlobalHeap.sh(destAddr, resultBits.toShort())
     }
     
@@ -221,9 +219,8 @@ object F16Math {
     fun ceil(destAddr: Int, srcAddr: Int) {
         val bits = GlobalHeap.lh(srcAddr).toInt() and 0xFFFF
         val f32bits = Float16Math.toFloat32Bits(bits)
-        val value = Float.fromBits(f32bits)
-        val result = kotlin.math.ceil(value)
-        val resultBits = Float16Math.fromFloat32Bits(result.toRawBits())
+        val resultF32Bits = ai.solace.klang.fp.Float32Math.ceilBits(f32bits)
+        val resultBits = Float16Math.fromFloat32Bits(resultF32Bits)
         GlobalHeap.sh(destAddr, resultBits.toShort())
     }
     
@@ -235,9 +232,8 @@ object F16Math {
     fun trunc(destAddr: Int, srcAddr: Int) {
         val bits = GlobalHeap.lh(srcAddr).toInt() and 0xFFFF
         val f32bits = Float16Math.toFloat32Bits(bits)
-        val value = Float.fromBits(f32bits)
-        val result = kotlin.math.truncate(value)
-        val resultBits = Float16Math.fromFloat32Bits(result.toRawBits())
+        val resultF32Bits = ai.solace.klang.fp.Float32Math.truncBits(f32bits)
+        val resultBits = Float16Math.fromFloat32Bits(resultF32Bits)
         GlobalHeap.sh(destAddr, resultBits.toShort())
     }
     
@@ -249,9 +245,9 @@ object F16Math {
     fun round(destAddr: Int, srcAddr: Int) {
         val bits = GlobalHeap.lh(srcAddr).toInt() and 0xFFFF
         val f32bits = Float16Math.toFloat32Bits(bits)
-        val value = Float.fromBits(f32bits)
-        val result = kotlin.math.round(value)
-        val resultBits = Float16Math.fromFloat32Bits(result.toRawBits())
+        // C99 round (half away from zero) — match wrapper-type semantics.
+        val resultF32Bits = ai.solace.klang.fp.Float32Math.roundBits(f32bits)
+        val resultBits = Float16Math.fromFloat32Bits(resultF32Bits)
         GlobalHeap.sh(destAddr, resultBits.toShort())
     }
     

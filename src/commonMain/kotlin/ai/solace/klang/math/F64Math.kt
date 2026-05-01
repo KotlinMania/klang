@@ -148,6 +148,69 @@ object F64Math {
         GlobalHeap.sdf(destAddr, Comparison.fdim(x, y))
     }
     
+    // ==================== Basic Math ====================
+
+    /**
+     * Square root: dest = sqrt(src)
+     */
+    fun sqrt(destAddr: Int, srcAddr: Int) {
+        val v = GlobalHeap.ldf(srcAddr)
+        GlobalHeap.sdf(destAddr, BasicMath.sqrt(v))
+    }
+
+    /** floor: dest = floor(src) */
+    fun floor(destAddr: Int, srcAddr: Int) {
+        val v = GlobalHeap.ldf(srcAddr)
+        GlobalHeap.sdf(destAddr, BasicMath.floor(v))
+    }
+
+    /** ceil: dest = ceil(src) */
+    fun ceil(destAddr: Int, srcAddr: Int) {
+        val v = GlobalHeap.ldf(srcAddr)
+        GlobalHeap.sdf(destAddr, BasicMath.ceil(v))
+    }
+
+    /** trunc: dest = trunc(src) */
+    fun trunc(destAddr: Int, srcAddr: Int) {
+        val v = GlobalHeap.ldf(srcAddr)
+        GlobalHeap.sdf(destAddr, BasicMath.trunc(v))
+    }
+
+    /** round (half away from zero): dest = round(src) */
+    fun round(destAddr: Int, srcAddr: Int) {
+        val v = GlobalHeap.ldf(srcAddr)
+        GlobalHeap.sdf(destAddr, BasicMath.round(v))
+    }
+
+    /**
+     * frexp: dest = mantissa, exponent returned.
+     * @return The integer exponent
+     */
+    fun frexp(destAddr: Int, srcAddr: Int): Int {
+        val v = GlobalHeap.ldf(srcAddr)
+        val (m, e) = BasicMath.frexp(v)
+        GlobalHeap.sdf(destAddr, m)
+        return e
+    }
+
+    /**
+     * ldexp: dest = src * 2^exp
+     */
+    fun ldexp(destAddr: Int, srcAddr: Int, exp: Int) {
+        val v = GlobalHeap.ldf(srcAddr)
+        GlobalHeap.sdf(destAddr, BasicMath.ldexp(v, exp))
+    }
+
+    /**
+     * modf: writes integer part to intAddr, fractional part to fracAddr.
+     */
+    fun modf(intAddr: Int, fracAddr: Int, srcAddr: Int) {
+        val v = GlobalHeap.ldf(srcAddr)
+        val (i, f) = BasicMath.modf(v)
+        GlobalHeap.sdf(intAddr, i)
+        GlobalHeap.sdf(fracAddr, f)
+    }
+
     // ==================== Vector Operations ====================
     
     /**

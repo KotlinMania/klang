@@ -24,6 +24,39 @@ class CBF16 private constructor(private val bits: Short) {
 
     fun sqrt(): CBF16 = fromFloat(Float.fromBits(Float32Math.sqrtBits(this.toFloat().toRawBits())))
 
+    // ===== Basic math: rounding modes & FP utilities =====
+
+    // Rounding & FP utilities use the binary32 bit kernel (no kotlin.math.*).
+    // Same reasoning as CFloat16: integer round-results of a bf16-representable
+    // value are bf16-representable, so the binary32→bf16 narrow is exact.
+
+    /** Round toward -∞ (binary32 bit kernel). */
+    fun floor(): CBF16 = fromFloatBits(Float32Math.floorBits(toFloat().toRawBits()))
+
+    /** Round toward +∞ (binary32 bit kernel). */
+    fun ceil(): CBF16 = fromFloatBits(Float32Math.ceilBits(toFloat().toRawBits()))
+
+    /** Round toward zero (binary32 bit kernel). */
+    fun trunc(): CBF16 = fromFloatBits(Float32Math.truncBits(toFloat().toRawBits()))
+
+    /** Round half away from zero, C99 (binary32 bit kernel). */
+    fun round(): CBF16 = fromFloatBits(Float32Math.roundBits(toFloat().toRawBits()))
+
+    /** Decompose into (mantissa in [0.5,1.0), exponent). */
+    fun frexp(): Pair<CBF16, Int> {
+        val (mBits, e) = Float32Math.frexpBits(toFloat().toRawBits())
+        return fromFloatBits(mBits) to e
+    }
+
+    /** Compute `this * 2^exp`. */
+    fun ldexp(exp: Int): CBF16 = fromFloatBits(Float32Math.ldexpBits(toFloat().toRawBits(), exp))
+
+    /** Decompose into integer and fractional parts. */
+    fun modf(): Pair<CBF16, CBF16> {
+        val (iBits, fBits) = Float32Math.modfBits(toFloat().toRawBits())
+        return fromFloatBits(iBits) to fromFloatBits(fBits)
+    }
+
     fun isNaN(): Boolean {
         val engine = BitShiftEngine(BitShiftConfig.defaultMode, 32)
         val e = (engine.unsignedRightShift(bits.toInt().toLong(), 7).value.toInt() and 0xFF)

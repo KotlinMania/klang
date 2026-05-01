@@ -85,7 +85,7 @@ package ai.solace.klang.fp
  * @property hi High-order Double component
  * @property lo Low-order Double component (error/residual)
  * @constructor Creates a double-double from hi and lo components
- * @see CDouble For standard 64-bit precision
+ * @see CFloat64 For standard 64-bit precision
  * @see CLongDouble For intent-based precision selection
  * @since 0.1.0
  */
@@ -113,20 +113,6 @@ data class CFloat128(val hi: Double, val lo: Double) {
         return CFloat128(resHi, resLo)
     }
 
-    /**
-     * Addition with a scalar [Double].
-     *
-     * More efficient than converting the Double to CFloat128.
-     *
-     * @param value Scalar value to add
-     * @return A new CFloat128 representing the sum
-     */
-    operator fun plus(value: Double): CFloat128 {
-        val (s, e) = twoSum(hi, value)
-        val loSum = lo + e
-        val (resHi, resLo) = quickTwoSum(s, loSum)
-        return CFloat128(resHi, resLo)
-    }
 
     /**
      * Subtraction of two double-double values.
@@ -143,20 +129,6 @@ data class CFloat128(val hi: Double, val lo: Double) {
      */
     operator fun unaryMinus(): CFloat128 = CFloat128(-hi, -lo)
 
-    /**
-     * Multiplication by a scalar [Double].
-     *
-     * Uses error-free transformation (twoProd) for the high part.
-     *
-     * @param value Scalar value to multiply by
-     * @return A new CFloat128 representing the product
-     */
-    operator fun times(value: Double): CFloat128 {
-        val (p, e) = twoProd(hi, value)
-        val loTerm = lo * value + e
-        val (resHi, resLo) = quickTwoSum(p, loTerm)
-        return CFloat128(resHi, resLo)
-    }
 
     /**
      * Multiplication of two double-double values.
@@ -225,32 +197,6 @@ data class CFloat128(val hi: Double, val lo: Double) {
         return CFloat128(qHi, qLo)
     }
 
-    /**
-     * Division by a scalar [Double].
-     *
-     * More efficient than full double-double division.
-     *
-     * @param value Scalar divisor
-     * @return A new CFloat128 representing the quotient
-     */
-    operator fun div(value: Double): CFloat128 {
-        if (value == 0.0) {
-            return CFloat128(if (hi >= 0) Double.POSITIVE_INFINITY else Double.NEGATIVE_INFINITY, 0.0)
-        }
-        
-        val q0 = hi / value
-        val (p, e) = twoProd(q0, value)
-        
-        // Compute remainder
-        val s = hi - p
-        val remainder = s - e + lo
-        
-        // Correction
-        val q1 = remainder / value
-        
-        val (qHi, qLo) = quickTwoSum(q0, q1)
-        return CFloat128(qHi, qLo)
-    }
 
     /**
      * Add the product of two [Double] values to this double-double.
@@ -278,6 +224,106 @@ data class CFloat128(val hi: Double, val lo: Double) {
      * @return The value as a Double (hi + lo)
      */
     fun toDouble(): Double = hi + lo
+
+    // ===== Basic math: sqrt, rounding modes, FP utilities =====
+
+    /**
+     * Square root with full double-double precision.
+     *
+     * Uses one Newton-Raphson refinement on top of the Double-precision seed:
+     *   q = sqrt(hi)            (Double precision seed, ~53 bits)
+     *   r = (this - q*q) / (2q) (correction at full double-double precision)
+     *   result = q + r
+     *
+     * Special cases:
+     *   - sqrt(NaN) → NaN
+     *   - sqrt(±∞)  → +∞ (positive) / NaN (negative ∞)
+     *   - sqrt(±0)  → ±0
+     *   - sqrt(<0)  → NaN
+     *
+     * @return A new CFloat128 with ~106-bit-precise square root.
+     */
+    fun sqrt(): CFloat128 {
+        if (hi.isNaN()) return CFloat128(Double.NaN, 0.0)
+        if (hi == 0.0 && lo == 0.0) return this
+        if (hi < 0.0) return CFloat128(Double.NaN, 0.0)
+        if (hi.isInfinite()) return CFloat128(Double.POSITIVE_INFINITY, 0.0)
+
+        // Seed via the binary64 bit kernel (no kotlin.math.sqrt).
+        val q = Double.fromBits(ai.solace.klang.math.Float64Bits.sqrtBits(hi.toRawBits()))
+        // residual = this - q*q  (computed at double-double precision)
+        val qSquared = CFloat128.fromDouble(q) * CFloat128.fromDouble(q)
+        val residual = this - qSquared
+        // correction = residual / (2*q)
+        val correction = residual.hi / (2.0 * q)
+        val (resHi, resLo) = quickTwoSum(q, correction)
+        return CFloat128(resHi, resLo)
+    }
+
+    /** Round toward -∞, returning a CFloat128 whose value equals an integer. */
+    fun floor(): CFloat128 {
+        if (hi.isNaN() || hi.isInfinite()) return this
+        val fHi = Double.fromBits(ai.solace.klang.math.Float64Bits.floorBits(hi.toRawBits()))
+        return if (fHi == hi) {
+            // hi is already integral; round lo
+            val fLo = Double.fromBits(ai.solace.klang.math.Float64Bits.floorBits(lo.toRawBits()))
+            val (rHi, rLo) = quickTwoSum(fHi, fLo)
+            CFloat128(rHi, rLo)
+        } else {
+            CFloat128(fHi, 0.0)
+        }
+    }
+
+    /** Round toward +∞. */
+    fun ceil(): CFloat128 {
+        if (hi.isNaN() || hi.isInfinite()) return this
+        val cHi = Double.fromBits(ai.solace.klang.math.Float64Bits.ceilBits(hi.toRawBits()))
+        return if (cHi == hi) {
+            val cLo = Double.fromBits(ai.solace.klang.math.Float64Bits.ceilBits(lo.toRawBits()))
+            val (rHi, rLo) = quickTwoSum(cHi, cLo)
+            CFloat128(rHi, rLo)
+        } else {
+            CFloat128(cHi, 0.0)
+        }
+    }
+
+    /** Round toward zero. */
+    fun trunc(): CFloat128 = if (hi >= 0.0) floor() else ceil()
+
+    /** Round half away from zero. */
+    fun round(): CFloat128 {
+        if (hi.isNaN() || hi.isInfinite()) return this
+        val half = if (hi >= 0.0) CFloat128(0.5, 0.0) else CFloat128(-0.5, 0.0)
+        return (this + half).trunc()
+    }
+
+    /**
+     * Decompose into mantissa (in [0.5, 1.0)) and binary exponent.
+     *
+     * Uses `hi` to derive the exponent, then scales both components.
+     */
+    fun frexp(): Pair<CFloat128, Int> {
+        if (hi == 0.0 || hi.isNaN() || hi.isInfinite()) return this to 0
+        val (_, e) = ai.solace.klang.math.BasicMath.frexp(hi)
+        val scale = ai.solace.klang.math.BasicMath.ldexp(1.0, -e)
+        return CFloat128(hi * scale, lo * scale) to e
+    }
+
+    /** Compute `this * 2^exp`. */
+    fun ldexp(exp: Int): CFloat128 {
+        if (hi == 0.0 || hi.isNaN() || hi.isInfinite() || exp == 0) return this
+        val s = ai.solace.klang.math.BasicMath.ldexp(1.0, exp)
+        return CFloat128(hi * s, lo * s)
+    }
+
+    /** Decompose into integer and fractional parts (both with sign of `this`). */
+    fun modf(): Pair<CFloat128, CFloat128> {
+        if (hi.isNaN()) return this to this
+        if (hi.isInfinite()) return this to CFloat128(if (hi > 0.0) 0.0 else -0.0, 0.0)
+        val intPart = trunc()
+        val frac = this - intPart
+        return intPart to frac
+    }
 
     /**
      * Convert to [Float].
@@ -316,12 +362,12 @@ data class CFloat128(val hi: Double, val lo: Double) {
         fun fromFloat(value: Float): CFloat128 = fromDouble(value.toDouble())
         
         /**
-         * Create CFloat128 from a [CDouble].
+         * Create CFloat128 from a [CFloat64].
          *
-         * @param value CDouble value to convert
+         * @param value CFloat64 value to convert
          * @return A new CFloat128 representing the value exactly
          */
-        fun fromCDouble(value: CDouble): CFloat128 = fromDouble(value.toDouble())
+        fun fromCDouble(value: CFloat64): CFloat128 = fromDouble(value.toDouble())
         
         /**
          * Create CFloat128 from a [CFloat16].
@@ -435,9 +481,9 @@ fun Float.toCFloat128(): CFloat128 = CFloat128.fromFloat(this)
 fun Double.toCFloat128(): CFloat128 = CFloat128.fromDouble(this)
 
 /**
- * Extension function: Convert [CDouble] to [CFloat128].
+ * Extension function: Convert [CFloat64] to [CFloat128].
  */
-fun CDouble.toCFloat128(): CFloat128 = CFloat128.fromCDouble(this)
+fun CFloat64.toCFloat128(): CFloat128 = CFloat128.fromCDouble(this)
 
 /**
  * Extension function: Convert [CFloat16] to [CFloat128].

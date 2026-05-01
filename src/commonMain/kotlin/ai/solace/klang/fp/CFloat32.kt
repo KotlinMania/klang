@@ -108,6 +108,38 @@ class CFloat32 private constructor(private val bits: Int) {
 
     fun abs(): CFloat32 = unary("abs", null) { a, _ -> abs(a) }
 
+    // ===== Basic math: sqrt, rounding, FP utilities =====
+
+    /** IEEE-754 square root (bit-exact via Float32Math.sqrtBits). */
+    fun sqrt(): CFloat32 = fromBits(Float32Math.sqrtBits(this.bits))
+
+    /** Round toward -∞ (binary32 bit kernel). */
+    fun floor(): CFloat32 = fromBits(Float32Math.floorBits(bits))
+
+    /** Round toward +∞ (binary32 bit kernel). */
+    fun ceil(): CFloat32 = fromBits(Float32Math.ceilBits(bits))
+
+    /** Round toward zero (binary32 bit kernel). */
+    fun trunc(): CFloat32 = fromBits(Float32Math.truncBits(bits))
+
+    /** Round half away from zero, C99 (binary32 bit kernel). */
+    fun round(): CFloat32 = fromBits(Float32Math.roundBits(bits))
+
+    /** Decompose into (mantissa in [0.5,1.0), exponent). */
+    fun frexp(): Pair<CFloat32, Int> {
+        val (mBits, e) = Float32Math.frexpBits(bits)
+        return fromBits(mBits) to e
+    }
+
+    /** Compute `this * 2^exp`. */
+    fun ldexp(exp: Int): CFloat32 = fromBits(Float32Math.ldexpBits(bits, exp))
+
+    /** Decompose into integer and fractional parts. */
+    fun modf(): Pair<CFloat32, CFloat32> {
+        val (iBits, fBits) = Float32Math.modfBits(bits)
+        return fromBits(iBits) to fromBits(fBits)
+    }
+
     fun fma(multiplier: CFloat32, addend: CFloat32): CFloat32 {
         val result = (value.toDouble() + multiplier.value.toDouble() * addend.value.toDouble()).toFloat()
         val wrapped = fromFloat(result)

@@ -1,6 +1,6 @@
 package ai.solace.klang.mem
 
-import ai.solace.klang.fp.CDouble
+import ai.solace.klang.fp.CFloat64
 
 /**
  * CVar: Base interface for C-style scalar variables stored in heap memory.
@@ -219,10 +219,10 @@ class CFloat32Var(override val addr: Int) : CVar {
 }
 
 /**
- * CDoubleVar: C-style `double` variable (64-bit IEEE-754).
+ * CFloat64Var: C-style `double` variable (64-bit IEEE-754).
  *
  * Represents a double-precision float stored in heap memory.
- * Provides access both as native [Double] and as [CDouble] for
+ * Provides access both as native [Double] and as [CFloat64] for
  * cross-platform deterministic arithmetic.
  *
  * ## Usage Example
@@ -230,20 +230,20 @@ class CFloat32Var(override val addr: Int) : CVar {
  * val pi = CAutos.double(3.14159265359)
  * pi.value *= 2.0  // 6.28...
  *
- * // Access as CDouble for deterministic math
- * val cd = pi.cdouble
+ * // Access as CFloat64 for deterministic math
+ * val cd = pi.cfloat64
  * val squared = cd * cd
- * pi.cdouble = squared
+ * pi.cfloat64 = squared
  * ```
  *
  * @property addr Heap address of the double (8-byte aligned recommended)
  * @property value The double value (mutable, directly accesses heap)
- * @property cdouble Access as [CDouble] for deterministic operations
+ * @property cfloat64 Access as [CFloat64] for deterministic operations
  * @see GlobalHeap.ldf Load doubleword as double
  * @see GlobalHeap.sdf Store double as doubleword
- * @see CDouble For cross-platform deterministic arithmetic
+ * @see CFloat64 For cross-platform deterministic arithmetic
  */
-class CDoubleVar(override val addr: Int) : CVar {
+class CFloat64Var(override val addr: Int) : CVar {
     /**
      * The 64-bit double value stored at [addr].
      *
@@ -255,21 +255,21 @@ class CDoubleVar(override val addr: Int) : CVar {
         set(v) = GlobalHeap.sdf(addr, v)
 
     /**
-     * Access value as [CDouble] for deterministic arithmetic.
+     * Access value as [CFloat64] for deterministic arithmetic.
      *
-     * **Get**: Loads bits from heap and wraps in CDouble
-     * **Set**: Unwraps CDouble bits and stores to heap
+     * **Get**: Loads bits from heap and wraps in CFloat64
+     * **Set**: Unwraps CFloat64 bits and stores to heap
      *
      * ## Example
      * ```kotlin
      * val x = CAutos.double(1.0)
      * val y = CAutos.double(2.0)
-     * val sumCD = x.cdouble + y.cdouble  // Deterministic addition
-     * x.cdouble = sumCD
+     * val sumCD = x.cfloat64 + y.cfloat64  // Deterministic addition
+     * x.cfloat64 = sumCD
      * ```
      */
-    var cdouble: CDouble
-        get() = CDouble.fromBits(GlobalHeap.ld(addr))
+    var cfloat64: CFloat64
+        get() = CFloat64.fromBits(GlobalHeap.ld(addr))
         set(v) = GlobalHeap.sd(addr, v.toBits())
 }
 
@@ -357,10 +357,15 @@ class CLongDoubleVar(override val addr: Int) : CVar {
      */
     var value: ai.solace.klang.fp.CLongDouble
         get() {
+            // Storage is double-double on disk; reflect that in the flavor so
+            // arithmetic doesn't try to read the (null) `d` slot.
             val hi = GlobalHeap.ldf(addr)
             val lo = GlobalHeap.ldf(addr + 8)
             val f128 = ai.solace.klang.fp.CFloat128(hi, lo)
-            return ai.solace.klang.fp.CLongDouble.ofCFloat128(f128, ai.solace.klang.fp.CLongDouble.Flavor.AUTO)
+            return ai.solace.klang.fp.CLongDouble.ofCFloat128(
+                f128,
+                ai.solace.klang.fp.CLongDouble.Flavor.EXTENDED80
+            )
         }
         set(v) {
             val f128 = v.toCFloat128()
@@ -615,12 +620,12 @@ object CAutos {
      *
      * @param init Initial value (default: 0.0)
      * @param align Alignment (default: 8)
-     * @return CDoubleVar pointing to stack memory
+     * @return CFloat64Var pointing to stack memory
      */
-    fun double(init: Double = 0.0, align: Int = 8): CDoubleVar {
+    fun double(init: Double = 0.0, align: Int = 8): CFloat64Var {
         val p = KStack.alloca(8, align)
         GlobalHeap.sdf(p, init)
-        return CDoubleVar(p)
+        return CFloat64Var(p)
     }
     
     /**
@@ -775,9 +780,9 @@ object CGlobals {
      * @param name Unique identifier for the variable
      * @param init Initial value (default: 0.0)
      * @param align Alignment (default: 8)
-     * @return CDoubleVar pointing to global memory
+     * @return CFloat64Var pointing to global memory
      */
-    fun double(name: String, init: Double = 0.0, align: Int = 8): CDoubleVar = CDoubleVar(GlobalData.defineF64(name, init, align))
+    fun double(name: String, init: Double = 0.0, align: Int = 8): CFloat64Var = CFloat64Var(GlobalData.defineF64(name, init, align))
     
     /**
      * Define a global float32 variable.
@@ -929,13 +934,13 @@ object CHeapVars {
      * Allocate a double on the heap.
      *
      * @param init Initial value (default: 0.0)
-     * @return CDoubleVar pointing to heap memory
+     * @return CFloat64Var pointing to heap memory
      *
      * **Important**: Must call [free] to avoid memory leak.
      */
-    fun double(init: Double = 0.0): CDoubleVar {
+    fun double(init: Double = 0.0): CFloat64Var {
         val p = KMalloc.malloc(8)
-        GlobalHeap.sdf(p, init); return CDoubleVar(p)
+        GlobalHeap.sdf(p, init); return CFloat64Var(p)
     }
     
     /**

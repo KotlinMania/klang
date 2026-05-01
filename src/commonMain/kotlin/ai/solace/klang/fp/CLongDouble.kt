@@ -41,7 +41,7 @@ package ai.solace.klang.fp
  * - Standard IEEE-754 binary64 (same as C `double`)
  * - 53-bit mantissa, 11-bit exponent
  * - Used when `long double == double` (MSVC, ARM64)
- * - Delegates to [CDouble]
+ * - Delegates to [CFloat64]
  *
  * ### 3. Flavor.EXTENDED80
  * ```kotlin
@@ -118,7 +118,7 @@ package ai.solace.klang.fp
  *
  * ## Performance
  *
- * - **DOUBLE64**: Same as CDouble (~1-1.2× native Double)
+ * - **DOUBLE64**: Same as CFloat64 (~1-1.2× native Double)
  * - **EXTENDED80**: ~3-4× slower than Double (double-double arithmetic)
  * - **IEEE128**: ~3-4× slower than Double (double-double + rounding)
  *
@@ -156,21 +156,21 @@ package ai.solace.klang.fp
  * |------|-----------|----------|
  * | [CFloat16] | 11 bits | ML, GPU, memory savings |
  * | Float | 24 bits | General purpose |
- * | [CDouble] | 53 bits | Scientific computing |
+ * | [CFloat64] | 53 bits | Scientific computing |
  * | [CFloat128] | 106 bits | High-precision numerics |
  * | CLongDouble | Intent | C library porting |
  *
  * @property flavor The precision flavor (AUTO, DOUBLE64, EXTENDED80, IEEE128)
- * @property d Internal CDouble storage (used for DOUBLE64)
+ * @property d Internal CFloat64 storage (used for DOUBLE64)
  * @property q Internal CFloat128 storage (used for EXTENDED80 and IEEE128)
  * @constructor Private; use companion object factory methods
- * @see CDouble For standard 64-bit precision
+ * @see CFloat64 For standard 64-bit precision
  * @see CFloat128 For true double-double arithmetic
  * @since 0.1.0
  */
 class CLongDouble private constructor(
     val flavor: Flavor,
-    private val d: CDouble?,
+    private val d: CFloat64?,
     private val q: CFloat128?,
 ) {
     /**
@@ -271,6 +271,90 @@ class CLongDouble private constructor(
         }
     }
 
+    // ===== Basic math: sqrt, rounding modes, FP utilities =====
+
+    /** IEEE-754 square root, dispatched by flavor. */
+    fun sqrt(): CLongDouble = when (flavorResolved()) {
+        Flavor.DOUBLE64 -> ofDouble(d!!.sqrt().toDouble(), Flavor.DOUBLE64)
+        Flavor.EXTENDED80 -> ofCFloat128(q!!.sqrt(), Flavor.EXTENDED80)
+        Flavor.IEEE128 -> ofCFloat128(roundToIeee128(q!!.sqrt()), Flavor.IEEE128)
+        else -> error("unreachable")
+    }
+
+    /** Round toward -∞. */
+    fun floor(): CLongDouble = when (flavorResolved()) {
+        Flavor.DOUBLE64 -> ofDouble(d!!.floor().toDouble(), Flavor.DOUBLE64)
+        Flavor.EXTENDED80 -> ofCFloat128(q!!.floor(), Flavor.EXTENDED80)
+        Flavor.IEEE128 -> ofCFloat128(roundToIeee128(q!!.floor()), Flavor.IEEE128)
+        else -> error("unreachable")
+    }
+
+    /** Round toward +∞. */
+    fun ceil(): CLongDouble = when (flavorResolved()) {
+        Flavor.DOUBLE64 -> ofDouble(d!!.ceil().toDouble(), Flavor.DOUBLE64)
+        Flavor.EXTENDED80 -> ofCFloat128(q!!.ceil(), Flavor.EXTENDED80)
+        Flavor.IEEE128 -> ofCFloat128(roundToIeee128(q!!.ceil()), Flavor.IEEE128)
+        else -> error("unreachable")
+    }
+
+    /** Round toward zero. */
+    fun trunc(): CLongDouble = when (flavorResolved()) {
+        Flavor.DOUBLE64 -> ofDouble(d!!.trunc().toDouble(), Flavor.DOUBLE64)
+        Flavor.EXTENDED80 -> ofCFloat128(q!!.trunc(), Flavor.EXTENDED80)
+        Flavor.IEEE128 -> ofCFloat128(roundToIeee128(q!!.trunc()), Flavor.IEEE128)
+        else -> error("unreachable")
+    }
+
+    /** Round half away from zero. */
+    fun round(): CLongDouble = when (flavorResolved()) {
+        Flavor.DOUBLE64 -> ofDouble(d!!.round().toDouble(), Flavor.DOUBLE64)
+        Flavor.EXTENDED80 -> ofCFloat128(q!!.round(), Flavor.EXTENDED80)
+        Flavor.IEEE128 -> ofCFloat128(roundToIeee128(q!!.round()), Flavor.IEEE128)
+        else -> error("unreachable")
+    }
+
+    /** Decompose into (mantissa in [0.5,1.0), exponent). */
+    fun frexp(): Pair<CLongDouble, Int> = when (flavorResolved()) {
+        Flavor.DOUBLE64 -> {
+            val (m, e) = d!!.frexp()
+            ofDouble(m.toDouble(), Flavor.DOUBLE64) to e
+        }
+        Flavor.EXTENDED80 -> {
+            val (m, e) = q!!.frexp()
+            ofCFloat128(m, Flavor.EXTENDED80) to e
+        }
+        Flavor.IEEE128 -> {
+            val (m, e) = q!!.frexp()
+            ofCFloat128(m, Flavor.IEEE128) to e
+        }
+        else -> error("unreachable")
+    }
+
+    /** Compute `this * 2^exp`. */
+    fun ldexp(exp: Int): CLongDouble = when (flavorResolved()) {
+        Flavor.DOUBLE64 -> ofDouble(d!!.ldexp(exp).toDouble(), Flavor.DOUBLE64)
+        Flavor.EXTENDED80 -> ofCFloat128(q!!.ldexp(exp), Flavor.EXTENDED80)
+        Flavor.IEEE128 -> ofCFloat128(q!!.ldexp(exp), Flavor.IEEE128)
+        else -> error("unreachable")
+    }
+
+    /** Decompose into integer and fractional parts. */
+    fun modf(): Pair<CLongDouble, CLongDouble> = when (flavorResolved()) {
+        Flavor.DOUBLE64 -> {
+            val (i, f) = d!!.modf()
+            ofDouble(i.toDouble(), Flavor.DOUBLE64) to ofDouble(f.toDouble(), Flavor.DOUBLE64)
+        }
+        Flavor.EXTENDED80 -> {
+            val (i, f) = q!!.modf()
+            ofCFloat128(i, Flavor.EXTENDED80) to ofCFloat128(f, Flavor.EXTENDED80)
+        }
+        Flavor.IEEE128 -> {
+            val (i, f) = q!!.modf()
+            ofCFloat128(i, Flavor.IEEE128) to ofCFloat128(f, Flavor.IEEE128)
+        }
+        else -> error("unreachable")
+    }
+
     /**
      * Helper for binary operations with automatic flavor coercion.
      */
@@ -306,7 +390,7 @@ class CLongDouble private constructor(
         fun ofDouble(value: Double, flavor: Flavor = Flavor.AUTO): CLongDouble {
             val resolvedFlavor = if (flavor == Flavor.AUTO) DefaultFlavorProvider.default else flavor
             return when (resolvedFlavor) {
-                Flavor.DOUBLE64 -> CLongDouble(resolvedFlavor, CDouble.fromDouble(value), null)
+                Flavor.DOUBLE64 -> CLongDouble(resolvedFlavor, CFloat64.fromDouble(value), null)
                 Flavor.EXTENDED80, Flavor.IEEE128 -> CLongDouble(resolvedFlavor, null, CFloat128.fromDouble(value))
                 Flavor.AUTO -> error("AUTO must be resolved")
             }
@@ -323,13 +407,13 @@ class CLongDouble private constructor(
             CLongDouble(flavor, null, value)
 
         /**
-         * Create CLongDouble from [CDouble].
+         * Create CLongDouble from [CFloat64].
          *
-         * @param value CDouble value to wrap
+         * @param value CFloat64 value to wrap
          * @param flavor Desired flavor (default: AUTO)
          * @return A new CLongDouble
          */
-        fun fromCDouble(value: CDouble, flavor: Flavor = Flavor.AUTO): CLongDouble =
+        fun fromCDouble(value: CFloat64, flavor: Flavor = Flavor.AUTO): CLongDouble =
             CLongDouble(flavor, value, null)
 
         /**

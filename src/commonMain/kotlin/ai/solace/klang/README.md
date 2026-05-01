@@ -6,7 +6,7 @@ Overview
 - Goal: make Kotlin codegen and runtime utilities behave like C across platforms, with stable,
   deterministic semantics for low-level bit operations and floating-point where required.
 - Scope in this repo: bitwise primitives, array limb shifts, packed-limb buffers, and a small
-  family of C-aligned floating types (CDouble, CLongDouble).
+  family of C-aligned floating types (CFloat64, CLongDouble).
 
 Key Ideas
 ---------
@@ -19,7 +19,7 @@ Key Ideas
 - Intent-driven floating semantics: C’s `long double` differs by platform (double64, x87 80-bit,
   IEEE-754 binary128). We expose an API that clearly expresses intent and selects the appropriate
   behavior.
-  - `CDouble` — IEEE-754 binary64, exact on all targets. This is our canonical
+  - `CFloat64` — IEEE-754 binary64, exact on all targets. This is our canonical
     C `double` regardless of host C library quirks.
   - `CLongDouble` — wrapper that selects a flavor: `DOUBLE64`, `EXTENDED80`, or `IEEE128`.
     - Flavor `AUTO` resolves via a default provider (host profile integration planned).
@@ -33,8 +33,8 @@ What We Do Not Do
 
 Mapping C Types (Codegen Intent)
 --------------------------------
-- `float`       → `CDouble` (64-bit IEEE-754 double; Kotlin `Double`)
-- `double`      → `CDouble`
+- `float`       → `CFloat64` (64-bit IEEE-754 double; Kotlin `Double`)
+- `double`      → `CFloat64`
 - `long double` → `CLongDouble` (flavor controls precision model)
 
 Choosing a Long Double Flavor
@@ -57,7 +57,7 @@ val c = a + b // uses EXTENDED80 for this instance
 
 Bit-Exact vs Fast Modes
 -----------------------
-- Fast by default: `CDouble` and `CLongDouble` (DOUBLE64) run at native `Double` speeds.
+- Fast by default: `CFloat64` and `CLongDouble` (DOUBLE64) run at native `Double` speeds.
 - Exact when needed: pick `CLongDouble` with the appropriate flavor or future Strict-C mode
   (planned: Kotlin/Native shim that performs the op using host `long double` and returns exact bits).
 
@@ -69,7 +69,7 @@ Validation Tools
 
 Notable Files
 -------------
-- Floating types: `ai/solace/klang/fp/CDouble.kt`, `ai/solace/klang/fp/CLongDouble.kt`, `ai/solace/klang/fp/CFloat128.kt`.
+- Floating types: `ai/solace/klang/fp/CFloat64.kt`, `ai/solace/klang/fp/CLongDouble.kt`, `ai/solace/klang/fp/CFloat128.kt`.
 - Bitwise/limb: `ai/solace/klang/bitwise/*`, `ai/solace/klang/buffer/*`.
 
 Heap Memory Model

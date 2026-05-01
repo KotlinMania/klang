@@ -46,13 +46,14 @@ class CFloat128Test {
     }
     
     @Test
-    fun divisionByScalar() {
+    fun divisionByHeapBackedDivisor() {
+        // Heap-discipline: divisor must be CFloat128, not a native Double scalar.
         setup()
         
         val a = CFloat128.fromDouble(100.0)
-        val result = a / 4.0
+        val result = a / CFloat128.fromDouble(4.0)
         
-        assertEquals(25.0, result.toDouble(), 1e-10, "Division by scalar failed")
+        assertEquals(25.0, result.toDouble(), 1e-10, "Heap-backed division failed")
     }
     
     @Test
@@ -98,7 +99,9 @@ class CFloat128Test {
         
         // (100 / 4) / 5 = 5
         val a = CFloat128.fromDouble(100.0)
-        val result = (a / 4.0) / 5.0
+        val four = CFloat128.fromDouble(4.0)
+        val five = CFloat128.fromDouble(5.0)
+        val result = (a / four) / five
         
         assertEquals(5.0, result.toDouble(), 1e-10, "Chained division failed")
     }
@@ -153,16 +156,17 @@ class CFloat128Test {
     }
     
     @Test
-    fun arithmeticWithScalars() {
+    fun arithmeticWithHeapBackedOperands() {
+        // Heap-discipline: all operands must be CFloat128, no native-Double shortcuts.
         setup()
         
         val a = CFloat128.fromDouble(10.0)
         
-        val sum = a + 5.0
-        assertEquals(15.0, sum.toDouble(), 1e-10, "Scalar addition failed")
+        val sum = a + CFloat128.fromDouble(5.0)
+        assertEquals(15.0, sum.toDouble(), 1e-10, "Heap-backed addition failed")
         
-        val prod = a * 3.0
-        assertEquals(30.0, prod.toDouble(), 1e-10, "Scalar multiplication failed")
+        val prod = a * CFloat128.fromDouble(3.0)
+        assertEquals(30.0, prod.toDouble(), 1e-10, "Heap-backed multiplication failed")
     }
     
     @Test
@@ -275,9 +279,9 @@ class CFloat128Test {
     fun conversionFromCDouble() {
         setup()
         
-        val cd = CDouble.fromDouble(42.0)
+        val cd = CFloat64.fromDouble(42.0)
         val cf = CFloat128.fromCDouble(cd)
-        assertEquals(42.0, cf.toDouble(), 1e-10, "From CDouble conversion failed")
+        assertEquals(42.0, cf.toDouble(), 1e-10, "From CFloat64 conversion failed")
     }
     
     @Test
@@ -364,7 +368,7 @@ class CFloat128Test {
         // We can't do division yet, but we can test what we have
         
         val third = CFloat128.fromDouble(1.0 / 3.0)
-        val tripled = third * 3.0
+        val tripled = third * CFloat128.fromDouble(3.0)
         
         // Should be very close to 1.0
         val error = abs(tripled.toDouble() - 1.0)

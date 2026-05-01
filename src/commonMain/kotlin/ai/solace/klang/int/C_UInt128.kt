@@ -30,7 +30,7 @@ import ai.solace.klang.mem.KMalloc
  * ## Naming Convention
  *
  * `C_UInt128` follows Klang's C-type naming convention:
- * - **Leading `C`**: Indicates C-compatible type (like `CDouble`, `CFloat128`)
+ * - **Leading `C`**: Indicates C-compatible type (like `CFloat64`, `CFloat128`)
  * - **Underscore**: Preserves C's `__int128` leading underscores visually
  * - **UInt128**: Unsigned 128-bit integer
  *

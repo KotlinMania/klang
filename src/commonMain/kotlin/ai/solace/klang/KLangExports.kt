@@ -17,7 +17,7 @@ package ai.solace.klang
  *
  * ## Key Features
  *
- * - C-compatible types: CFloat32, CDouble, C_UInt128, C_Int128, etc.
+ * - C-compatible types: CFloat32, CFloat64, C_UInt128, C_Int128, etc.
  * - Bit-exact arithmetic: Matches C behavior precisely across all platforms
  * - Memory management: Heap, malloc/free, pointers without native interop
  * - Zero-copy design: Operations work directly on heap memory
@@ -29,14 +29,14 @@ package ai.solace.klang
  *
  * ```kotlin
  * import ai.solace.klang.fp.CFloat32
- * import ai.solace.klang.fp.CDouble
+ * import ai.solace.klang.fp.CFloat64
  * import ai.solace.klang.int.C_UInt128
  * import ai.solace.klang.mem.GlobalHeap
  * import ai.solace.klang.bitwise.BitShiftEngine
  *
  * // Create C-compatible floats
  * val x = CFloat32.fromFloat(3.14f)
- * val y = CDouble.fromDouble(2.718)
+ * val y = CFloat64.fromDouble(2.718)
  *
  * // Allocate memory
  * val ptr = GlobalHeap.mallocBytes(100)
@@ -53,7 +53,7 @@ package ai.solace.klang
  * ## Package Structure
  *
  * - [ai.solace.klang.bitwise]: Bit shift engine and bitwise operations
- * - [ai.solace.klang.fp]: Floating point types (CDouble, CFloat16, CFloat128, etc.)
+ * - [ai.solace.klang.fp]: Floating point types (CFloat64, CFloat16, CFloat128, etc.)
  * - [ai.solace.klang.int]: Extended precision integers (C_UInt128, C_Int128)
  * - [ai.solace.klang.mem]: Memory management, heap, malloc/free, pointers
  * - [ai.solace.klang.common]: Common utilities and logging

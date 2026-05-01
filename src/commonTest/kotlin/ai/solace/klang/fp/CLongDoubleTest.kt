@@ -121,10 +121,10 @@ class CLongDoubleTest {
     fun fromCDouble() {
         setup()
         
-        val cd = CDouble.fromDouble(42.0)
+        val cd = CFloat64.fromDouble(42.0)
         val ld = CLongDouble.fromCDouble(cd, CLongDouble.Flavor.DOUBLE64)
         
-        assertEquals(42.0, ld.toDouble(), 1e-10, "From CDouble failed")
+        assertEquals(42.0, ld.toDouble(), 1e-10, "From CFloat64 failed")
     }
     
     @Test
