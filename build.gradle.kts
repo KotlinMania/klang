@@ -1,3 +1,4 @@
+import com.vanniktech.maven.publish.SonatypeHost
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.jetbrains.kotlin.gradle.dsl.JsModuleKind
 import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
@@ -6,10 +7,14 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("multiplatform") version "2.3.20" apply true
-    id("org.barfuin.gradle.taskinfo") version "2.2.0"
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.maven.publish)
+    alias(libs.plugins.taskinfo)
     idea
 }
+
+group = "io.github.kotlinmania"
+version = "0.7.2"
 
 //project.gradle.taskGraph.whenReady { println(project.gradle.taskGraph.allTasks) }
 
@@ -86,7 +91,7 @@ kotlin {
             dependencies {
                 implementation("org.jetbrains.kotlin:kotlin-stdlib-common")
                 // Added for ai.solace.klang parallel array operations and actors
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+                implementation(libs.kotlinx.coroutines.core)
             }
         }
         commonTest {
@@ -277,5 +282,47 @@ tasks.withType(Test::class.java).all {
 idea {
     module {
         excludeDirs = excludeDirs + setOf(file(".gradle"), file("@old"), file("doc"), file("docs"), file("samples"), file("gradle"), file("build"), file("include"), file(".idea"), file(".github"), file("temp"), file("build/gen"))
+    }
+}
+
+mavenPublishing {
+    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    signAllPublications()
+
+    coordinates(group.toString(), "klang", version.toString())
+
+    pom {
+        name.set("klang")
+        description.set("Pure Kotlin Multiplatform systems-programming library that replicates C bitwise, numeric, and memory semantics for exact C-to-Kotlin code porting.")
+        inceptionYear.set("2024")
+        url.set("https://github.com/KotlinMania/klang")
+
+        licenses {
+            license {
+                name.set("Apache-2.0")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                distribution.set("repo")
+            }
+            license {
+                name.set("MIT")
+                url.set("https://opensource.org/licenses/MIT")
+                distribution.set("repo")
+            }
+        }
+
+        developers {
+            developer {
+                id.set("sydneyrenee")
+                name.set("Sydney Renee")
+                email.set("sydney@solace.ofharmony.ai")
+                url.set("https://github.com/sydneyrenee")
+            }
+        }
+
+        scm {
+            url.set("https://github.com/KotlinMania/klang")
+            connection.set("scm:git:git://github.com/KotlinMania/klang.git")
+            developerConnection.set("scm:git:ssh://github.com/KotlinMania/klang.git")
+        }
     }
 }
