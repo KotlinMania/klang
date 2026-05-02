@@ -13,7 +13,7 @@ plugins {
     idea
 }
 
-group = "ai.solace"
+group = "io.github.kotlinmania"
 version = "0.7.2"
 
 //project.gradle.taskGraph.whenReady { println(project.gradle.taskGraph.allTasks) }
