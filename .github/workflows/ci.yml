@@ -80,7 +80,7 @@ jobs:
           corepack enable
           corepack prepare yarn@1.22.22 --activate
 
-      - name: Build Linux + JS targets
+      - name: Build Linux + JS targets (compile only; tests run on macOS arm64 job)
         env:
           ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
         run: >
@@ -88,7 +88,6 @@ jobs:
           compileKotlinLinuxX64
           compileKotlinLinuxArm64
           compileKotlinJs
-          jsNodeTest
           --no-configuration-cache
 
   build-windows:
