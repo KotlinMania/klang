@@ -1,4 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.jetbrains.kotlin.gradle.dsl.JsModuleKind
 import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
@@ -70,7 +69,6 @@ kotlin {
 
     if (enableNative) {
         macosArm64 { configureNative() }
-        macosX64 { configureNative() }
         linuxX64 { configureNative() }
         linuxArm64 { configureNative() }
         mingwX64 { configureNative() }
@@ -286,7 +284,7 @@ idea {
 }
 
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
     signAllPublications()
 
     coordinates(group.toString(), "klang", version.toString())
