@@ -5,6 +5,8 @@
 
 package ai.solace.klang.fp
 
+import ai.solace.klang.bitwise.BitShiftConfig
+import ai.solace.klang.bitwise.BitShiftEngine
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,11 +17,18 @@ import kotlin.test.assertTrue
  *
  * Reference values are derived from the upstream `ggml_ue4m3_to_fp32` /
  * `ggml_fp32_to_ue4m3` implementations in ggml-impl.h.
+ *
+ * Bitwise operations route through [BitShiftEngine] per klang house rule.
  */
 class CUE4M3Test {
 
-    private fun decode(x: Int): Float = ue4m3ToFp32((x and 0xFF).toUByte())
-    private fun encode(f: Float): Int = fp32ToUe4m3(f).toInt() and 0xFF
+    private val engine = BitShiftEngine(BitShiftConfig.defaultMode, 32)
+
+    private fun decode(x: Int): Float =
+        ue4m3ToFp32(engine.bitwiseAnd(x.toLong(), engine.getMask(8)).toUByte())
+
+    private fun encode(f: Float): Int =
+        engine.bitwiseAnd(fp32ToUe4m3(f).toInt().toLong(), engine.getMask(8)).toInt()
 
     @Test
     fun zeroAndSpecialMaxDecodeToZero() {
@@ -78,7 +87,7 @@ class CUE4M3Test {
         // x == 0x7F is the special "decodes to 0" case.
         for (x in 1..0x77) {
             val raw = CUE4M3.fromBits(x).decodeRaw()
-            val reenc = CUE4M3.fromFloat(raw).toBits().toInt() and 0xFF
+            val reenc = engine.bitwiseAnd(CUE4M3.fromFloat(raw).toBits().toInt().toLong(), engine.getMask(8)).toInt()
             assertEquals(x, reenc, "round-trip failed for x=0x${x.toString(16)} (raw=$raw)")
         }
     }
@@ -88,7 +97,7 @@ class CUE4M3Test {
         // x in [0x78, 0x7E] all decode to >= 256.0 which the encoder saturates to 0x7E.
         for (x in 0x78..0x7E) {
             val raw = CUE4M3.fromBits(x).decodeRaw()
-            val reenc = CUE4M3.fromFloat(raw).toBits().toInt() and 0xFF
+            val reenc = engine.bitwiseAnd(CUE4M3.fromFloat(raw).toBits().toInt().toLong(), engine.getMask(8)).toInt()
             assertEquals(0x7E, reenc, "x=0x${x.toString(16)} (raw=$raw) should saturate to 0x7E")
         }
     }
@@ -108,7 +117,7 @@ class CUE4M3Test {
     fun fromBitsUByteAndIntAgree() {
         for (x in 0..255) {
             val a = CUE4M3.fromBits(x)
-            val b = CUE4M3.fromBits((x and 0xFF).toUByte())
+            val b = CUE4M3.fromBits(engine.bitwiseAnd(x.toLong(), engine.getMask(8)).toUByte())
             assertEquals(a, b)
             assertEquals(a.toFloat(), b.toFloat())
         }
