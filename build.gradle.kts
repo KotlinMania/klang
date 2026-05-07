@@ -26,7 +26,7 @@ allOpen {
 }
 
 group = "io.github.kotlinmania"
-version = "0.7.2"
+version = "0.8.0"
 
 //project.gradle.taskGraph.whenReady { println(project.gradle.taskGraph.allTasks) }
 
