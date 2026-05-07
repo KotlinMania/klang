@@ -28,5 +28,6 @@ a.out
 /temp/
 /.kotlin
 /summaries
-/kotlin-js-store/
+/kotlin-js-store/*
+!/kotlin-js-store/yarn.lock
 /.junie/

@@ -4,6 +4,12 @@ on:
   release:
     types: [released]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish and release to Maven Central (requires secrets)"
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   publish:
@@ -34,7 +40,22 @@ jobs:
           corepack enable
           corepack prepare yarn@1.22.22 --activate
 
+      - name: Check JavaScript toolchain
+        run: |
+          node --version
+          npm --version
+          yarn --version
+
+      - name: Build (dry run)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.publish }}
+        # Keep workflow_dispatch safe (no publishing). Compile all targets to
+        # validate that the publish job will succeed without actually pushing.
+        env:
+          ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
+        run: ./gradlew assemble --no-configuration-cache
+
       - name: Publish to Maven Central
+        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         run: ./gradlew publishAndReleaseToMavenCentral --no-configuration-cache
         env:
           ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"

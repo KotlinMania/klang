@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
 
 jobs:
   build-macos-arm64:
@@ -31,7 +31,7 @@ jobs:
           --no-configuration-cache
 
   build-linux:
-    name: Build (Linux x64 / Linux arm64 / JS)
+    name: Build and Test (Linux x64 / Linux arm64 / JS)
     runs-on: ubuntu-latest
 
     steps:
@@ -58,18 +58,26 @@ jobs:
           corepack enable
           corepack prepare yarn@1.22.22 --activate
 
-      - name: Build Linux + JS targets (compile only; tests run on macOS arm64 job)
+      - name: Check JavaScript toolchain
+        run: |
+          node --version
+          npm --version
+          yarn --version
+
+      - name: Build and test Linux + JS targets
         env:
           ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
         run: >
           ./gradlew
           compileKotlinLinuxX64
           compileKotlinLinuxArm64
-          compileKotlinJs
+          linuxX64Test
+          jsBrowserTest
+          jsNodeTest
           --no-configuration-cache
 
   build-windows:
-    name: Build (Windows x64)
+    name: Build and Test (Windows)
     runs-on: windows-latest
 
     steps:
@@ -85,5 +93,5 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.1.0
 
-      - name: Build Windows x64 (tests disabled in build script)
-        run: ./gradlew compileKotlinMingwX64 --no-configuration-cache
+      - name: Build and test Windows target
+        run: ./gradlew mingwX64Test --no-configuration-cache
