@@ -99,7 +99,7 @@ class PackedBuffer(sizeBytes: Int) {
 
         return if (shift <= 48) {
             // Entirely within one Long
-            ((data[idx] ushr shift) and 0xFFFF).toInt().toShort()
+            ((data[idx] ushr shift) and 0xFFFF).toShort()
         } else {
             // Spans two Longs
             val lo = (data[idx] ushr shift).toInt() and 0xFF

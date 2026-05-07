@@ -122,8 +122,10 @@ public/*!*/ abstract class AbstractRuntime(val REQUESTED_HEAP_SIZE: Int = 0, val
     ).toShort()
     open fun sh(ptr: Int, value: Short): Unit {
         // .toByte() truncates the low 8 bits arithmetically — not a bitwise operator.
-        sb(ptr, engine32.unsignedRightShift(value.toInt().toLong(), 0).value.toByte())
-        sb(ptr + 1, engine32.unsignedRightShift(value.toInt().toLong(), 8).value.toByte())
+        // Short.toLong() is the direct sign-extending widening; the previous
+        // `value.toInt().toLong()` round-tripped through Int needlessly.
+        sb(ptr, engine32.unsignedRightShift(value.toLong(), 0).value.toByte())
+        sb(ptr + 1, engine32.unsignedRightShift(value.toLong(), 8).value.toByte())
     }
 
     open fun lw(ptr: Int): Int {

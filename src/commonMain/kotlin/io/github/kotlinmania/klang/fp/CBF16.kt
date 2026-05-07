@@ -59,13 +59,17 @@ class CBF16 private constructor(private val bits: Short) {
 
     fun isNaN(): Boolean {
         val engine = BitShiftEngine(BitShiftConfig.defaultMode, 32)
-        val e = (engine.unsignedRightShift(bits.toInt().toLong(), 7).value.toInt() and 0xFF)
+        // Short.toLong() is direct sign-extending widening; round-tripping
+        // through .toInt().toLong() did the same job in two operations.
+        val e = (engine.unsignedRightShift(bits.toLong(), 7).value.toInt() and 0xFF)
         val f = bits.toInt() and 0x7F
         return e == 0xFF && f != 0
     }
     fun isInf(): Boolean {
         val engine = BitShiftEngine(BitShiftConfig.defaultMode, 32)
-        val e = (engine.unsignedRightShift(bits.toInt().toLong(), 7).value.toInt() and 0xFF)
+        // Short.toLong() is direct sign-extending widening; round-tripping
+        // through .toInt().toLong() did the same job in two operations.
+        val e = (engine.unsignedRightShift(bits.toLong(), 7).value.toInt() and 0xFF)
         val f = bits.toInt() and 0x7F
         return e == 0xFF && f == 0
     }
