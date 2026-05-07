@@ -1,15 +1,14 @@
 package ai.solace.klang.bitwise
 
 /**
- * CE8M0Math — bit kernel for the 8-bit exponent-only scaling format used in
- * MX (Microscaling) and MXFP4 quantization.
+ * CE8M0Math — bit kernel for the 8-bit exponent-only scaling format.
  *
  * Format: 8 bits of unsigned biased exponent, no sign, no mantissa.
  * Value semantics:
  *   x == 0     → 2^(-127), encoded as a denormal float
  *   otherwise  → 2^(x − 127)
  *
- * NaN handling is intentionally disabled (matches upstream MX spec usage).
+ * NaN handling is intentionally disabled.
  *
  * @native-bitshift-allowed Kernel layer for CE8M0; raw shifts permitted.
  */
@@ -44,10 +43,10 @@ object CE8M0Math {
     }
 
     /**
-     * Convert a CE8M0 byte to the fp32 raw bit pattern of 2^(x − 128).
-     *
-     * Matches the kvalues_mxfp4 doubling convention where kvalues = 2 × E2M1_float;
-     * the half form does not overflow to infinity at the top of the range.
+     * Convert a CE8M0 byte to the fp32 raw bit pattern of 2^(x − 128) — the
+     * half-magnitude variant. Unlike [toFp32Bits] it does not overflow to
+     * infinity at the top of the range; instead the highest encoding decodes
+     * to 2^127.
      *
      * @param bits the 8-bit CE8M0 storage as an Int (low 8 bits used)
      * @return raw IEEE-754 binary32 bit pattern

@@ -7,10 +7,10 @@ import kotlin.math.abs
  * Inline value representing a C-style 32-bit floating point number.
  *
  * Kotlin/Native and the JVM both follow IEEE-754 semantics, but certain C code
- * (including ggml) relies on the fact that every intermediate operation is
- * rounded back to single precision immediately. This wrapper preserves that
- * behaviour explicitly, providing convenience operators that always truncate to
- * 32-bit precision after each arithmetic step.
+ * relies on the fact that every intermediate operation is rounded back to
+ * single precision immediately. This wrapper preserves that behaviour
+ * explicitly, providing convenience operators that always truncate to 32-bit
+ * precision after each arithmetic step.
  */
 class CFloat32 private constructor(private val bits: Int) {
     val value: Float get() = Float.fromBits(bits)
