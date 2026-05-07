@@ -96,21 +96,43 @@ class Float64BitsTest {
     }
 
     @Test
-    fun sqrt_bit_kernel_matches_kotlin_math() {
-        val sqrtSamples = doubleArrayOf(
-            0.0, 1.0, 2.0, 4.0, 9.0, 16.0,
-            0.25, 0.5, 1e-10, 1e10, 1e-300, 1e300,
-            Double.MIN_VALUE, Double.MAX_VALUE,
-            Double.POSITIVE_INFINITY,
+    fun sqrt_bit_kernel_produces_RNE_correct_results() {
+        // Asserts BasicMath.sqrt produces the IEEE-754 round-to-nearest-even
+        // result for binary64 sqrt — verified against precomputed bit patterns,
+        // not the host runtime. The previous version of this test compared
+        // against `kotlin.math.sqrt`, which made the assertion depend on host
+        // libm. That dependency was a bug in the test harness: Windows mingw
+        // libm sqrt drifts by 1 ULP from spec on at least one of these inputs,
+        // so the test failed on Windows even though klang's kernel — pure
+        // Kotlin shift-and-add over the IEEE-754 bit pattern, host-independent
+        // by construction — produced the correct answer everywhere.
+        //
+        // Each (input, expected) pair is the IEEE-754-mandated RNE result.
+        // Reference values are the ones Java's spec-conformant Math.sqrt
+        // returns and that macOS arm64 / Linux x64 libm both produce.
+        val sqrtCases: Array<Pair<Double, Long>> = arrayOf(
+            0.0                          to 0x0000_0000_0000_0000L,  // sqrt(+0) = +0
+            1.0                          to 0x3FF0_0000_0000_0000L,  // sqrt(1)  = 1
+            2.0                          to 0x3FF6_A09E_667F_3BCDL,  // sqrt(2)  ≈ 1.4142135623730951
+            4.0                          to 0x4000_0000_0000_0000L,  // sqrt(4)  = 2
+            9.0                          to 0x4008_0000_0000_0000L,  // sqrt(9)  = 3
+            16.0                         to 0x4010_0000_0000_0000L,  // sqrt(16) = 4
+            0.25                         to 0x3FE0_0000_0000_0000L,  // sqrt(0.25) = 0.5
+            0.5                          to 0x3FE6_A09E_667F_3BCDL,  // sqrt(0.5)  ≈ 0.7071067811865476
+            1e-10                        to 0x3EE4_F8B5_88E3_68F1L,
+            1e10                         to 0x40F8_6A00_0000_0000L,  // exactly 100000.0
+            1e-300                       to 0x20CA_2FE7_6A3F_9475L,
+            1e300                        to 0x5F13_8D35_2E50_96AFL,
+            Double.MIN_VALUE             to 0x1E60_0000_0000_0000L,  // sqrt of smallest subnormal
+            Double.MAX_VALUE             to 0x5FEF_FFFF_FFFF_FFFFL,
+            Double.POSITIVE_INFINITY     to 0x7FF0_0000_0000_0000L,  // sqrt(+Inf) = +Inf
         )
-        for (x in sqrtSamples) {
-            val expected = kotlin.math.sqrt(x)
-            val actual = BasicMath.sqrt(x)
-            // sqrt is exact bit-for-bit for round-to-nearest-even on these inputs.
+        for ((x, expectedBits) in sqrtCases) {
+            val actualBits = BasicMath.sqrt(x).toRawBits()
             assertTrue(
-                bitsEq(actual, expected),
-                "sqrt($x): expected=${expected.toRawBits().toString(16)} " +
-                    "actual=${actual.toRawBits().toString(16)}"
+                actualBits == expectedBits,
+                "sqrt($x): expected=0x${expectedBits.toULong().toString(16).padStart(16, '0')} " +
+                    "actual=0x${actualBits.toULong().toString(16).padStart(16, '0')}"
             )
         }
         // Negative input → NaN.
