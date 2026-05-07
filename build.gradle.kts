@@ -1,4 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.jetbrains.kotlin.gradle.dsl.JsModuleKind
 import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
@@ -70,7 +69,6 @@ kotlin {
 
     if (enableNative) {
         macosArm64 { configureNative() }
-        macosX64 { configureNative() }
         linuxX64 { configureNative() }
         linuxArm64 { configureNative() }
         mingwX64 { configureNative() }
@@ -78,7 +76,7 @@ kotlin {
         //sourceSets {
         //    val nativeMain = this.create("nativeMain")
         //    val nativeTest = this.create("nativeTest")
-        //    configure(listOf(this.getByName("macosX64Main"), this.getByName("macosArm64Main"), this.getByName("linuxX64Main"), this.getByName("mingwX64Main"))) {
+        //    configure(listOf(this.getByName("macosArm64Main"), this.getByName("linuxX64Main"), this.getByName("mingwX64Main"))) {
         //        dependsOn(nativeMain)
         //    }
         //}
@@ -166,7 +164,6 @@ tasks {
 
 afterEvaluate {
     tasks.findByName("linuxX64Test")?.enabled = false
-    tasks.findByName("macosX64Test")?.enabled = false
     tasks.findByName("mingwX64Test")?.enabled = false
     // Enable macOS aarch64 native tests
     tasks.findByName("macosArm64Test")?.enabled = true
@@ -286,7 +283,7 @@ idea {
 }
 
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
     signAllPublications()
 
     coordinates(group.toString(), "klang", version.toString())
@@ -325,4 +322,22 @@ mavenPublishing {
             developerConnection.set("scm:git:ssh://github.com/KotlinMania/klang.git")
         }
     }
+}
+
+// CodeQL's Gradle autobuild invokes `./gradlew testClasses`, which is a
+// JVM-convention task that Kotlin Multiplatform projects without a JVM
+// target do not provide. Without it, CodeQL aborts with
+// `Task 'testClasses' not found in root project` and skips the scan.
+// Register an aggregate task that depends on every per-target
+// test-compile task (jsTestClasses, wasmJsTestClasses, and the
+// compileTestKotlin<Target> tasks for native targets) so the convention
+// call resolves.
+tasks.register("testClasses") {
+    description = "Aggregate test-compile task for CodeQL and other JVM-convention callers."
+    group = "verification"
+    dependsOn(tasks.matching { other ->
+        val n = other.name
+        n != "testClasses" &&
+            (n.endsWith("TestClasses") || n.startsWith("compileTestKotlin"))
+    })
 }
