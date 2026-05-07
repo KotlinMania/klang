@@ -2,23 +2,24 @@ package ai.solace.klang.bitwise
 
 /**
  * CUE4M3Math — bit kernel for the unsigned 8-bit float with 4 exponent bits
- * (bias = 7) and 3 mantissa bits used in MXFP4 quantization.
+ * (bias = 7) and 3 mantissa bits.
  *
  * Layout (high to low): EEEE MMM (no sign bit)
  *   bits 7..3: 4-bit exponent E (biased by 7)
  *   bits 2..0: 3-bit mantissa M
  *
- * Decoded value (before the kvalues_mxfp4 doubling convention):
+ * Raw decoded value:
  *   x == 0           → 0.0
  *   x == 0x7F        → 0.0 (special)
  *   exp == 0         → subnormal: man × 2^(−9)
  *   otherwise        → (1 + man/8) × 2^(exp − 7)
  *
- * The `decodeBits` accessor returns the doubled (kvalues) raw bits;
- * `decodeRawBits` returns the pre-doubled raw bits.
+ * [decode] returns the raw value scaled by 0.5 (the half-magnitude variant);
+ * [decodeRaw] returns the unscaled value.
  *
- * Encoding (`encodeBits`) matches `ggml_fp32_to_ue4m3` exactly: negative or
- * NaN inputs encode to 0; saturates at 448.0; returns 0x7E for overflow.
+ * Encoding ([encodeBits]) clamps non-positive and NaN inputs to 0, saturates
+ * positive inputs at 448.0, and returns 0x7E for overflow (the max finite
+ * encoding).
  *
  * @native-bitshift-allowed Kernel layer for CUE4M3; raw shifts permitted.
  */
@@ -52,7 +53,7 @@ object CUE4M3Math {
     private const val BYTE_MASK = 0xFF
 
     /**
-     * Decode a CUE4M3 byte to a raw fp32 value (no kvalues doubling applied).
+     * Decode a CUE4M3 byte to a raw fp32 value (no half-magnitude scaling applied).
      */
     fun decodeRaw(bits: Int): Float {
         val xi = bits and BYTE_MASK
@@ -69,17 +70,14 @@ object CUE4M3Math {
     }
 
     /**
-     * Decode a CUE4M3 byte to fp32 with the kvalues_mxfp4 doubling convention applied
-     * (i.e. raw value × 0.5).
+     * Decode a CUE4M3 byte to fp32 in the half-magnitude variant (raw value × 0.5).
      */
     fun decode(bits: Int): Float = decodeRaw(bits) * 0.5f
 
     /**
-     * Encode a fp32 value into a CUE4M3 byte using round-to-nearest semantics.
-     *
-     * Behaviour matches `ggml_fp32_to_ue4m3` from upstream:
+     * Encode a fp32 value into a CUE4M3 byte using round-to-nearest semantics:
      *  - Negative or NaN inputs → 0
-     *  - Saturates at 448.0 (max representable magnitude before doubling)
+     *  - Saturates at 448.0 (max representable raw magnitude)
      *  - Returns 0x7E for overflow
      */
     fun encodeBits(f: Float): Int {

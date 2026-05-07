@@ -471,12 +471,11 @@ class CBF16Var(override val addr: Int) : CVar {
 }
 
 /**
- * CE8M0Var: C-style 8-bit exponent-only scaling variable used in MX/MXFP4 quantization.
+ * CE8M0Var: C-style 8-bit exponent-only scaling variable.
  *
  * Represents a single CE8M0 byte stored in heap memory. CE8M0 is a pure scaling
  * format (no sign, no mantissa) where the byte value `x` decodes to 2^(x − 127),
- * with x == 0 producing the denormal 2^(−127). Used as the per-block exponent
- * scaling factor in MX (Microscaling) and MXFP4 quantization.
+ * with x == 0 producing the denormal 2^(−127).
  *
  * ## Usage Example
  * ```kotlin
@@ -507,17 +506,16 @@ class CE8M0Var(override val addr: Int) : CVar {
 }
 
 /**
- * CUE4M3Var: C-style unsigned 8-bit E4M3 variable used in MXFP4 quantization.
+ * CUE4M3Var: C-style unsigned 8-bit E4M3 variable.
  *
  * Represents a single CUE4M3 byte stored in heap memory. CUE4M3 is an unsigned
- * 8-bit float (4 exponent bits with bias 7, 3 mantissa bits, no sign) used by
- * MXFP4 quantization for individual element values within a block.
+ * 8-bit float with 4 exponent bits (bias 7), 3 mantissa bits, and no sign bit.
  *
  * ## Usage Example
  * ```kotlin
  * KStack.withFrame {
  *     val v = CAutos.ue4m3(CUE4M3.fromFloat(1.0f))
- *     println(v.value.toFloat())                  // ~1.0 (after kvalues doubling: 0.5)
+ *     println(v.value.toFloat())                  // ~0.5 (half-magnitude variant)
  *     v.value = CUE4M3.fromFloat(2.5f)
  *     println(v.value.toFloat())                  // ~1.25
  * }
@@ -770,8 +768,6 @@ object CAutos {
     /**
      * Allocate a CE8M0 (8-bit exponent-only scaling factor) on the stack.
      *
-     * Used by MX/MXFP4 quantization for per-block scale values.
-     *
      * @param init Initial value (default: CE8M0.ZERO, decodes to 2^(-127))
      * @param align Alignment (default: 1 byte)
      * @return CE8M0Var pointing to stack memory
@@ -785,8 +781,6 @@ object CAutos {
 
     /**
      * Allocate a CUE4M3 (unsigned 4-exp 3-mantissa 8-bit float) on the stack.
-     *
-     * Used by MXFP4 quantization for per-element values within a block.
      *
      * @param init Initial value (default: CUE4M3.ZERO)
      * @param align Alignment (default: 1 byte)
@@ -1145,7 +1139,7 @@ object CHeapVars {
     }
 
     /**
-     * Allocate a CE8M0 (MX/MXFP4 scaling factor) on the heap.
+     * Allocate a CE8M0 (8-bit exponent-only scaling factor) on the heap.
      *
      * @param init Initial value (default: CE8M0.ZERO)
      * @return CE8M0Var pointing to heap memory
@@ -1158,7 +1152,7 @@ object CHeapVars {
     }
 
     /**
-     * Allocate a CUE4M3 (MXFP4 element value) on the heap.
+     * Allocate a CUE4M3 (unsigned 4-exp 3-mantissa 8-bit float) on the heap.
      *
      * @param init Initial value (default: CUE4M3.ZERO)
      * @return CUE4M3Var pointing to heap memory

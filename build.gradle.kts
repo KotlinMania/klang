@@ -4,6 +4,10 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJsCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsEnvSpec
+import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootExtension
+import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootEnvSpec
+import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -58,6 +62,7 @@ kotlin {
     js {
         configureAll()
         browser()
+        nodejs()
         binaries.executable()
         compilerOptions {
             this.target = "es2015"
@@ -162,9 +167,17 @@ tasks {
     // Removed generateSources dependencies; no generated files needed
 }
 
+// Disable cross-target native tests on hosts that can't actually run their binaries.
+// Linux x64 and Windows x64 binaries only execute on their respective hosts; without this
+// guard `./gradlew allTests` on macOS fails because cross-compiled test binaries can't run.
+// CI runs each native test on the matching host (see .github/workflows/ci.yml).
+val hostOsName: String = System.getProperty("os.name").lowercase()
+val isLinuxHost: Boolean = hostOsName.contains("linux")
+val isWindowsHost: Boolean = hostOsName.contains("windows") || hostOsName.contains("mingw")
+
 afterEvaluate {
-    tasks.findByName("linuxX64Test")?.enabled = false
-    tasks.findByName("mingwX64Test")?.enabled = false
+    if (!isLinuxHost) tasks.findByName("linuxX64Test")?.enabled = false
+    if (!isWindowsHost) tasks.findByName("mingwX64Test")?.enabled = false
     // Enable macOS aarch64 native tests
     tasks.findByName("macosArm64Test")?.enabled = true
 
@@ -265,6 +278,66 @@ afterEvaluate {
 
 rootProject.plugins.withType(org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin::class.java) {
     //rootProject.the<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootExtension>().download = false
+}
+
+// ---------------------------------------------------------------------------
+// Kotlin/JS toolchain — pin Node 22 LTS and Yarn 1.22.22, plus webpack/karma
+// versions that close the dependabot alerts on the kotlin-js-store yarn lock.
+// Mirrors starlark-kotlin's build.gradle.kts; klang has no wasmJs target so
+// the Wasm-side configurations are intentionally omitted.
+// ---------------------------------------------------------------------------
+
+rootProject.extensions.configure<NodeJsEnvSpec>("kotlinNodeJsSpec") {
+    version.set("22.22.2")
+}
+
+rootProject.extensions.configure<YarnRootEnvSpec>("kotlinYarnSpec") {
+    version.set("1.22.22")
+}
+
+rootProject.extensions.configure<YarnRootExtension>("kotlinYarn") {
+    // CVE-driven version overrides for transitive npm deps. Each pair forces
+    // both top-level and nested resolution so a downstream package can't pull
+    // back in a vulnerable version through its own dependency tree.
+    resolution("diff", "8.0.3")
+    resolution("**/diff", "8.0.3")
+    resolution("serialize-javascript", "7.0.5")
+    resolution("**/serialize-javascript", "7.0.5")
+    resolution("webpack", "5.106.2")
+    resolution("**/webpack", "5.106.2")
+    resolution("follow-redirects", "1.16.0")
+    resolution("**/follow-redirects", "1.16.0")
+    resolution("lodash", "4.18.1")
+    resolution("**/lodash", "4.18.1")
+    resolution("ajv", "8.20.0")
+    resolution("**/ajv", "8.20.0")
+    resolution("brace-expansion", "5.0.5")
+    resolution("**/brace-expansion", "5.0.5")
+    resolution("flatted", "3.4.2")
+    resolution("**/flatted", "3.4.2")
+    resolution("minimatch", "10.2.5")
+    resolution("**/minimatch", "10.2.5")
+    resolution("picomatch", "4.0.4")
+    resolution("**/picomatch", "4.0.4")
+    resolution("qs", "6.15.1")
+    resolution("**/qs", "6.15.1")
+    resolution("socket.io-parser", "4.2.6")
+    resolution("**/socket.io-parser", "4.2.6")
+}
+
+// Path to the vendored karma-webpack patch package whose dependencies pin
+// glob ^13, minimatch ^10.2.5, webpack-merge ^4 — closing the chain of
+// transitive CVEs that the upstream karma-webpack 5.0.1 still pulls in.
+val patchedKarmaWebpackPackage: String =
+    rootProject.layout.projectDirectory.dir("gradle/npm/karma-webpack").asFile.absolutePath.replace("\\", "/")
+
+rootProject.extensions.configure<NodeJsRootExtension>("kotlinNodeJs") {
+    versions.webpack.version = "5.106.2"
+    versions.webpackCli.version = "7.0.2"
+    versions.karma.version = "npm:karma-maintained@6.4.7"
+    versions.karmaWebpack.version = "file:$patchedKarmaWebpackPackage"
+    versions.mocha.version = "12.0.0-beta-10"
+    versions.kotlinWebHelpers.version = "3.1.0"
 }
 
 tasks.withType(Test::class.java).all {

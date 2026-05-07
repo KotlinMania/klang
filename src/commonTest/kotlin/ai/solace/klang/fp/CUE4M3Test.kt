@@ -15,10 +15,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Tests for [CUE4M3]: unsigned E4M3 (4 exponent + 3 mantissa, no sign) used in MXFP4.
+ * Tests for [CUE4M3]: unsigned E4M3 (4 exponent + 3 mantissa, no sign).
  *
- * Reference values are derived from the upstream `ggml_ue4m3_to_fp32` /
- * `ggml_fp32_to_ue4m3` implementations in ggml-impl.h.
+ * Reference values are derived directly from the format definition:
+ *   x == 0 / x == 0x7F  → 0.0 (special)
+ *   exp == 0            → subnormal: man × 2^(−9)
+ *   otherwise           → (1 + man/8) × 2^(exp − 7)
+ * The `toFloat` accessor applies the half-magnitude scaling (raw × 0.5).
  */
 class CUE4M3Test {
 

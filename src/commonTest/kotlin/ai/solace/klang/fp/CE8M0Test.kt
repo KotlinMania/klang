@@ -15,10 +15,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Tests for [CE8M0]: 8-bit exponent-only scaling format used in MX/MXFP4 quantization.
+ * Tests for [CE8M0]: 8-bit exponent-only scaling format.
  *
- * Reference values are derived from the upstream `ggml_e8m0_to_fp32` implementation
- * in llama.cpp's ggml-impl.h (Apache-2.0/MIT) and from IEEE-754 binary32 semantics.
+ * Reference values are derived directly from IEEE-754 binary32 semantics
+ * (the format encodes 2^(x − 127) for x > 0 and the denormal 2^(−127) for x == 0).
  *
  * Tests follow the heap-backed `CAutos`/`CGlobals`/`CHeapVars` pattern used by the
  * other narrow-FP types (CFloat16, CBF16) — see [MLTypesTest] for the convention.
