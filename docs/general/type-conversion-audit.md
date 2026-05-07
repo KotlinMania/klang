@@ -68,10 +68,68 @@ Sites fixed:
 
 ---
 
-## Tier 2 — design questions
+## Empirical: tier 1 vs tier 2, measured
 
-These would meaningfully simplify call sites or remove per-call overhead,
-but they involve API changes. Not applied; documented for discussion.
+A `TypeConversionBenchmark` was added to the benchmark suite covering
+all three tiers (`src/commonBenchmark/.../mem/TypeConversionBenchmark.kt`).
+The numbers turn most of the discussion into numbers.
+
+Run on macOS arm64, Kotlin/Native 2.3.21, kotlinx-benchmark 0.4.16,
+AverageTime mode, 3 warmup × 5 measurement × 1 second iterations,
+1024-element sample sweeps:
+
+```
+Tier 1 — round-trip vs direct
+  longToShortDirect            294.578 ns/op
+  longToShortViaInt            296.563 ns/op   ~0.7% slower
+  longToByteDirect             294.192 ns/op
+  longToByteViaInt             291.873 ns/op   (within noise)
+  shortToLongDirect            288.358 ns/op
+  shortToLongViaInt            294.229 ns/op   ~2% slower
+  byteToLongDirect             292.313 ns/op
+  byteToLongViaInt             291.513 ns/op   (within noise)
+
+Tier 2-A — PackedBuffer.setShort signature
+  setShortViaShortParameter   2210.953 ns/op
+  setShortViaIntParameter     2064.940 ns/op   ~7% faster (CIs disjoint)
+
+Tier 2-B — engine Long-boundary cost
+  directIntShiftNoBoundary       301.443 ns/op
+  engineShiftViaLongBoundary   51448.200 ns/op   ~170× slower
+  directIntUshrNoBoundary        539.217 ns/op
+  engineUshrViaLongBoundary    22486.110 ns/op   ~42× slower
+```
+
+What the numbers mean:
+
+- **Tier 1 is a code-clarity win, not a speed win.** The compiler
+  peephole-optimises the redundant intermediate `Int` on Kotlin/Native
+  macOS arm64, so removing the round-trip doesn't materially change
+  runtime. The audit's simplifications still hold — they don't
+  *regress* anything either — but the value is readability, not
+  measurable speed.
+
+- **Tier 2-A is a real ~7% win** on the hot 16-bit-store path. Modest
+  but repeatable, with disjoint confidence intervals. Worth landing.
+
+- **Tier 2-B is a 40–170× cliff.** The engine's per-call overhead —
+  `ShiftResult` data-class allocation, mode branch, `Long` widen/narrow —
+  dwarfs the actual shift work on Kotlin/Native. Any hot path that
+  calls `engine.leftShift(value.toLong(), n).value.toInt()` repeatedly
+  is paying a multi-order-of-magnitude tax that an `Int`-overload set
+  could avoid. This isn't a "shave a few percent" question; it's a
+  serious performance issue for shift-heavy code.
+
+The empirical results promote both Tier-2 items from "design questions"
+to "next PRs."
+
+---
+
+## Tier 2 — design questions (now empirically justified)
+
+Both proposals would meaningfully simplify call sites or remove
+per-call overhead. The benchmark numbers above put them on firm
+footing.
 
 ### A. `PackedBuffer.setShort(addr, value: Short)` should probably take `Int`
 
