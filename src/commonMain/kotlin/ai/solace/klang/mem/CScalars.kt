@@ -461,13 +461,84 @@ class CFloat16Var(override val addr: Int) : CVar {
 class CBF16Var(override val addr: Int) : CVar {
     /**
      * The 16-bit bfloat16 value stored at [addr].
-     * 
+     *
      * **Get**: Loads from heap via [GlobalHeap.lh], converts to CBF16
      * **Set**: Converts CBF16 to bits, stores via [GlobalHeap.sh]
      */
     var value: ai.solace.klang.fp.CBF16
         get() = ai.solace.klang.fp.CBF16.fromBits(GlobalHeap.lh(addr))
         set(v) = GlobalHeap.sh(addr, v.toBits())
+}
+
+/**
+ * CE8M0Var: C-style 8-bit exponent-only scaling variable used in MX/MXFP4 quantization.
+ *
+ * Represents a single CE8M0 byte stored in heap memory. CE8M0 is a pure scaling
+ * format (no sign, no mantissa) where the byte value `x` decodes to 2^(x − 127),
+ * with x == 0 producing the denormal 2^(−127). Used as the per-block exponent
+ * scaling factor in MX (Microscaling) and MXFP4 quantization.
+ *
+ * ## Usage Example
+ * ```kotlin
+ * KStack.withFrame {
+ *     val scale = CAutos.e8m0(CE8M0.fromBits(127))  // 2^0 = 1.0
+ *     println(scale.value.toFloat())                 // 1.0
+ *     scale.value = CE8M0.fromBits(130)              // 2^3 = 8.0
+ *     println(scale.value.toFloat())                 // 8.0
+ * }
+ * ```
+ *
+ * @property addr Heap address of the byte (1-byte alignment)
+ * @property value The CE8M0 value (mutable, directly accesses heap)
+ * @see GlobalHeap.lb Load byte
+ * @see GlobalHeap.sb Store byte
+ * @see ai.solace.klang.fp.CE8M0 For decoding semantics
+ */
+class CE8M0Var(override val addr: Int) : CVar {
+    /**
+     * The CE8M0 value stored at [addr].
+     *
+     * **Get**: Loads from heap via [GlobalHeap.lbu], wraps in CE8M0
+     * **Set**: Unwraps CE8M0 bits, stores via [GlobalHeap.sb]
+     */
+    var value: ai.solace.klang.fp.CE8M0
+        get() = ai.solace.klang.fp.CE8M0.fromBits(GlobalHeap.lbu(addr))
+        set(v) = GlobalHeap.sb(addr, v.toBits().toByte())
+}
+
+/**
+ * CUE4M3Var: C-style unsigned 8-bit E4M3 variable used in MXFP4 quantization.
+ *
+ * Represents a single CUE4M3 byte stored in heap memory. CUE4M3 is an unsigned
+ * 8-bit float (4 exponent bits with bias 7, 3 mantissa bits, no sign) used by
+ * MXFP4 quantization for individual element values within a block.
+ *
+ * ## Usage Example
+ * ```kotlin
+ * KStack.withFrame {
+ *     val v = CAutos.ue4m3(CUE4M3.fromFloat(1.0f))
+ *     println(v.value.toFloat())                  // ~1.0 (after kvalues doubling: 0.5)
+ *     v.value = CUE4M3.fromFloat(2.5f)
+ *     println(v.value.toFloat())                  // ~1.25
+ * }
+ * ```
+ *
+ * @property addr Heap address of the byte (1-byte alignment)
+ * @property value The CUE4M3 value (mutable, directly accesses heap)
+ * @see GlobalHeap.lb Load byte
+ * @see GlobalHeap.sb Store byte
+ * @see ai.solace.klang.fp.CUE4M3 For encode/decode semantics
+ */
+class CUE4M3Var(override val addr: Int) : CVar {
+    /**
+     * The CUE4M3 value stored at [addr].
+     *
+     * **Get**: Loads from heap via [GlobalHeap.lbu], wraps in CUE4M3
+     * **Set**: Unwraps CUE4M3 bits, stores via [GlobalHeap.sb]
+     */
+    var value: ai.solace.klang.fp.CUE4M3
+        get() = ai.solace.klang.fp.CUE4M3.fromBits(GlobalHeap.lbu(addr))
+        set(v) = GlobalHeap.sb(addr, v.toBits().toByte())
 }
 
 /**
@@ -695,6 +766,38 @@ object CAutos {
         GlobalHeap.sh(p, init.toBits())
         return CBF16Var(p)
     }
+
+    /**
+     * Allocate a CE8M0 (8-bit exponent-only scaling factor) on the stack.
+     *
+     * Used by MX/MXFP4 quantization for per-block scale values.
+     *
+     * @param init Initial value (default: CE8M0.ZERO, decodes to 2^(-127))
+     * @param align Alignment (default: 1 byte)
+     * @return CE8M0Var pointing to stack memory
+     * @see ai.solace.klang.fp.CE8M0
+     */
+    fun e8m0(init: ai.solace.klang.fp.CE8M0 = ai.solace.klang.fp.CE8M0.ZERO, align: Int = 1): CE8M0Var {
+        val p = KStack.alloca(1, align)
+        GlobalHeap.sb(p, init.toBits().toByte())
+        return CE8M0Var(p)
+    }
+
+    /**
+     * Allocate a CUE4M3 (unsigned 4-exp 3-mantissa 8-bit float) on the stack.
+     *
+     * Used by MXFP4 quantization for per-element values within a block.
+     *
+     * @param init Initial value (default: CUE4M3.ZERO)
+     * @param align Alignment (default: 1 byte)
+     * @return CUE4M3Var pointing to stack memory
+     * @see ai.solace.klang.fp.CUE4M3
+     */
+    fun ue4m3(init: ai.solace.klang.fp.CUE4M3 = ai.solace.klang.fp.CUE4M3.ZERO, align: Int = 1): CUE4M3Var {
+        val p = KStack.alloca(1, align)
+        GlobalHeap.sb(p, init.toBits().toByte())
+        return CUE4M3Var(p)
+    }
 }
 
 /**
@@ -856,6 +959,34 @@ object CGlobals {
         GlobalHeap.sh(addr, init.toBits())
         return CBF16Var(addr)
     }
+
+    /**
+     * Define a global CE8M0 variable.
+     *
+     * @param name Unique identifier for the variable
+     * @param init Initial value (default: CE8M0.ZERO)
+     * @param align Alignment (default: 1)
+     * @return CE8M0Var pointing to global memory
+     */
+    fun e8m0(name: String, init: ai.solace.klang.fp.CE8M0 = ai.solace.klang.fp.CE8M0.ZERO, align: Int = 1): CE8M0Var {
+        val addr = GlobalData.defineBss(name, 1, align)
+        GlobalHeap.sb(addr, init.toBits().toByte())
+        return CE8M0Var(addr)
+    }
+
+    /**
+     * Define a global CUE4M3 variable.
+     *
+     * @param name Unique identifier for the variable
+     * @param init Initial value (default: CUE4M3.ZERO)
+     * @param align Alignment (default: 1)
+     * @return CUE4M3Var pointing to global memory
+     */
+    fun ue4m3(name: String, init: ai.solace.klang.fp.CUE4M3 = ai.solace.klang.fp.CUE4M3.ZERO, align: Int = 1): CUE4M3Var {
+        val addr = GlobalData.defineBss(name, 1, align)
+        GlobalHeap.sb(addr, init.toBits().toByte())
+        return CUE4M3Var(addr)
+    }
 }
 
 /**
@@ -1011,6 +1142,32 @@ object CHeapVars {
     fun bfloat16(init: ai.solace.klang.fp.CBF16 = ai.solace.klang.fp.CBF16.fromFloat(0f)): CBF16Var {
         val p = KMalloc.malloc(2)
         GlobalHeap.sh(p, init.toBits()); return CBF16Var(p)
+    }
+
+    /**
+     * Allocate a CE8M0 (MX/MXFP4 scaling factor) on the heap.
+     *
+     * @param init Initial value (default: CE8M0.ZERO)
+     * @return CE8M0Var pointing to heap memory
+     *
+     * **Important**: Must call [free] to avoid memory leak.
+     */
+    fun e8m0(init: ai.solace.klang.fp.CE8M0 = ai.solace.klang.fp.CE8M0.ZERO): CE8M0Var {
+        val p = KMalloc.malloc(1)
+        GlobalHeap.sb(p, init.toBits().toByte()); return CE8M0Var(p)
+    }
+
+    /**
+     * Allocate a CUE4M3 (MXFP4 element value) on the heap.
+     *
+     * @param init Initial value (default: CUE4M3.ZERO)
+     * @return CUE4M3Var pointing to heap memory
+     *
+     * **Important**: Must call [free] to avoid memory leak.
+     */
+    fun ue4m3(init: ai.solace.klang.fp.CUE4M3 = ai.solace.klang.fp.CUE4M3.ZERO): CUE4M3Var {
+        val p = KMalloc.malloc(1)
+        GlobalHeap.sb(p, init.toBits().toByte()); return CUE4M3Var(p)
     }
     
     /**

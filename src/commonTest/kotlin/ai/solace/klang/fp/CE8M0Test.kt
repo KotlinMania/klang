@@ -5,9 +5,11 @@
 
 package ai.solace.klang.fp
 
-import ai.solace.klang.bitwise.BitShiftConfig
-import ai.solace.klang.bitwise.BitShiftEngine
-import kotlin.math.abs
+import ai.solace.klang.mem.CAutos
+import ai.solace.klang.mem.CGlobals
+import ai.solace.klang.mem.CHeapVars
+import ai.solace.klang.mem.GlobalData
+import ai.solace.klang.mem.KStack
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -18,55 +20,44 @@ import kotlin.test.assertTrue
  * Reference values are derived from the upstream `ggml_e8m0_to_fp32` implementation
  * in llama.cpp's ggml-impl.h (Apache-2.0/MIT) and from IEEE-754 binary32 semantics.
  *
- * Bitwise operations route through [BitShiftEngine] per klang house rule.
+ * Tests follow the heap-backed `CAutos`/`CGlobals`/`CHeapVars` pattern used by the
+ * other narrow-FP types (CFloat16, CBF16) — see [MLTypesTest] for the convention.
  */
 class CE8M0Test {
 
-    private val engine = BitShiftEngine(BitShiftConfig.defaultMode, 32)
-
-    /** Helper: build a CE8M0 byte from an Int via the engine, then decode. */
-    private fun decode(x: Int): Float = ce8m0ToFp32(engine.bitwiseAnd(x.toLong(), engine.getMask(8)).toUByte())
-    private fun decodeHalf(x: Int): Float = ce8m0ToFp32Half(engine.bitwiseAnd(x.toLong(), engine.getMask(8)).toUByte())
-
-    /** Helper: build a fp32 power-of-two bit pattern via the engine. */
-    private fun fp32Pow2Bits(unbiasedExp: Int): Int =
-        engine.leftShift((unbiasedExp + 127).toLong(), 23).value.toInt()
-
     @Test
     fun zeroEncodesAsTwoToMinus127() {
-        // x == 0 is the special denormal case: 2^(-127), encoded as a denormal:
-        // sign=0, exp=0, mantissa=0x400000 (i.e. 0.5 * 2^(-126) = 2^(-127)).
-        val expected = Float.fromBits(engine.leftShift(1L, 22).value.toInt())
-        assertEquals(expected, decode(0))
+        // x == 0 is the special denormal case: 2^(-127), encoded as a denormal with
+        // mantissa bit 22 set (sign=0, exp=0, mantissa=0x400000 = 0.5 × 2^(-126)).
+        val expected = Float.fromBits(1 shl 22)
+        assertEquals(expected, CE8M0.fromBits(0).toFloat())
     }
 
     @Test
     fun oneEncodesAsTwoToMinus126() {
-        // x == 1 -> exponent = 1, mantissa = 0 -> 2^(1 - 127) = 2^(-126)
-        val expected = Float.fromBits(fp32Pow2Bits(-126))
-        assertEquals(expected, decode(1))
+        // x == 1 -> exponent field = 1, mantissa = 0 -> 2^(1 - 127) = 2^(-126)
+        val expected = Float.fromBits(1 shl 23)
+        assertEquals(expected, CE8M0.fromBits(1).toFloat())
     }
 
     @Test
     fun oneTwentySevenIsOne() {
-        // x == 127 -> 2^(0) = 1.0
-        assertEquals(1.0f, decode(127))
+        assertEquals(1.0f, CE8M0.fromBits(127).toFloat())
     }
 
     @Test
     fun oneTwentyEightIsTwo() {
-        // x == 128 -> 2^(1) = 2.0
-        assertEquals(2.0f, decode(128))
+        assertEquals(2.0f, CE8M0.fromBits(128).toFloat())
     }
 
     @Test
     fun fullRangeMonotonicAndPositive() {
-        // The decoded values across the entire E8M0 range are strictly positive
-        // and monotonically non-decreasing.
-        var prev = decode(0)
+        // Values are strictly positive across the entire E8M0 range and
+        // monotonically non-decreasing.
+        var prev = CE8M0.fromBits(0).toFloat()
         assertTrue(prev > 0.0f, "x=0 should be positive (got $prev)")
         for (x in 1..255) {
-            val v = decode(x)
+            val v = CE8M0.fromBits(x).toFloat()
             assertTrue(v > 0.0f, "x=$x should be positive (got $v)")
             assertTrue(v >= prev, "decode($x)=$v should be >= decode(${x - 1})=$prev")
             prev = v
@@ -74,38 +65,36 @@ class CE8M0Test {
     }
 
     @Test
-    fun halfIsExactlyOneHalfOfFull() {
-        // toFloatHalf() should equal toFloat() / 2 for every x in [2, 254].
-        // x == 255 is a deliberate asymmetry: full encodes as +Infinity (255 << 23 = 0x7F800000)
-        // while half encodes as 2^127 (254 << 23 = 0x7F000000). Upstream behavior — the half
-        // form does not overflow to infinity at the top of the range.
+    fun halfIsExactlyOneHalfOfFullExceptAtMax() {
+        // toFloatHalf() == toFloat() / 2 for x in [2, 254]. At x == 255 the full
+        // form saturates to +Infinity while the half stays finite at 2^127 — that
+        // asymmetry is upstream-defined and exercised in the test below.
         for (x in 2..254) {
-            val full = decode(x)
-            val half = decodeHalf(x)
+            val full = CE8M0.fromBits(x).toFloat()
+            val half = CE8M0.fromBits(x).toFloatHalf()
             assertEquals(full * 0.5f, half, "x=$x: half=$half, full/2=${full * 0.5f}")
         }
     }
 
     @Test
     fun halfDoesNotOverflowAtMaxEncoding() {
-        // x == 255: half stays finite at 2^127, full saturates to +Infinity.
-        assertTrue(decode(255).isInfinite(), "decode(255) should be +Infinity")
-        assertEquals(Float.fromBits(fp32Pow2Bits(127)), decodeHalf(255))
+        assertTrue(CE8M0.fromBits(255).toFloat().isInfinite(), "decode(255) should be +Infinity")
+        // half(255) = 2^127 (finite max-finite power-of-two), bit pattern (255-1) << 23.
+        assertEquals(Float.fromBits((255 - 1) shl 23), CE8M0.fromBits(255).toFloatHalf())
     }
 
     @Test
     fun halfBoundaryValues() {
-        // x == 0 -> denormal mantissa bit 21 -> 2^(-128)
-        assertEquals(Float.fromBits(engine.leftShift(1L, 21).value.toInt()), decodeHalf(0))
-        // x == 1 -> denormal mantissa bit 22 -> 2^(-127)
-        assertEquals(Float.fromBits(engine.leftShift(1L, 22).value.toInt()), decodeHalf(1))
+        // x == 0 -> 2^(-128): denormal with mantissa bit 21 set.
+        assertEquals(Float.fromBits(1 shl 21), CE8M0.fromBits(0).toFloatHalf())
+        // x == 1 -> 2^(-127): denormal with mantissa bit 22 set.
+        assertEquals(Float.fromBits(1 shl 22), CE8M0.fromBits(1).toFloatHalf())
     }
 
     @Test
     fun roundTripBitsPreserved() {
         for (x in 0..255) {
-            val c = CE8M0.fromBits(x)
-            assertEquals(engine.bitwiseAnd(x.toLong(), engine.getMask(8)).toUByte(), c.toBits())
+            assertEquals(x, CE8M0.fromBits(x).toBits())
         }
     }
 
@@ -113,26 +102,54 @@ class CE8M0Test {
     fun fromBitsUByteAndIntAgree() {
         for (x in 0..255) {
             val a = CE8M0.fromBits(x)
-            val b = CE8M0.fromBits(engine.bitwiseAnd(x.toLong(), engine.getMask(8)).toUByte())
+            val b = CE8M0.fromBits(x.toUByte())
             assertEquals(a, b)
             assertEquals(a.toFloat(), b.toFloat())
         }
     }
 
+    // ---------- Heap-backed storage tests (CAutos / CGlobals / CHeapVars) ----------
+
     @Test
-    fun knownPowerOfTwoExpansion() {
-        // Spot-check a handful of well-known powers of two.
-        // x = 127 + k -> 2^k
-        val cases = listOf(
-            120 to (1.0f / 128.0f),  // 2^-7
-            127 to 1.0f,             // 2^0
-            130 to 8.0f,             // 2^3
-            137 to 1024.0f,          // 2^10
-            150 to Float.fromBits(fp32Pow2Bits(23)) // 2^23
-        )
-        for ((x, expected) in cases) {
-            val v = decode(x)
-            assertTrue(abs(v - expected) <= expected * 1e-7f, "x=$x: got $v, want $expected")
+    fun stackStorageRoundTrip() {
+        KStack.init()
+        KStack.withFrame {
+            val v = CAutos.e8m0(CE8M0.fromBits(127))
+            assertEquals(1.0f, v.value.toFloat())
+            v.value = CE8M0.fromBits(130)
+            assertEquals(8.0f, v.value.toFloat())  // 2^3
+            v.value = CE8M0.ZERO
+            assertEquals(Float.fromBits(1 shl 22), v.value.toFloat())
+        }
+    }
+
+    @Test
+    fun stackStorageDefaultIsZero() {
+        KStack.init()
+        KStack.withFrame {
+            val v = CAutos.e8m0()
+            assertEquals(0, v.value.toBits())
+        }
+    }
+
+    @Test
+    fun globalStorageRoundTrip() {
+        GlobalData.init()
+        val scale = CGlobals.e8m0("ce8m0_test_scale", CE8M0.fromBits(127))
+        assertEquals(1.0f, scale.value.toFloat())
+        scale.value = CE8M0.fromBits(150)  // 2^23
+        assertEquals(Float.fromBits(150 shl 23), scale.value.toFloat())
+    }
+
+    @Test
+    fun heapStorageRoundTrip() {
+        val v = CHeapVars.e8m0(CE8M0.fromBits(140))  // 2^13 = 8192.0
+        try {
+            assertEquals(8192.0f, v.value.toFloat())
+            v.value = CE8M0.fromBits(124)  // 2^(-3) = 0.125
+            assertEquals(0.125f, v.value.toFloat())
+        } finally {
+            CHeapVars.free(v)
         }
     }
 }
