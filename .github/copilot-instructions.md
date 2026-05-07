@@ -23,8 +23,8 @@ Pure Kotlin multiplatform library that replicates C's bitwise operations, memory
 ./gradlew allTests
 
 # Run a single test class (use --tests filter)
-./gradlew macosArm64Test --tests "ai.solace.klang.mem.KMallocTest"
-./gradlew jsTest --tests "ai.solace.klang.fp.CDoubleTest"
+./gradlew macosArm64Test --tests "io.github.kotlinmania.klang.mem.KMallocTest"
+./gradlew jsTest --tests "io.github.kotlinmania.klang.fp.CDoubleTest"
 
 # Run only JS tests
 ./gradlew jsTest
@@ -119,4 +119,4 @@ Public APIs require full KDoc with: one-line summary, `@param`/`@return`/`@throw
 
 - Detailed docs: `docs/` (architecture, components, general guides)
 - C reference implementations for validation: `tools/`
-- Entry point for native executable: `ai.solace.klang.poc.main`
+- Entry point for native executable: `io.github.kotlinmania.klang.poc.main`

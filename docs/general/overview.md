@@ -23,11 +23,11 @@ Key Ideas
 - CLib: A minimal libc surface (strlen/strcmp/mem* etc.) runs over the heap with fast word-at-a-time loops.
 
 Repo Highlights
-- Heap: src/commonMain/kotlin/ai/solace/klang/mem/GlobalArrayHeap.kt
-- Allocator: src/commonMain/kotlin/ai/solace/klang/mem/KMalloc.kt
-- Bit shifts: src/commonMain/kotlin/ai/solace/klang/bitwise/*, esp. BitShiftEngine.kt, ArrayBitShifts.kt
-- 128‑bit: src/commonMain/kotlin/ai/solace/klang/int/hpc/HeapUInt128.kt
-- Floating: src/commonMain/kotlin/ai/solace/klang/fp/CDouble.kt, CLongDouble.kt, CFloat128.kt
-- libc: src/commonMain/kotlin/ai/solace/klang/mem/CLib.kt, CString.kt, FastMem.kt, FastStringMem.kt
-- POC bench: src/nativeMain/kotlin/ai/solace/klang/poc/ActorArrayBitShiftPOC.kt
+- Heap: src/commonMain/kotlin/io/github/kotlinmania/klang/mem/GlobalArrayHeap.kt
+- Allocator: src/commonMain/kotlin/io/github/kotlinmania/klang/mem/KMalloc.kt
+- Bit shifts: src/commonMain/kotlin/io/github/kotlinmania/klang/bitwise/*, esp. BitShiftEngine.kt, ArrayBitShifts.kt
+- 128‑bit: src/commonMain/kotlin/io/github/kotlinmania/klang/int/hpc/HeapUInt128.kt
+- Floating: src/commonMain/kotlin/io/github/kotlinmania/klang/fp/CDouble.kt, CLongDouble.kt, CFloat128.kt
+- libc: src/commonMain/kotlin/io/github/kotlinmania/klang/mem/CLib.kt, CString.kt, FastMem.kt, FastStringMem.kt
+- POC bench: src/nativeMain/kotlin/io/github/kotlinmania/klang/poc/ActorArrayBitShiftPOC.kt
 

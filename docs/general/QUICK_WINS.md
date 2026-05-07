@@ -125,7 +125,7 @@ return exp == 0x7FFL && frac != 0L
 ## Implementation Template
 
 ```kotlin
-package ai.solace.klang.math
+package io.github.kotlinmania.klang.math
 
 /**
  * fabs: Absolute value (IEEE-754 compliant).
@@ -197,7 +197,7 @@ fun testFabs() {
 ## File Organization
 
 ```
-src/commonMain/kotlin/ai/solace/klang/math/
+src/commonMain/kotlin/io/github/kotlinmania/klang/math/
 ├── MathConstants.kt      # PI, E, NaN, Inf bit patterns
 ├── Classification.kt     # isnan, isinf, isfinite, fpclassify
 ├── Comparison.kt         # fmax, fmin, fdim
@@ -206,7 +206,7 @@ src/commonMain/kotlin/ai/solace/klang/math/
 ├── Basic.kt             # fabs, copysign, modf
 └── package-info.kt      # Package documentation
 
-src/commonTest/kotlin/ai/solace/klang/math/
+src/commonTest/kotlin/io/github/kotlinmania/klang/math/
 ├── ClassificationTest.kt
 ├── ComparisonTest.kt
 ├── RoundingTest.kt

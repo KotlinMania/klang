@@ -139,7 +139,7 @@ object CAutos {
 ```
 
 **Files to modify**:
-- `src/commonMain/kotlin/ai/solace/klang/mem/CScalars.kt` - Add CFloat16Var, CBF16Var
+- `src/commonMain/kotlin/io/github/kotlinmania/klang/mem/CScalars.kt` - Add CFloat16Var, CBF16Var
 
 **Benefit**: Direct heap storage for ML tensor elements
 
@@ -229,9 +229,9 @@ class Q4_0Array(val blockCount: Int) {
 ```
 
 **Files to create**:
-- `src/commonMain/kotlin/ai/solace/klang/quant/Q4_0.kt`
-- `src/commonMain/kotlin/ai/solace/klang/quant/Q8_0.kt`
-- `src/commonMain/kotlin/ai/solace/klang/quant/QuantUtils.kt`
+- `src/commonMain/kotlin/io/github/kotlinmania/klang/quant/Q4_0.kt`
+- `src/commonMain/kotlin/io/github/kotlinmania/klang/quant/Q8_0.kt`
+- `src/commonMain/kotlin/io/github/kotlinmania/klang/quant/QuantUtils.kt`
 
 **Benefit**: Memory-efficient ML model storage (4× compression vs F32)
 
@@ -280,8 +280,8 @@ fun dotProductF16Simd(
 ```
 
 **Files to enhance**:
-- `src/commonMain/kotlin/ai/solace/klang/int/SwAR128.kt` - Add F16 vector ops
-- Create `src/commonMain/kotlin/ai/solace/klang/simd/VectorOps.kt`
+- `src/commonMain/kotlin/io/github/kotlinmania/klang/int/SwAR128.kt` - Add F16 vector ops
+- Create `src/commonMain/kotlin/io/github/kotlinmania/klang/simd/VectorOps.kt`
 
 **Benefit**: 4-8× speedup for ML inference operations
 

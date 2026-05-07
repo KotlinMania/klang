@@ -180,7 +180,7 @@ Better option: **libtommath**
 ## Porting Strategy
 
 ### Phase 1: Infrastructure (Week 1)
-1. Create `src/commonMain/kotlin/ai/solace/klang/math/` package
+1. Create `src/commonMain/kotlin/io/github/kotlinmania/klang/math/` package
 2. Port `fabs()`, `copysign()`, `fmax()` as examples
 3. Write test harness comparing against Kotlin's stdlib
 4. Document porting patterns in `docs/components/porting/`

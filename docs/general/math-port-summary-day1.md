@@ -148,12 +148,12 @@ SPDX-License-Identifier: BSD-2-Clause
 ## Files Created
 
 ```
-src/commonMain/kotlin/ai/solace/klang/math/
+src/commonMain/kotlin/io/github/kotlinmania/klang/math/
 ├── Basic.kt            (175 lines) - fabs, copysign, signbit
 ├── Classification.kt   (234 lines) - isnan, isinf, isfinite, etc.
 └── Comparison.kt       (243 lines) - fmax, fmin, fdim
 
-src/commonTest/kotlin/ai/solace/klang/math/
+src/commonTest/kotlin/io/github/kotlinmania/klang/math/
 └── MathTests.kt        (338 lines) - Complete test suite
 
 docs/general/

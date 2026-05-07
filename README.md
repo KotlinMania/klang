@@ -160,7 +160,7 @@ Detailed documentation available in [`docs/klang/`](docs/klang/):
 
 ```
 src/
-├── commonMain/kotlin/ai/solace/klang/
+├── commonMain/kotlin/io/github/kotlinmania/klang/
 │   ├── mem/              # Memory management (GlobalHeap, KMalloc, CLib)
 │   ├── bitwise/          # BitShiftEngine, array operations
 │   ├── fp/               # Floating-point types (CDouble, CLongDouble, CFloat128)
@@ -177,7 +177,7 @@ docs/klang/             # Comprehensive documentation
 
 ### Memory Allocation and Pointers
 ```kotlin
-import ai.solace.klang.mem.*
+import io.github.kotlinmania.klang.mem.*
 
 // Initialize heap
 GlobalHeap.init(4096)
@@ -196,7 +196,7 @@ Runtime.kfree(ptr)
 
 ### High-Precision Arithmetic
 ```kotlin
-import ai.solace.klang.fp.CFloat128
+import io.github.kotlinmania.klang.fp.CFloat128
 
 // Double-double precision
 val a = CFloat128(1.0 / 3.0)  // ~106-bit mantissa
@@ -207,7 +207,7 @@ val sum = a + b
 
 ### Arbitrary-Precision Shifts
 ```kotlin
-import ai.solace.klang.bitwise.*
+import io.github.kotlinmania.klang.bitwise.*
 
 // Configure shift mode
 BitShiftConfig.defaultMode = BitShiftMode.NATIVE
