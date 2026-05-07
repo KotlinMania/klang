@@ -1,22 +1,46 @@
 package io.github.kotlinmania.klang.mem
 
 /**
- * PackedBuffer: A LongArray-backed memory buffer with direct bit manipulation.
+ * PackedBuffer: a `LongArray`-backed memory buffer with direct bit manipulation.
  *
- * This implementation avoids Kotlin's Byte sign extension problem by never using
- * the Byte type. All operations work directly on Long values using ushr/shl,
- * which preserve unsigned semantics.
+ * This is klang's storage substrate — `GlobalHeap` is built on this, and any
+ * other klang component that holds bulk memory should use it (or use
+ * `GlobalHeap` directly).
  *
- * ## Why LongArray?
+ * ## Why `LongArray` and not `ByteArray` / `UByteArray`?
  *
- * Kotlin's `Byte.toInt()` sign-extends: `0x80.toByte().toInt() = -128 (0xFFFFFF80)`
- * This requires masking with `and 0xFF` everywhere, adding overhead.
+ * Short answer: Kotlin/Native produces tighter code for `Long` shifts than for
+ * any byte-shape alternative, *and* `Byte`/`Short` have no shift operators in
+ * stdlib so byte-level work always pays a `Byte.toInt() and 0xFF` round-trip
+ * overhead anyway.
  *
- * With LongArray:
- * - `Long ushr n` returns Long (no type promotion)
- * - `(packed ushr n) and 0xFF` extracts unsigned byte directly
- * - No BitShiftEngine abstraction needed
- * - Pure native Kotlin shift operations
+ * Long answer: see [`docs/general/why-longarray-storage.md`](../../../../../../../docs/general/why-longarray-storage.md).
+ * That document captures the full investigation including:
+ *
+ *   - exact line numbers in the v2.3.21 stdlib source proving `Byte`/`Short`
+ *     have no shift operators (`libraries/stdlib/src/kotlin/Primitives.kt`)
+ *   - the `kotlin.experimental` bitwise extensions that promote to `Int`
+ *     internally (`libraries/stdlib/src/kotlin/experimental/bitwiseOperations.kt`)
+ *   - why `UByteArray.get` is *not* `inline` and pays a function-call boundary
+ *     on every access (`libraries/stdlib/unsigned/src/kotlin/UByteArray.kt:29`)
+ *   - that `UByte.toInt()` is literally `data.toInt() and 0xFF` — same masking
+ *     work the "signed" path does explicitly
+ *     (`libraries/stdlib/unsigned/src/kotlin/UByte.kt:331`)
+ *   - the empirical benchmark putting `LongArray` at 1.97× faster than
+ *     `ByteArray + and 0xFF` and 2.23× faster than `UByteArray` for the
+ *     same 4-byte little-endian word load workload, with non-overlapping
+ *     95 % CIs (`src/commonBenchmark/.../UByteArrayBenchmark.kt`)
+ *
+ * ## Quick rationale
+ *
+ * - `Long.shl/shr/ushr` are stdlib operators returning `Long` — no type
+ *   promotion, no implicit sign-extension exposure.
+ * - One `Long` carries 8 bytes; a 4-byte LE word read is a slot index, a
+ *   shift, and a mask — three ops against an `Int`, not 14 ops against
+ *   four byte slots.
+ * - No `Byte` is ever materialised. The `Byte.toInt()` sign-extension hazard
+ *   that breaks naive ports of zlib / CRC / 8- and 16-bit C code is gone by
+ *   construction.
  *
  * ## Memory Layout
  *
