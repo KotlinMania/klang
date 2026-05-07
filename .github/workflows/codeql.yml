@@ -1,5 +1,13 @@
 name: CodeQL
 
+# klang is a Kotlin Multiplatform project with Native and JS targets only —
+# no JVM target. The CodeQL `java-kotlin` extractor instruments JVM `kotlinc`
+# invocations only; Kotlin/Native and Kotlin/JS compilations are not traced,
+# so the extractor produces an empty database and finalize fails with
+# "CodeQL could not process any code written in Java/Kotlin". We therefore
+# do not analyze `java-kotlin` here. `javascript-typescript` covers the
+# generated JS test bundle; `actions` covers the workflow files themselves.
+
 on:
   push:
     branches: [main]
@@ -23,8 +31,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - language: java-kotlin
-            build-mode: manual
           - language: javascript-typescript
             build-mode: none
           - language: actions
@@ -34,29 +40,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
-        if: matrix.language == 'java-kotlin'
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Gradle
-        if: matrix.language == 'java-kotlin'
-        uses: gradle/actions/setup-gradle@v4
-
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
-
-      # Kotlin extractor hooks `kotlinc` invocations during a real build.
-      # `testClasses` is the existing aggregate that fans out to every
-      # per-target compileKotlin*/compileTestKotlin* task in the KMP build.
-      - name: Build (Kotlin)
-        if: matrix.language == 'java-kotlin'
-        run: ./gradlew --no-daemon --no-configuration-cache testClasses
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
