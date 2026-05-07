@@ -1407,7 +1407,7 @@ class BitShiftEngine(
         val result = leftShift(value, bits)
         when (bitWidth) {
             8 -> buffer.setByte(addr, result.value.toInt())
-            16 -> buffer.setShort(addr, result.value.toInt().toShort())
+            16 -> buffer.setShort(addr, result.value.toShort())
             32 -> buffer.setInt(addr, result.value.toInt())
             64 -> buffer.setLong(addr, result.value)
         }
@@ -1433,7 +1433,7 @@ class BitShiftEngine(
         val result = rightShift(value, bits)
         when (bitWidth) {
             8 -> buffer.setByte(addr, result.value.toInt())
-            16 -> buffer.setShort(addr, result.value.toInt().toShort())
+            16 -> buffer.setShort(addr, result.value.toShort())
             32 -> buffer.setInt(addr, result.value.toInt())
             64 -> buffer.setLong(addr, result.value)
         }
@@ -1459,7 +1459,7 @@ class BitShiftEngine(
         val result = unsignedRightShift(value, bits)
         when (bitWidth) {
             8 -> buffer.setByte(addr, result.value.toInt())
-            16 -> buffer.setShort(addr, result.value.toInt().toShort())
+            16 -> buffer.setShort(addr, result.value.toShort())
             32 -> buffer.setInt(addr, result.value.toInt())
             64 -> buffer.setLong(addr, result.value)
         }
@@ -1497,7 +1497,7 @@ class BitShiftEngine(
     fun store(buffer: PackedBuffer, addr: Int, value: Long) {
         when (bitWidth) {
             8 -> buffer.setByte(addr, (value and 0xFF).toInt())
-            16 -> buffer.setShort(addr, (value and 0xFFFF).toInt().toShort())
+            16 -> buffer.setShort(addr, (value and 0xFFFF).toShort())
             32 -> buffer.setInt(addr, (value and 0xFFFFFFFFL).toInt())
             64 -> buffer.setLong(addr, value)
         }

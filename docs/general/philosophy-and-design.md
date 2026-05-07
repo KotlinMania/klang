@@ -109,6 +109,18 @@ val fast = native.leftShift(value, 8)  // Fast, but requires validation
 - REQUIRED: All bitwise ops through BitShiftEngine
 - REQUIRED: Use getMask(bits) for bit-width-safe masking
 
+These rules exist because **Kotlin's `Byte` and `Short` types have no shift
+operators in stdlib** (no `shl`, `shr`, or `ushr` on either type — verified
+in v2.3.21 `libraries/stdlib/src/kotlin/Primitives.kt`). To shift a byte
+you must first convert to `Int` via `Byte.toInt()`, which is the
+*sign-extending* widening conversion. Without an explicit `and 0xFF` mask,
+`byte shl 8` corrupts the result for every byte with the high bit set —
+half of all byte values. zlib, CRC kernels, and any C code that assumes
+`unsigned char` semantics silently breaks. See
+[`why-longarray-storage.md`](./why-longarray-storage.md) for the full
+investigation, v2.3.21 stdlib source citations, and the benchmark numbers
+that put the architecture on empirical footing.
+
 ### 2. C-Compatible Type System
 
 **Problem**: Kotlin types don't map 1:1 to C types.

@@ -1,10 +1,14 @@
 package io.github.kotlinmania.klang.mem
 
 /**
- * Native implementation of GlobalHeap using PackedBuffer (LongArray-backed).
+ * Native implementation of GlobalHeap using [PackedBuffer] (`LongArray`-backed).
  *
- * Uses pure Long arithmetic with ushr/shl to avoid Kotlin's Byte sign extension.
- * No BitShiftEngine needed - all operations are native Kotlin shift operators.
+ * Uses pure `Long` arithmetic with `ushr`/`shl` to avoid Kotlin's `Byte` sign
+ * extension — see `docs/general/why-longarray-storage.md` for the full
+ * rationale, v2.3.21 stdlib source citations, and benchmark numbers (≈ 2×
+ * faster than `ByteArray + and 0xFF` on Kotlin/Native macOS arm64). No
+ * `BitShiftEngine` indirection needed here — every op is a native Kotlin
+ * shift operator over a `Long` register.
  */
 actual object GlobalHeap {
     private var buffer: PackedBuffer = PackedBuffer(0)

@@ -1,10 +1,16 @@
 package io.github.kotlinmania.klang.mem
 
 /**
- * JS implementation of GlobalHeap using PackedBuffer (LongArray-backed).
+ * JS implementation of GlobalHeap using [PackedBuffer] (`LongArray`-backed).
  *
- * Uses pure Long arithmetic with ushr/shl to avoid Kotlin's Byte sign extension.
- * No BitShiftEngine needed - all operations are native Kotlin shift operators.
+ * Uses pure `Long` arithmetic with `ushr`/`shl` to avoid Kotlin's `Byte` sign
+ * extension — see `docs/general/why-longarray-storage.md` for the full
+ * rationale, v2.3.21 stdlib source citations, and the empirical numbers.
+ * On Kotlin/JS the qualitative win is the same (no `UByteArray.get`
+ * function-call boundary on each read; consistent `Long` math via the
+ * platform's `BigInt` or paired-32-bit emulation). No `BitShiftEngine`
+ * indirection needed — every op is a native Kotlin shift operator over
+ * a `Long`.
  */
 actual object GlobalHeap {
     private var buffer: PackedBuffer = PackedBuffer(0)
