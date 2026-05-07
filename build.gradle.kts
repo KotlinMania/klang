@@ -13,7 +13,16 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.maven.publish)
     alias(libs.plugins.taskinfo)
+    alias(libs.plugins.kotlinx.benchmark)
+    alias(libs.plugins.kotlin.allopen)
     idea
+}
+
+// kotlinx-benchmark requires the @State class to be open for subclassing.
+// Mark the @State annotation so the all-open plugin opens annotated classes.
+allOpen {
+    annotation("org.openjdk.jmh.annotations.State")
+    annotation("kotlinx.benchmark.State")
 }
 
 group = "io.github.kotlinmania"
@@ -38,9 +47,29 @@ repositories {
 val enableNative = System.getenv("KLANG_NO_ENABLE_NATIVE").isNullOrBlank()
 
 kotlin {
+    // Apply the standard KMP source-set hierarchy. This explicitly creates the
+    // intermediate source sets klang's `src/nativeMain/` files live under
+    // (nativeMain, appleMain, linuxMain). Without this template applied,
+    // adding a new compilation (`benchmark`) destabilises the implicit
+    // hierarchy and the platform `actual` declarations stop being visible
+    // from `commonMain`.
+    applyDefaultHierarchyTemplate()
+
     fun KotlinTarget.configureAll() {
         compilations.all {
             //kotlinOptions.freeCompilerArgs = listOf("-progressive", "-Xskip-metadata-version-check")
+        }
+        // Add a "benchmark" compilation alongside main and test. The
+        // kotlinx-benchmark plugin reads it and generates the platform-specific
+        // runner (BenchmarkJS for JS, JMH-style for native). associateWith(main)
+        // makes the main compilation's outputs and platform `actual` declarations
+        // visible to the benchmark sources.
+        val mainCompilation = compilations.getByName("main")
+        compilations.create("benchmark") {
+            associateWith(mainCompilation)
+            defaultSourceSet.dependencies {
+                implementation(libs.kotlinx.benchmark.runtime)
+            }
         }
     }
 
@@ -107,6 +136,72 @@ kotlin {
             dependencies {
                 implementation("org.jetbrains.kotlin:kotlin-test-js")
             }
+        }
+    }
+}
+
+// Wire the per-target benchmark source sets:
+//   commonMain → commonBenchmark → <target>Benchmark
+//   <target>Main ────────────────→ <target>Benchmark
+// commonBenchmark holds shared @Benchmark sources; each per-target benchmark
+// source set also dependsOn its corresponding main so platform `actual`
+// declarations are visible. Done in afterEvaluate because the per-target
+// benchmark source sets are auto-created by `compilations.create("benchmark")`
+// and only exist after target configuration completes.
+afterEvaluate {
+    val ssContainer = kotlin.sourceSets
+    // commonBenchmark holds shared @Benchmark sources. It does NOT dependsOn
+    // commonMain — the per-target main source sets pull in commonMain via
+    // the default hierarchy template (commonMain → nativeMain → appleMain
+    // → macosArm64Main, etc.), so going through commonBenchmark to
+    // commonMain would create a second path and Kotlin/Native's IR linker
+    // would bind every public symbol twice. commonBenchmark code can still
+    // reference klang main types because each per-target benchmark
+    // compilation has associateWith(main) which puts main on the classpath.
+    val commonBenchmarkSs = ssContainer.findByName("commonBenchmark")
+        ?: ssContainer.create("commonBenchmark").apply {
+            dependencies {
+                implementation(libs.kotlinx.benchmark.runtime)
+            }
+        }
+    listOf(
+        "macosArm64" to "macosArm64Benchmark",
+        "linuxX64"   to "linuxX64Benchmark",
+        "linuxArm64" to "linuxArm64Benchmark",
+        "mingwX64"   to "mingwX64Benchmark",
+        "js"         to "jsBenchmark",
+    ).forEach { (_, benchmarkSetName) ->
+        val benchmarkSs = ssContainer.findByName(benchmarkSetName) ?: return@forEach
+        benchmarkSs.dependsOn(commonBenchmarkSs)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// kotlinx-benchmark configuration
+//
+// Registers the per-target "benchmark" compilations as benchmark targets so
+// `./gradlew benchmark` runs them on every host-supported platform. Each
+// target gets a JMH-style runner (or BenchmarkJS for JS) with proper warmup,
+// measurement iterations, and structured ops/sec output — independent of
+// the regular test harness, so the JS mocha 2-second timeout that broke
+// TuiBufferBenchmarkTest is no longer in the path.
+// ---------------------------------------------------------------------------
+benchmark {
+    targets {
+        register("jsBenchmark")
+        if (enableNative) {
+            register("macosArm64Benchmark")
+            register("linuxX64Benchmark")
+            register("linuxArm64Benchmark")
+            register("mingwX64Benchmark")
+        }
+    }
+    configurations {
+        named("main") {
+            warmups = 3
+            iterations = 5
+            iterationTime = 1
+            iterationTimeUnit = "s"
         }
     }
 }
