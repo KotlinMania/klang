@@ -10,7 +10,7 @@ Gradle tasks
 - JS dev compile: `./gradlew compileDevelopmentExecutableKotlinJs`
 
 Entry point
-- Native entry is `ai.solace.klang.poc.main` (set in build.gradle.kts).
+- Native entry is `io.github.kotlinmania.klang.poc.main` (set in build.gradle.kts).
 
 Notes
 - We removed JVM deps; project is Kotlin Multiplatform (native + JS).

@@ -430,6 +430,6 @@ fun testOperation() {
 
 ## See Also
 
-- [BitShiftEngine API Documentation](../src/commonMain/kotlin/ai/solace/klang/bitwise/BitShiftEngine.kt)
-- [ArithmeticBitwiseOps](../src/commonMain/kotlin/ai/solace/klang/bitwise/ArithmeticBitwiseOps.kt)
+- [BitShiftEngine API Documentation](../src/commonMain/kotlin/io/github/kotlinmania/klang/bitwise/BitShiftEngine.kt)
+- [ArithmeticBitwiseOps](../src/commonMain/kotlin/io/github/kotlinmania/klang/bitwise/ArithmeticBitwiseOps.kt)
 - [Bitwise Refactoring Analysis](../summaries/bitwise-refactoring-analysis.md)

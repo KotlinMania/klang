@@ -48,7 +48,7 @@ kotlin {
         configureAll()
         binaries {
             executable {
-                entryPoint = "ai.solace.klang.poc.main"
+                entryPoint = "io.github.kotlinmania.klang.poc.main"
             }
         }
     }
@@ -93,7 +93,7 @@ kotlin {
         commonMain {
             dependencies {
                 implementation("org.jetbrains.kotlin:kotlin-stdlib-common")
-                // Added for ai.solace.klang parallel array operations and actors
+                // Added for io.github.kotlinmania.klang parallel array operations and actors
                 implementation(libs.kotlinx.coroutines.core)
             }
         }
@@ -111,7 +111,7 @@ kotlin {
     }
 }
 
-val mainClassName = "ai.solace.klang.KLangExportsKt"
+val mainClassName = "io.github.kotlinmania.klang.KLangExportsKt"
 
 val jsCompilations = kotlin.targets["js"].compilations
 

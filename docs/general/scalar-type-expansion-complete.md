@@ -148,7 +148,7 @@ CHeapVars.free(z)
 
 ## Files Modified
 
-- `src/commonMain/kotlin/ai/solace/klang/mem/CScalars.kt`
+- `src/commonMain/kotlin/io/github/kotlinmania/klang/mem/CScalars.kt`
   - Added 3 CVar classes
   - Added 9 factory methods (3 per allocation type)
   - Total additions: ~300 lines

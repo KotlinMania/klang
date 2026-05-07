@@ -13,7 +13,7 @@ Successfully integrated GGML-compatible ML types (CFloat16, CBF16) into KLang's 
 
 ## Files Modified
 
-### 1. `src/commonMain/kotlin/ai/solace/klang/mem/CScalars.kt`
+### 1. `src/commonMain/kotlin/io/github/kotlinmania/klang/mem/CScalars.kt`
 
 **Added Classes**:
 - `CFloat16Var` - Heap-backed IEEE-754 binary16 variable
@@ -37,7 +37,7 @@ fun float16(init: CFloat16 = CFloat16.Companion.ZERO): CFloat16Var
 fun bfloat16(init: CBF16 = CBF16.fromFloat(0f)): CBF16Var
 ```
 
-### 2. `src/commonTest/kotlin/ai/solace/klang/fp/MLTypesTest.kt` (NEW)
+### 2. `src/commonTest/kotlin/io/github/kotlinmania/klang/fp/MLTypesTest.kt` (NEW)
 
 Complete test suite with 10 tests:
 1. `testCFloat16VarStackStorage` - Stack allocation basics

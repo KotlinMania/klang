@@ -2,7 +2,7 @@ POC Benchmark — Limb Shifts at Scale
 ====================================
 
 Location
-- src/nativeMain/kotlin/ai/solace/klang/poc/ActorArrayBitShiftPOC.kt
+- src/nativeMain/kotlin/io/github/kotlinmania/klang/poc/ActorArrayBitShiftPOC.kt
 
 What it does
 - Shifts large arrays of 16‑bit limbs by s bits, with several strategies:

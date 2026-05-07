@@ -12,7 +12,7 @@ KLang follows a clear organizational structure that separates public packages fr
 ## Package Organization
 
 ```
-ai.solace.klang/
+io.github.kotlinmania.klang/
 ├── bitwise/               # PUBLIC - Bit manipulation and shift operations
 │   ├── BitShiftEngine.kt  # Arithmetic-mode bit shifting
 │   ├── CFloat32.kt        # 32-bit IEEE-754 float
@@ -65,11 +65,11 @@ ai.solace.klang/
 Users import directly from component packages:
 
 ```kotlin
-import ai.solace.klang.bitwise.CFloat32
-import ai.solace.klang.bitwise.BitShiftEngine
-import ai.solace.klang.fp.CDouble
-import ai.solace.klang.int.C_UInt128
-import ai.solace.klang.mem.GlobalHeap
+import io.github.kotlinmania.klang.bitwise.CFloat32
+import io.github.kotlinmania.klang.bitwise.BitShiftEngine
+import io.github.kotlinmania.klang.fp.CDouble
+import io.github.kotlinmania.klang.int.C_UInt128
+import io.github.kotlinmania.klang.mem.GlobalHeap
 
 // Use the types
 val x = CFloat32.fromFloat(3.14f)
@@ -79,25 +79,25 @@ val ptr = GlobalHeap.mallocBytes(100)
 
 ### Public Packages
 
-**ai.solace.klang.bitwise**
+**io.github.kotlinmania.klang.bitwise**
 - `CFloat32`, `BitShiftEngine`, `BitShiftConfig`, `BitwiseOps`
 - `BitPrimitives`, `Float32Math`, `Float64Math`
 - `SwAR`, `SwAR128`, `DoubleDouble`
 
-**ai.solace.klang.fp**
+**io.github.kotlinmania.klang.fp**
 - `CDouble`, `CFloat16`, `CBF16`, `CFloat128`, `CLongDouble`
 
-**ai.solace.klang.int**
+**io.github.kotlinmania.klang.int**
 - `C_UInt128`, `C_Int128`
 
-**ai.solace.klang.mem**
+**io.github.kotlinmania.klang.mem**
 - `CPointer<T>`, `GlobalHeap`, `KMalloc`, `CLib`, `CString`
 - `CByteVar`, `CShortVar`, `CIntVar`, `CLongVar`, `CFloatVar`, `CDoubleVar`
 
-**ai.solace.klang.common**
+**io.github.kotlinmania.klang.common**
 - `StatOps`, `StructLayout`, `ZlibLogger`
 
-**ai.solace.klang.stringshift**
+**io.github.kotlinmania.klang.stringshift**
 - `HexShift`
 
 ## Internal Implementation
@@ -115,8 +115,8 @@ Internal packages are for:
 If you must use internal APIs (not recommended):
 
 ```kotlin
-import ai.solace.klang.internal.runtime.AbstractRuntime
-import ai.solace.klang.internal.symbols.strdupCString
+import io.github.kotlinmania.klang.internal.runtime.AbstractRuntime
+import io.github.kotlinmania.klang.internal.symbols.strdupCString
 ```
 
 **Warning**: Internal APIs may change at any time without notice.
@@ -159,14 +159,14 @@ Previously, KLang used an `api` package with type aliases. The new structure use
 
 ### Before
 ```kotlin
-import ai.solace.klang.api.CFloat32
-import ai.solace.klang.api.GlobalHeap
+import io.github.kotlinmania.klang.api.CFloat32
+import io.github.kotlinmania.klang.api.GlobalHeap
 ```
 
 ### After
 ```kotlin
-import ai.solace.klang.bitwise.CFloat32
-import ai.solace.klang.mem.GlobalHeap
+import io.github.kotlinmania.klang.bitwise.CFloat32
+import io.github.kotlinmania.klang.mem.GlobalHeap
 ```
 
 ## Adding New Public Types
