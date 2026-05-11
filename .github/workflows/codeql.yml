@@ -1,12 +1,9 @@
 name: CodeQL
 
-# klang is a Kotlin Multiplatform project with Native and JS targets only —
-# no JVM target. The CodeQL `java-kotlin` extractor is configured with
-# `build-mode: manual` so that the Kotlin compiler is invoked directly and
-# CodeQL can trace the compilation.  Native targets are disabled via
-# KLANG_NO_ENABLE_NATIVE so that the build works on the ubuntu-latest runner.
-# `--no-build-cache` prevents Gradle from short-circuiting compilation with
-# cached outputs, which would leave CodeQL nothing to trace.
+# CodeQL `java-kotlin` extractor uses `build-mode: manual` so the Kotlin
+# compiler is invoked directly and CodeQL can trace the compilation.
+# `--no-build-cache` prevents Gradle from short-circuiting compilation
+# with cached outputs, which would leave CodeQL nothing to trace.
 # `javascript-typescript` covers the generated JS test bundle; `actions`
 # covers the workflow files themselves.
 
@@ -52,8 +49,6 @@ jobs:
 
       - name: Build (Kotlin/JS — no cache so CodeQL can trace compilation)
         if: matrix.build-mode == 'manual'
-        env:
-          KLANG_NO_ENABLE_NATIVE: "1"
         run: |
           ./gradlew --no-daemon --no-build-cache compileKotlinJs compileTestKotlinJs
 

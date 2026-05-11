@@ -1,13 +1,17 @@
 import org.gradle.api.tasks.testing.logging.TestLogEvent
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JsModuleKind
 import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJsCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsEnvSpec
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootExtension
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootEnvSpec
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension
+import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsEnvSpec
+import org.jetbrains.kotlin.gradle.targets.wasm.yarn.WasmYarnRootEnvSpec
 
 // Source-code rule: no `import java.*` / `import javax.*` anywhere in `src/`.
 // Everything else about targets / plugins is the build's call. See CLAUDE.md.
@@ -45,9 +49,6 @@ repositories {
 //    callback(presets.getByName("common").createTarget("common") as KotlinOnlyTarget<*>)
 //}
 
-//val enableNative = false
-val enableNative = System.getenv("KLANG_NO_ENABLE_NATIVE").isNullOrBlank()
-
 kotlin {
     // Apply the standard KMP source-set hierarchy. This explicitly creates the
     // intermediate source sets klang's `src/nativeMain/` files live under
@@ -84,12 +85,12 @@ kotlin {
         }
     }
 
+    // XCFramework collects per-Apple-target frameworks (macosArm64, iosArm64,
+    // iosSimulatorArm64) into a single distributable `KLang.xcframework`
+    // consumable by Swift / Xcode projects. Each Apple target opts in via
+    // `binaries.framework { xcf.add(this) }`.
+    val xcf = XCFramework("KLang")
 
-
-    //common {
-    //}
-
-    // JVM target removed: pure multiplatform (JS + Native only)
     js {
         configureAll()
         browser()
@@ -103,19 +104,38 @@ kotlin {
         }
     }
 
-    if (enableNative) {
-        macosArm64 { configureNative() }
-        linuxX64 { configureNative() }
-        linuxArm64 { configureNative() }
-        mingwX64 { configureNative() }
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser()
+        nodejs()
+    }
 
-        //sourceSets {
-        //    val nativeMain = this.create("nativeMain")
-        //    val nativeTest = this.create("nativeTest")
-        //    configure(listOf(this.getByName("macosArm64Main"), this.getByName("linuxX64Main"), this.getByName("mingwX64Main"))) {
-        //        dependsOn(nativeMain)
-        //    }
-        //}
+    macosArm64 {
+        configureNative()
+        binaries.framework {
+            baseName = "KLang"
+            xcf.add(this)
+        }
+    }
+    linuxX64 { configureNative() }
+    linuxArm64 { configureNative() }
+    mingwX64 { configureNative() }
+    iosArm64 {
+        binaries.framework {
+            baseName = "KLang"
+            xcf.add(this)
+        }
+    }
+    iosSimulatorArm64 {
+        binaries.framework {
+            baseName = "KLang"
+            xcf.add(this)
+        }
+    }
+
+    swiftExport {
+        moduleName = "KLang"
+        flattenPackage = "io.github.kotlinmania.klang"
     }
 
     // Removed generated sources; build/gen is no longer a source root
@@ -191,12 +211,10 @@ afterEvaluate {
 benchmark {
     targets {
         register("jsBenchmark")
-        if (enableNative) {
-            register("macosArm64Benchmark")
-            register("linuxX64Benchmark")
-            register("linuxArm64Benchmark")
-            register("mingwX64Benchmark")
-        }
+        register("macosArm64Benchmark")
+        register("linuxX64Benchmark")
+        register("linuxArm64Benchmark")
+        register("mingwX64Benchmark")
     }
     configurations {
         named("main") {
@@ -388,7 +406,15 @@ rootProject.extensions.configure<NodeJsEnvSpec>("kotlinNodeJsSpec") {
     version.set("22.22.2")
 }
 
+rootProject.extensions.configure<WasmNodeJsEnvSpec>("kotlinWasmNodeJsSpec") {
+    version.set("22.22.2")
+}
+
 rootProject.extensions.configure<YarnRootEnvSpec>("kotlinYarnSpec") {
+    version.set("1.22.22")
+}
+
+rootProject.extensions.configure<WasmYarnRootEnvSpec>("kotlinWasmYarnSpec") {
     version.set("1.22.22")
 }
 
