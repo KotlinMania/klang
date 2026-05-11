@@ -380,7 +380,6 @@ function atomic$boolean$(initial, trace) {
   return AtomicBoolean.new_kotlinx_atomicfu_AtomicBoolean_5z2ypj_k$(initial);
 }
 function atomic$long$(initial, trace) {
-  trace = trace === VOID ? None_getInstance() : trace;
   return AtomicLong.new_kotlinx_atomicfu_AtomicLong_hb423c_k$(initial);
 }
 function atomic$int$(initial, trace) {
