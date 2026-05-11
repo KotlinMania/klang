@@ -377,7 +377,6 @@ function atomic$ref$(initial, trace) {
   return AtomicRef.new_kotlinx_atomicfu_AtomicRef_dkafgf_k$(initial);
 }
 function atomic$boolean$(initial, trace) {
-  trace = trace === VOID ? None_getInstance() : trace;
   return AtomicBoolean.new_kotlinx_atomicfu_AtomicBoolean_5z2ypj_k$(initial);
 }
 function atomic$long$(initial, trace) {
