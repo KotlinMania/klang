@@ -67,7 +67,7 @@ jobs:
           npm --version
           yarn --version
 
-      - name: Build and test Linux + JS targets
+      - name: Build and test Linux + JS / WasmJS targets
         env:
           ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
         run: >
@@ -77,6 +77,8 @@ jobs:
           linuxX64Test
           jsBrowserTest
           jsNodeTest
+          wasmJsBrowserTest
+          wasmJsNodeTest
           --no-configuration-cache
 
   build-windows:
