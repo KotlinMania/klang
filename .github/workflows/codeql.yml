@@ -1,11 +1,11 @@
 name: CodeQL
 
 # klang is a Kotlin Multiplatform project with Native and JS targets only —
-# no JVM target. The CodeQL `java-kotlin` extractor instruments JVM `kotlinc`
-# invocations only; Kotlin/Native and Kotlin/JS compilations are not traced,
-# so the extractor produces an empty database and finalize fails with
-# "CodeQL could not process any code written in Java/Kotlin". We therefore
-# do not analyze `java-kotlin` here. `javascript-typescript` covers the
+# no JVM target. The CodeQL `java-kotlin` extractor with `autobuild` fails
+# because there are no JVM compilation steps to trace. We include `java-kotlin`
+# here with `build-mode: none` (compilation-free extraction) to prevent
+# GitHub's default code-scanning setup from running `java-kotlin` with
+# `autobuild` as a separate workflow. `javascript-typescript` covers the
 # generated JS test bundle; `actions` covers the workflow files themselves.
 
 on:
@@ -31,6 +31,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - language: java-kotlin
+            build-mode: none
           - language: javascript-typescript
             build-mode: none
           - language: actions
