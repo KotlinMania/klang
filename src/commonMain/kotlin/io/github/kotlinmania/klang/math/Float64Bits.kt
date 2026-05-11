@@ -439,4 +439,69 @@ object Float64Bits {
         }
         return outBits
     }
+
+    // =====================================================================
+    // logb / ilogb — extract the unbiased binary exponent.
+    //
+    // C99 7.12.6.11/16: subnormals are treated as though normalized, so
+    //   logb(0x1p-1073)  = -1073  (not -1022).
+    // The constants below match what musl / FreeBSD return for the corner
+    // cases that have no representable exponent.
+    // =====================================================================
+
+    /**
+     * `ilogb(x)` as a 32-bit integer.
+     *
+     * Special-case returns mirror the platform sentinels:
+     *   - `±0`              → [FP_ILOGB0]      (Int.MIN_VALUE)
+     *   - `±Inf`            → [Int.MAX_VALUE]
+     *   - `NaN`             → [FP_ILOGBNAN]   (Int.MIN_VALUE + 1, distinct from FP_ILOGB0)
+     *   - subnormal `x`     → exponent of the value as if normalized
+     *   - normal `x`        → unbiased binary exponent (rawExp − 1023)
+     */
+    fun ilogbBits(bits: Long): Int {
+        val rawE = rawExp(bits)
+        val mant = rawMant(bits)
+        if (rawE == 0) {
+            if (mant == 0L) return FP_ILOGB0
+            // Subnormal: locate the leading 1 in the 52-bit mantissa.
+            // mant fits in low 52 bits; high 12 bits are zero, so leadingZeros >= 12.
+            val lz = mant.countLeadingZeroBits()      // 12..63 for non-zero subnormal
+            // Position of the leading 1 (LSB = 0): k = 63 - lz, so k ∈ 0..51.
+            // Subnormal value = mant * 2^-1074; leading 1 at bit k contributes 2^(k-1074).
+            // Therefore the normalized exponent is k - 1074 = -1011 - lz.
+            return -1011 - lz
+        }
+        if (rawE == EXP_MAX) {
+            return if (mant != 0L) FP_ILOGBNAN else Int.MAX_VALUE
+        }
+        return rawE - BIAS
+    }
+
+    /**
+     * `logb(x)` as an IEEE-754 binary64.
+     *
+     * Special-case returns:
+     *   - `±0`   → −∞
+     *   - `±Inf` → +∞
+     *   - `NaN`  → NaN
+     *   - finite → `(double) ilogb(x)`
+     */
+    fun logbBits(bits: Long): Long {
+        if (isNaN(bits)) return QNAN_BITS
+        if (isZero(bits)) return NEG_INF_BITS
+        if (isInf(bits)) return POS_INF_BITS
+        // Reuse ilogb's exponent extraction, then convert int → double exactly.
+        // Every value in the [−1074, 1023] range fits exactly in a binary64.
+        val e = ilogbBits(bits)
+        return e.toDouble().toRawBits()
+    }
+
+    private const val NEG_INF_BITS = SIGN_MASK or EXP_MASK
+    private const val POS_INF_BITS = EXP_MASK
+
+    /** `ilogb(±0)` sentinel — matches musl / glibc / FreeBSD. */
+    const val FP_ILOGB0: Int = Int.MIN_VALUE
+    /** `ilogb(NaN)` sentinel — matches musl / glibc / FreeBSD. */
+    const val FP_ILOGBNAN: Int = Int.MIN_VALUE + 1
 }
