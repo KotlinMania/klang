@@ -1,14 +1,14 @@
 name: CodeQL
 
-# klang is a Kotlin Multiplatform project with Native and JS targets only —
-# no JVM target. The CodeQL `java-kotlin` extractor is configured with
-# `build-mode: manual` so that the Kotlin compiler is invoked directly and
-# CodeQL can trace the compilation.  Native targets are disabled via
-# KLANG_NO_ENABLE_NATIVE so that the build works on the ubuntu-latest runner.
-# `--no-build-cache` prevents Gradle from short-circuiting compilation with
-# cached outputs, which would leave CodeQL nothing to trace.
-# `javascript-typescript` covers the generated JS test bundle; `actions`
-# covers the workflow files themselves.
+# klang ships JS + Native + Android targets. The Android KMP target is here
+# specifically to give CodeQL's `java-kotlin` extractor real JVM `.class`
+# files to scan: `compileAndroidMain` runs the JVM `kotlinc`, which the
+# extractor's LD_PRELOAD tracer hooks. The `nonAndroidMain` intermediate
+# source set holds the generic-CPointer<T> operator overloads that clash
+# under JVM erasure; those four files are scanned by the Kotlin compiler
+# on Native and JS but excluded from the Android compile. Native targets
+# are disabled here via KLANG_NO_ENABLE_NATIVE so the build works on
+# `ubuntu-latest`. `javascript-typescript` and `actions` use `build-mode: none`.
 
 on:
   push:
@@ -44,18 +44,40 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up JDK 21
+        if: matrix.build-mode == 'manual'
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: zulu
+          java-version: '21'
+
+      - name: Setup Gradle
+        if: matrix.build-mode == 'manual'
+        uses: gradle/actions/setup-gradle@v6.1.0
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
 
-      - name: Build (Kotlin/JS — no cache so CodeQL can trace compilation)
+      - name: Compile Android Kotlin (JVM bytecode) for CodeQL extraction
         if: matrix.build-mode == 'manual'
         env:
           KLANG_NO_ENABLE_NATIVE: "1"
+        # `compileAndroidMain` emits real JVM `.class` files under
+        # `build/classes/kotlin/android/main`. `--rerun-tasks` + `--no-build-cache`
+        # defeat Gradle's up-to-date check and `setup-gradle`'s cache restore so
+        # kotlinc is actually invoked. `kotlin.compiler.execution.strategy=
+        # out-of-process` spawns a fresh kotlinc JVM per compilation so CodeQL's
+        # LD_PRELOAD tracer has a process exec to intercept.
         run: |
-          ./gradlew --no-daemon --no-build-cache compileKotlinJs compileTestKotlinJs
+          ./gradlew compileAndroidMain \
+            --rerun-tasks \
+            --no-build-cache \
+            -Pkotlin.compiler.execution.strategy=out-of-process \
+            --no-configuration-cache \
+            --no-daemon
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4

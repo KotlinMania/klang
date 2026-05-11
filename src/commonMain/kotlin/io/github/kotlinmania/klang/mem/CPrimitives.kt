@@ -2,6 +2,7 @@ package io.github.kotlinmania.klang.mem
 
 import io.github.kotlinmania.klang.bitwise.BitShiftEngine
 import io.github.kotlinmania.klang.bitwise.BitShiftMode
+import kotlin.jvm.JvmInline
 
 /**
  * C primitive helpers used by the GlobalHeap model.
@@ -13,6 +14,7 @@ object CPlatform {
     var plainCharIsSigned: Boolean = true
 }
 
+@JvmInline
 @Suppress("NOTHING_TO_INLINE")
 value class CChar(val raw: Byte) {
     inline fun toIntSigned(): Int = raw.toInt()
