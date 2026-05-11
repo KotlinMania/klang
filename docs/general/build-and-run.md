@@ -13,5 +13,5 @@ Entry point
 - Native entry is `io.github.kotlinmania.klang.poc.main` (set in build.gradle.kts).
 
 Notes
-- We removed JVM deps; project is Kotlin Multiplatform (native + JS).
+- Source-code rule: no `import java.*` / `import javax.*` in `src/`. See [`CLAUDE.md`](../../CLAUDE.md).
 

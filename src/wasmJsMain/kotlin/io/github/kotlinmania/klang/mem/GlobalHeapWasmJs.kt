@@ -1,15 +1,11 @@
 package io.github.kotlinmania.klang.mem
 
 /**
- * Android (JVM-bytecode) implementation of [GlobalHeap] using [PackedBuffer]
- * (`LongArray`-backed). Mirrors `GlobalHeapJs.kt` because both delegate to
- * the same commonMain `PackedBuffer` operations (pure `Long` arithmetic, no
- * platform-specific intrinsics).
+ * Wasm-JS implementation of [GlobalHeap] using [PackedBuffer] (`LongArray`-backed).
  *
- * The Android target exists so CodeQL's `kotlinc` LD_PRELOAD tracer has real
- * JVM `.class` files to scan (see `.github/workflows/codeql.yml`); the
- * implementation is functionally identical to the JS one, not a separate
- * runtime path.
+ * Line-for-line equivalent to `GlobalHeapJs.kt` — both delegate to the
+ * commonMain `PackedBuffer` (pure `Long` arithmetic, no platform-specific
+ * intrinsics).
  */
 actual object GlobalHeap {
     private var buffer: PackedBuffer = PackedBuffer(0)

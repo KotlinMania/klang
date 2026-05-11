@@ -1,39 +1,27 @@
 import org.gradle.api.tasks.testing.logging.TestLogEvent
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JsModuleKind
 import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJsCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsEnvSpec
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootExtension
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootEnvSpec
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension
+import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsEnvSpec
+import org.jetbrains.kotlin.gradle.targets.wasm.yarn.WasmYarnRootEnvSpec
 
+// Source-code rule: no `import java.*` / `import javax.*` anywhere in `src/`.
+// Everything else about targets / plugins is the build's call. See CLAUDE.md.
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.maven.publish)
     alias(libs.plugins.taskinfo)
     alias(libs.plugins.kotlinx.benchmark)
     alias(libs.plugins.kotlin.allopen)
-    id("com.android.kotlin.multiplatform.library") version "9.2.0"
     idea
-}
-
-// Android SDK bootstrap — only used so the `com.android.kotlin.multiplatform.library`
-// plugin can resolve a sdk.dir. The Android target exists purely so
-// `compileAndroidMain` produces real JVM `.class` files for CodeQL's `kotlinc`
-// LD_PRELOAD tracer to hook (see `.github/workflows/codeql.yml`); the artifacts
-// are not published.
-val androidSdkDir: String? =
-    providers.environmentVariable("ANDROID_SDK_ROOT").orNull
-        ?: providers.environmentVariable("ANDROID_HOME").orNull
-
-if (androidSdkDir != null && file(androidSdkDir).exists()) {
-    val localProperties = rootProject.file("local.properties")
-    if (!localProperties.exists()) {
-        val sdkDirPropertyValue = file(androidSdkDir).absolutePath.replace("\\", "/")
-        localProperties.writeText("sdk.dir=$sdkDirPropertyValue")
-    }
 }
 
 // kotlinx-benchmark requires the @State class to be open for subclassing.
@@ -60,9 +48,6 @@ repositories {
 //fun KotlinTargetContainerWithPresetFunctions.common(callback: KotlinOnlyTarget<*>.() -> Unit) {
 //    callback(presets.getByName("common").createTarget("common") as KotlinOnlyTarget<*>)
 //}
-
-//val enableNative = false
-val enableNative = System.getenv("KLANG_NO_ENABLE_NATIVE").isNullOrBlank()
 
 kotlin {
     // Apply the standard KMP source-set hierarchy. This explicitly creates the
@@ -100,21 +85,11 @@ kotlin {
         }
     }
 
-
-
-    //common {
-    //}
-
-    // Android KMP target included to let CodeQL's `kotlinc` LD_PRELOAD tracer
-    // hook `compileAndroidMain` (which emits real JVM `.class` files). The
-    // Android target sees only `commonMain` + `androidMain`; the JVM-erasure
-    // -incompatible C-pointer runtime lives in `nonAndroidMain` (see below)
-    // so JS + Native targets keep their generic CPointer<T> operator surface.
-    android {
-        namespace = "io.github.kotlinmania.klang"
-        compileSdk = 34
-        minSdk = 24
-    }
+    // XCFramework collects per-Apple-target frameworks (macosArm64, iosArm64,
+    // iosSimulatorArm64) into a single distributable `KLang.xcframework`
+    // consumable by Swift / Xcode projects. Each Apple target opts in via
+    // `binaries.framework { xcf.add(this) }`.
+    val xcf = XCFramework("KLang")
 
     js {
         configureAll()
@@ -129,19 +104,38 @@ kotlin {
         }
     }
 
-    if (enableNative) {
-        macosArm64 { configureNative() }
-        linuxX64 { configureNative() }
-        linuxArm64 { configureNative() }
-        mingwX64 { configureNative() }
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser()
+        nodejs()
+    }
 
-        //sourceSets {
-        //    val nativeMain = this.create("nativeMain")
-        //    val nativeTest = this.create("nativeTest")
-        //    configure(listOf(this.getByName("macosArm64Main"), this.getByName("linuxX64Main"), this.getByName("mingwX64Main"))) {
-        //        dependsOn(nativeMain)
-        //    }
-        //}
+    macosArm64 {
+        configureNative()
+        binaries.framework {
+            baseName = "KLang"
+            xcf.add(this)
+        }
+    }
+    linuxX64 { configureNative() }
+    linuxArm64 { configureNative() }
+    mingwX64 { configureNative() }
+    iosArm64 {
+        binaries.framework {
+            baseName = "KLang"
+            xcf.add(this)
+        }
+    }
+    iosSimulatorArm64 {
+        binaries.framework {
+            baseName = "KLang"
+            xcf.add(this)
+        }
+    }
+
+    swiftExport {
+        moduleName = "KLang"
+        flattenPackage = "io.github.kotlinmania.klang"
     }
 
     // Removed generated sources; build/gen is no longer a source root
@@ -154,20 +148,6 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.core)
             }
         }
-
-        // Intermediate source set for code that uses generic CPointer<T>
-        // operator overloads (plus/minus/index/get/set/value on
-        // CPointer<Byte|Short|Long|Double|UByte|UShort|UInt|ULong>). On JVM
-        // those overloads collide after type erasure ("platform declaration
-        // clash"); on Native and JS the erasure doesn't apply. Holding them
-        // here keeps `commonMain` JVM-compatible so the Android target can
-        // compile it for CodeQL extraction.
-        val nonAndroidMain by creating {
-            dependsOn(commonMain.get())
-        }
-        nativeMain.get().dependsOn(nonAndroidMain)
-        jsMain.get().dependsOn(nonAndroidMain)
-
         commonTest {
             dependencies {
                 implementation("org.jetbrains.kotlin:kotlin-test-annotations-common")
@@ -231,12 +211,10 @@ afterEvaluate {
 benchmark {
     targets {
         register("jsBenchmark")
-        if (enableNative) {
-            register("macosArm64Benchmark")
-            register("linuxX64Benchmark")
-            register("linuxArm64Benchmark")
-            register("mingwX64Benchmark")
-        }
+        register("macosArm64Benchmark")
+        register("linuxX64Benchmark")
+        register("linuxArm64Benchmark")
+        register("mingwX64Benchmark")
     }
     configurations {
         named("main") {
@@ -428,7 +406,15 @@ rootProject.extensions.configure<NodeJsEnvSpec>("kotlinNodeJsSpec") {
     version.set("22.22.2")
 }
 
+rootProject.extensions.configure<WasmNodeJsEnvSpec>("kotlinWasmNodeJsSpec") {
+    version.set("22.22.2")
+}
+
 rootProject.extensions.configure<YarnRootEnvSpec>("kotlinYarnSpec") {
+    version.set("1.22.22")
+}
+
+rootProject.extensions.configure<WasmYarnRootEnvSpec>("kotlinWasmYarnSpec") {
     version.set("1.22.22")
 }
 
@@ -541,17 +527,13 @@ mavenPublishing {
 // Register an aggregate task that depends on every per-target
 // test-compile task (jsTestClasses, wasmJsTestClasses, and the
 // compileTestKotlin<Target> tasks for native targets) so the convention
-// call resolves. We *also* pull in `compileAndroidMain` so the dynamic
-// Default Setup / Code Quality `autobuild` invocation drives the JVM
-// kotlinc that CodeQL's LD_PRELOAD tracer hooks.
+// call resolves.
 tasks.register("testClasses") {
     description = "Aggregate test-compile task for CodeQL and other JVM-convention callers."
     group = "verification"
     dependsOn(tasks.matching { other ->
         val n = other.name
         n != "testClasses" &&
-            (n.endsWith("TestClasses") ||
-                n.startsWith("compileTestKotlin") ||
-                n == "compileAndroidMain")
+            (n.endsWith("TestClasses") || n.startsWith("compileTestKotlin"))
     })
 }
