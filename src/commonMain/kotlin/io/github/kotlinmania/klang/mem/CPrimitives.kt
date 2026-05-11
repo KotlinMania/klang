@@ -14,7 +14,7 @@ object CPlatform {
 }
 
 @Suppress("NOTHING_TO_INLINE")
-value class CChar(val raw: Byte) {
+class CChar(val raw: Byte) {
     inline fun toIntSigned(): Int = raw.toInt()
     inline fun toIntUnsigned(): Int {
         val shifter = BitShiftEngine(BitShiftMode.NATIVE, 8)
