@@ -211,9 +211,8 @@ compute(heap, ptr, 4)     // Operate directly on heap
 **DON'T**:
 - Use cinterop or FFI
 - Depend on native libraries
-- Use JVM-specific features
-- Import `java.*` or `javax.*`
-- Add a `jvm()` target, an `androidTarget` / `androidLibrary` block, or any `kotlin.jvm.*` annotation. See [`CLAUDE.md`](../../CLAUDE.md) — adding a JVM-bytecode target (Android included) is a hard "no" regardless of motivation (CodeQL, benchmarks, testing convenience, etc.).
+- Import `java.*` or `javax.*` from `src/` — those are JVM-library imports that don't exist on Native or JS. See [`CLAUDE.md`](../../CLAUDE.md) for the hard rule and the (narrow) circumstances under which `kotlin.jvm.*` annotations are tolerated.
+- Add a `jvm()` target. The JVM target was removed deliberately; an Android KMP target may be permissible but requires prior approval and the source-set surgery described in `CLAUDE.md` to keep `commonMain`'s generic `CPointer<T>` overloads from clashing under JVM erasure.
 
 ### 2. Bit-Exact C Replication
 

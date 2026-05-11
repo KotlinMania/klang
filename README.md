@@ -2,7 +2,7 @@
 
 **Pure Kotlin multiplatform systems programming library for exact C code porting** — providing deterministic, bit-exact low-level primitives across Kotlin/JS and Kotlin/Native targets to enable reliable C-to-Kotlin code migration.
 
-> **Note on targets.** klang ships **Kotlin/JS + Kotlin/Native only** (`macosArm64`, `linuxX64`, `linuxArm64`, `mingwX64`, `js`). There is no JVM target, no Android target, and adding one is explicitly forbidden — see [`CLAUDE.md`](CLAUDE.md) for the hard rule and rationale.
+> **Note on targets.** klang ships **Kotlin/JS + Kotlin/Native** (`macosArm64`, `linuxX64`, `linuxArm64`, `mingwX64`, `js`). The JVM target was removed deliberately; source code must not import `java.*` / `javax.*`. See [`CLAUDE.md`](CLAUDE.md) for the rule and the circumstances under which an Android KMP target is permissible.
 
 ## What is KLang?
 
@@ -25,7 +25,7 @@ KLang solves these issues by implementing C semantics in pure, portable Kotlin.
 KLang bridges the gap between Kotlin's high-level abstractions and C's low-level control, enabling:
 
 - **Exact C behavior**: Bit-exact replication of C operations in pure Kotlin
-- **Cross-platform determinism**: Identical behavior across Kotlin/JS and Kotlin/Native targets with explicit little-endian semantics (klang does not ship a JVM target — see [`CLAUDE.md`](CLAUDE.md))
+- **Cross-platform determinism**: Identical behavior across Kotlin/JS and Kotlin/Native targets with explicit little-endian semantics (klang does not ship a `jvm()` target)
 - **Pure Kotlin implementation**: No native dependencies, GMP, or glibc required — everything is reproducible Kotlin code
 - **C code porting**: Direct mapping of C memory models, pointer arithmetic, and type semantics
 - **Performance**: Native-speed operations with optional arithmetic-mode for bit-exact C compatibility
