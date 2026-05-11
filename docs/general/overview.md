@@ -15,7 +15,7 @@ Why KLang Exists
 Key Ideas
 - Pure Kotlin, not cinterop: All C behavior is implemented in idiomatic Kotlin multiplatform code
 - Single heap: All C-style memory lives in one expandable heap (GlobalHeap) backed by a ByteArray. Pointers are Int byte offsets.
-- Deterministic operations: Typed loads/stores are little-endian and identical across JVM, JS, and Native targets.
+- Deterministic operations: Typed loads/stores are little-endian and identical across Kotlin/JS and Kotlin/Native targets. (klang ships JS + Native only — no JVM target, no Android target. See [`CLAUDE.md`](../../CLAUDE.md).)
 - Allocator: KMalloc provides malloc/calloc/realloc/free, with coalescing and size-class bins.
 - Bit shifts: BitShiftEngine enforces C-exact behavior. Raw Kotlin bitwise operators forbidden outside engine.
 - C-compatible types: All C types (C_UInt8, C_UInt128, etc.) have exact semantic equivalents with heap storage.

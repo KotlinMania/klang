@@ -9,6 +9,28 @@ import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootExtension
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootEnvSpec
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension
 
+// ============================================================================
+// HARD RULE: NO JVM, NO ANDROID. EVER. (See CLAUDE.md / AGENTS.md.)
+// ----------------------------------------------------------------------------
+// klang ships Kotlin/JS + Kotlin/Native ONLY. Adding any of the following is
+// forbidden and will be reverted:
+//
+//   • `jvm()` target
+//   • `androidTarget` / `androidLibrary { ... }` / `android { ... }` block
+//   • `id("com.android.kotlin.multiplatform.library")` plugin
+//   • any `java.*` / `javax.*` import in src/
+//   • any `kotlin.jvm.*` annotation (`@JvmInline`, `@JvmName`, etc.)
+//   • a `jvmMain` or `androidMain` source set
+//
+// commonMain contains generic CPointer<T> operator overloads (Runtime.kt,
+// PointerExtensions.kt) that have identical JVM-erased signatures across T;
+// the moment a JVM-bytecode target is added the build fails with "platform
+// declaration clash" and the only fix is renaming every C-pointer operator,
+// which is a sweeping API break across every consumer port.
+//
+// "CodeQL needs java-kotlin" is not a valid reason. Disable Code Quality
+// in repo Settings UI or live with the red check.
+// ============================================================================
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.maven.publish)

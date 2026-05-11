@@ -9,7 +9,7 @@ KLang is a **pure Kotlin multiplatform library** that provides exact C semantics
 - A JNI bridge
 - A binding to native C libraries
 
-KLang implements C behavior from scratch in pure, portable Kotlin that runs identically on JVM, JavaScript, and Native platforms.
+KLang implements C behavior from scratch in pure, portable Kotlin. The shipped artefacts target **Kotlin/JS and Kotlin/Native only** — there is no JVM target and no Android target (see [`CLAUDE.md`](../../CLAUDE.md) for the hard rule and rationale). The C-exact semantics are reproducible *across any Kotlin compiler* because every operation is implemented in pure Kotlin without depending on JVM intrinsics; that's the "runs identically" property — not a claim that klang publishes a JVM artefact.
 
 ## Why KLang Exists
 
@@ -212,6 +212,8 @@ compute(heap, ptr, 4)     // Operate directly on heap
 - Use cinterop or FFI
 - Depend on native libraries
 - Use JVM-specific features
+- Import `java.*` or `javax.*`
+- Add a `jvm()` target, an `androidTarget` / `androidLibrary` block, or any `kotlin.jvm.*` annotation. See [`CLAUDE.md`](../../CLAUDE.md) — adding a JVM-bytecode target (Android included) is a hard "no" regardless of motivation (CodeQL, benchmarks, testing convenience, etc.).
 
 ### 2. Bit-Exact C Replication
 
@@ -308,7 +310,7 @@ fun testAgainstCReference() {
 
 ### 3. Cross-Platform Consistency
 
-Run identical tests on JVM, JS, and Native:
+Run identical tests on JS and Native (klang does not ship a JVM target):
 
 ```kotlin
 // commonTest
