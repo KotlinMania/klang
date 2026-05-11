@@ -9,7 +9,7 @@ KLang is a **pure Kotlin multiplatform library** that provides exact C semantics
 - A JNI bridge
 - A binding to native C libraries
 
-KLang implements C behavior from scratch in pure, portable Kotlin. The shipped artefacts target **Kotlin/JS and Kotlin/Native only** — there is no JVM target and no Android target (see [`CLAUDE.md`](../../CLAUDE.md) for the hard rule and rationale). The C-exact semantics are reproducible *across any Kotlin compiler* because every operation is implemented in pure Kotlin without depending on JVM intrinsics; that's the "runs identically" property — not a claim that klang publishes a JVM artefact.
+KLang implements C behavior from scratch in pure, portable Kotlin. Source code does not `import java.*` / `import javax.*` (see [`CLAUDE.md`](../../CLAUDE.md)); the C-exact semantics are reproducible across any Kotlin compiler because every operation is implemented in pure Kotlin.
 
 ## Why KLang Exists
 
@@ -211,8 +211,7 @@ compute(heap, ptr, 4)     // Operate directly on heap
 **DON'T**:
 - Use cinterop or FFI
 - Depend on native libraries
-- Import `java.*` or `javax.*` from `src/` — those are JVM-library imports that don't exist on Native or JS. See [`CLAUDE.md`](../../CLAUDE.md) for the hard rule and the (narrow) circumstances under which `kotlin.jvm.*` annotations are tolerated.
-- Add a `jvm()` target. The JVM target was removed deliberately; an Android KMP target may be permissible but requires prior approval and the source-set surgery described in `CLAUDE.md` to keep `commonMain`'s generic `CPointer<T>` overloads from clashing under JVM erasure.
+- Import `java.*` or `javax.*` from `src/` — those are JVM-library imports that don't exist on Native or JS. See [`CLAUDE.md`](../../CLAUDE.md).
 
 ### 2. Bit-Exact C Replication
 
@@ -309,7 +308,7 @@ fun testAgainstCReference() {
 
 ### 3. Cross-Platform Consistency
 
-Run identical tests on JS and Native (klang does not ship a JVM target):
+Run identical tests on every target the build ships:
 
 ```kotlin
 // commonTest

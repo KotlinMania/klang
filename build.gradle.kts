@@ -9,15 +9,8 @@ import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootExtension
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootEnvSpec
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension
 
-// ----------------------------------------------------------------------------
-// klang ships Kotlin/JS + Kotlin/Native. The JVM target was removed
-// deliberately (see CLAUDE.md / AGENTS.md). Don't reintroduce a `jvm()` target
-// or `import java.*` / `import javax.*` anywhere in src/. An Android KMP
-// target is permissible *with prior approval* and only alongside the
-// source-set surgery that shelters the generic CPointer<T> operator overloads
-// in `Runtime.kt` / `PointerExtensions.kt` from JVM erasure clashes — those
-// files cannot live in commonMain if a JVM-bytecode target sees them.
-// ----------------------------------------------------------------------------
+// Source-code rule: no `import java.*` / `import javax.*` anywhere in `src/`.
+// Everything else about targets / plugins is the build's call. See CLAUDE.md.
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.maven.publish)
