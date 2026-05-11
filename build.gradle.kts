@@ -186,18 +186,6 @@ kotlin {
                 implementation("org.jetbrains.kotlin:kotlin-test-js")
             }
         }
-
-        // `nonAndroidMain` intermediate: hosts the four runtime files whose
-        // generic `CPointer<T>` operator overloads (e.g. `CPointer<Byte>.plus`,
-        // `CPointer<Short>.plus`) erase to the same JVM signature and would
-        // otherwise fail `compileAndroidMain` with a "platform declaration
-        // clash". JS and Native pull these in via this source set; Android
-        // only sees `commonMain` + `androidMain`, both of which are
-        // JVM-bytecode-compatible.
-        val nonAndroidMain by creating { dependsOn(commonMain.get()) }
-        nativeMain.get().dependsOn(nonAndroidMain)
-        jsMain.get().dependsOn(nonAndroidMain)
-        wasmJsMain.get().dependsOn(nonAndroidMain)
     }
 }
 

@@ -199,26 +199,20 @@ public/*!*/ abstract class AbstractRuntime(val REQUESTED_HEAP_SIZE: Int = 0, val
     operator fun <T> CPointer<CPointer<T>>.get(offset: Int): CPointer<T> = CPointer(lw(this.ptr + offset * 4))
 
     // char*
-    operator fun CPointer<Byte>.get(offset: Int): Byte = lb(this.ptr + offset * 1)
-    operator fun CPointer<Byte>.set(offset: Int, value: Byte): Unit = sb(this.ptr + offset * 1, value)
-    var CPointer<Byte>.value: Byte get() = this[0]; set(value): Unit { this[0] = value }
-    operator fun CPointer<Byte>.plus(offset: Int): CPointer<Byte> = addPtr<Byte>(offset, 1)
-    operator fun CPointer<Byte>.minus(offset: Int): CPointer<Byte> = addPtr<Byte>(-offset, 1)
-    fun CPointer<Byte>.minusPtrByte(other: CPointer<Byte>): Int = (this.ptr - other.ptr) / 1
-    inline fun fixedArrayOfByte(size: Int, setItems: CPointer<Byte>.() -> Unit): CPointer<Byte> = CPointer<Byte>(alloca_zero(size * 1).ptr).apply(setItems)
-    fun fixedArrayOfByte(vararg values: Byte, size: Int = values.size): CPointer<Byte> = fixedArrayOfByte(size) { for (n in 0 until values.size) this[n] = values[n] }
-    fun fixedArrayOfByte(values: String, size: Int = values.length): CPointer<Byte> = fixedArrayOfByte(size) { for (n in 0 until values.length) this[n] = values[n].code.toByte() }
+    operator fun BytePointer.get(offset: Int): Byte = lb(this.ptr + offset * 1)
+    operator fun BytePointer.set(offset: Int, value: Byte): Unit = sb(this.ptr + offset * 1, value)
+    var BytePointer.value: Byte get() = this[0]; set(value): Unit { this[0] = value }
+    inline fun fixedArrayOfByte(size: Int, setItems: BytePointer.() -> Unit): BytePointer = BytePointer(alloca_zero(size * 1).ptr).apply(setItems)
+    fun fixedArrayOfByte(vararg values: Byte, size: Int = values.size): BytePointer = fixedArrayOfByte(size) { for (n in 0 until values.size) this[n] = values[n] }
+    fun fixedArrayOfByte(values: String, size: Int = values.length): BytePointer = fixedArrayOfByte(size) { for (n in 0 until values.length) this[n] = values[n].code.toByte() }
 
     // short*
-    operator fun CPointer<Short>.get(offset: Int): Short = lh(this.ptr + offset * 2)
-    operator fun CPointer<Short>.set(offset: Int, value: Short): Unit = sh(this.ptr + offset * 2, value)
-    var CPointer<Short>.value: Short get() = this[0]; set(value): Unit { this[0] = value }
-    operator fun CPointer<Short>.plus(offset: Int): CPointer<Short> = addPtr<Short>(offset, 2)
-    operator fun CPointer<Short>.minus(offset: Int): CPointer<Short> = addPtr<Short>(-offset, 2)
-    fun CPointer<Short>.minusPtrShort(other: CPointer<Short>): Int = (this.ptr - other.ptr) / 2
-    inline fun fixedArrayOfShort(size: Int, setItems: CPointer<Short>.() -> Unit): CPointer<Short> = CPointer<Short>(alloca_zero(size * 2).ptr).apply(setItems)
-    fun fixedArrayOfShort(vararg values: Short, size: Int = values.size): CPointer<Short> = fixedArrayOfShort(size) { for (n in 0 until values.size) this[n] = values[n] }
-    fun fixedArrayOfShort(values: String, size: Int = values.length): CPointer<Short> = fixedArrayOfShort(size) { for (n in 0 until values.length) this[n] = values[n].code.toShort() }
+    operator fun ShortPointer.get(offset: Int): Short = lh(this.ptr + offset * 2)
+    operator fun ShortPointer.set(offset: Int, value: Short): Unit = sh(this.ptr + offset * 2, value)
+    var ShortPointer.value: Short get() = this[0]; set(value): Unit { this[0] = value }
+    inline fun fixedArrayOfShort(size: Int, setItems: ShortPointer.() -> Unit): ShortPointer = ShortPointer(alloca_zero(size * 2).ptr).apply(setItems)
+    fun fixedArrayOfShort(vararg values: Short, size: Int = values.size): ShortPointer = fixedArrayOfShort(size) { for (n in 0 until values.size) this[n] = values[n] }
+    fun fixedArrayOfShort(values: String, size: Int = values.length): ShortPointer = fixedArrayOfShort(size) { for (n in 0 until values.length) this[n] = values[n].code.toShort() }
 
     // int*
     operator fun IntPointer.get(offset: Int): Int = lw(this.ptr + offset * 4)
@@ -229,52 +223,37 @@ public/*!*/ abstract class AbstractRuntime(val REQUESTED_HEAP_SIZE: Int = 0, val
     ///////////////////////////////////////
 
     // long*
-    operator fun CPointer<Long>.get(offset: Int): Long = ld(this.ptr + offset * 8)
-    operator fun CPointer<Long>.set(offset: Int, value: Long): Unit = sd(this.ptr + offset * 8, value)
-    var CPointer<Long>.value: Long get() = this[0]; set(value): Unit { this[0] = value }
-    operator fun CPointer<Long>.plus(offset: Int): CPointer<Long> = addPtr<Long>(offset, 8)
-    operator fun CPointer<Long>.minus(offset: Int): CPointer<Long> = addPtr<Long>(-offset, 8)
-    fun CPointer<Long>.minusPtrLong(other: CPointer<Long>): Int = (this.ptr - other.ptr) / 8
-    inline fun fixedArrayOfLong(size: Int, setItems: CPointer<Long>.() -> Unit): CPointer<Long> = CPointer<Long>(alloca_zero(size * 8).ptr).apply(setItems)
-    fun fixedArrayOfLong(vararg values: Long, size: Int = values.size): CPointer<Long> = fixedArrayOfLong(size) { for (n in 0 until values.size) this[n] = values[n] }
+    operator fun LongPointer.get(offset: Int): Long = ld(this.ptr + offset * 8)
+    operator fun LongPointer.set(offset: Int, value: Long): Unit = sd(this.ptr + offset * 8, value)
+    var LongPointer.value: Long get() = this[0]; set(value): Unit { this[0] = value }
+    inline fun fixedArrayOfLong(size: Int, setItems: LongPointer.() -> Unit): LongPointer = LongPointer(alloca_zero(size * 8).ptr).apply(setItems)
+    fun fixedArrayOfLong(vararg values: Long, size: Int = values.size): LongPointer = fixedArrayOfLong(size) { for (n in 0 until values.size) this[n] = values[n] }
 
-    operator fun CPointer<UByte>.get(offset: Int): UByte = lb(this.ptr + offset * 1).toUByte()
-    operator fun CPointer<UByte>.set(offset: Int, value: UByte): Unit = sb(this.ptr + offset * 1, (value).toByte())
-    var CPointer<UByte>.value: UByte get() = this[0]; set(value): Unit { this[0] = value }
-    operator fun CPointer<UByte>.plus(offset: Int): CPointer<UByte> = addPtr<UByte>(offset, 1)
-    operator fun CPointer<UByte>.minus(offset: Int): CPointer<UByte> = addPtr<UByte>(-offset, 1)
-    fun CPointer<UByte>.minusPtrUByte(other: CPointer<UByte>): Int = (this.ptr - other.ptr) / 1
-    inline fun fixedArrayOfUByte(size: Int, setItems: CPointer<UByte>.() -> Unit): CPointer<UByte> = CPointer<UByte>(alloca_zero(size * 1).ptr).apply(setItems)
-    fun fixedArrayOfUByte(vararg values: UByte, size: Int = values.size): CPointer<UByte> = fixedArrayOfUByte(size) { for (n in 0 until values.size) this[n] = values[n] }
-    fun fixedArrayOfUByte(values: String, size: Int = values.length): CPointer<UByte> = fixedArrayOfUByte(size) { for (n in 0 until values.length) this[n] = values[n].code.toUByte() }
+    operator fun UBytePointer.get(offset: Int): UByte = lb(this.ptr + offset * 1).toUByte()
+    operator fun UBytePointer.set(offset: Int, value: UByte): Unit = sb(this.ptr + offset * 1, (value).toByte())
+    var UBytePointer.value: UByte get() = this[0]; set(value): Unit { this[0] = value }
+    inline fun fixedArrayOfUByte(size: Int, setItems: UBytePointer.() -> Unit): UBytePointer = UBytePointer(alloca_zero(size * 1).ptr).apply(setItems)
+    fun fixedArrayOfUByte(vararg values: UByte, size: Int = values.size): UBytePointer = fixedArrayOfUByte(size) { for (n in 0 until values.size) this[n] = values[n] }
+    fun fixedArrayOfUByte(values: String, size: Int = values.length): UBytePointer = fixedArrayOfUByte(size) { for (n in 0 until values.length) this[n] = values[n].code.toUByte() }
 
-    operator fun CPointer<UShort>.get(offset: Int): UShort = lh(this.ptr + offset * 2).toUShort()
-    operator fun CPointer<UShort>.set(offset: Int, value: UShort): Unit = sh(this.ptr + offset * 2, (value).toShort())
-    var CPointer<UShort>.value: UShort get() = this[0]; set(value): Unit { this[0] = value }
-    operator fun CPointer<UShort>.plus(offset: Int): CPointer<UShort> = addPtr<UShort>(offset, 2)
-    operator fun CPointer<UShort>.minus(offset: Int): CPointer<UShort> = addPtr<UShort>(-offset, 2)
-    fun CPointer<UShort>.minusPtrUShort(other: CPointer<UShort>): Int = (this.ptr - other.ptr) / 2
-    inline fun fixedArrayOfUShort(size: Int, setItems: CPointer<UShort>.() -> Unit): CPointer<UShort> = CPointer<UShort>(alloca_zero(size * 2).ptr).apply(setItems)
-    fun fixedArrayOfUShort(vararg values: UShort, size: Int = values.size): CPointer<UShort> = fixedArrayOfUShort(size) { for (n in 0 until values.size) this[n] = values[n] }
-    fun fixedArrayOfUShort(values: String, size: Int = values.length): CPointer<UShort> = fixedArrayOfUShort(size) { for (n in 0 until values.length) this[n] = values[n].code.toUShort() }
+    operator fun UShortPointer.get(offset: Int): UShort = lh(this.ptr + offset * 2).toUShort()
+    operator fun UShortPointer.set(offset: Int, value: UShort): Unit = sh(this.ptr + offset * 2, (value).toShort())
+    var UShortPointer.value: UShort get() = this[0]; set(value): Unit { this[0] = value }
+    inline fun fixedArrayOfUShort(size: Int, setItems: UShortPointer.() -> Unit): UShortPointer = UShortPointer(alloca_zero(size * 2).ptr).apply(setItems)
+    fun fixedArrayOfUShort(vararg values: UShort, size: Int = values.size): UShortPointer = fixedArrayOfUShort(size) { for (n in 0 until values.size) this[n] = values[n] }
+    fun fixedArrayOfUShort(values: String, size: Int = values.length): UShortPointer = fixedArrayOfUShort(size) { for (n in 0 until values.length) this[n] = values[n].code.toUShort() }
 
-    operator fun CPointer<UInt>.get(offset: Int): UInt = lw(this.ptr + offset * 4).toUInt()
-    operator fun CPointer<UInt>.set(offset: Int, value: UInt): Unit = sw(this.ptr + offset * 4, (value).toInt())
-    var CPointer<UInt>.value: UInt get() = this[0]; set(value): Unit { this[0] = value }
-    operator fun CPointer<UInt>.plus(offset: Int): CPointer<UInt> = addPtr<UInt>(offset, 4)
-    operator fun CPointer<UInt>.minus(offset: Int): CPointer<UInt> = addPtr<UInt>(-offset, 4)
-    fun CPointer<UInt>.minusPtrUInt(other: CPointer<UInt>): Int = (this.ptr - other.ptr) / 4
-    inline fun fixedArrayOfUInt(size: Int, setItems: CPointer<UInt>.() -> Unit): CPointer<UInt> = CPointer<UInt>(alloca_zero(size * 4).ptr).apply(setItems)
-    fun fixedArrayOfUInt(vararg values: UInt, size: Int = values.size): CPointer<UInt> = fixedArrayOfUInt(size) { for (n in 0 until values.size) this[n] = values[n] }
+    operator fun UIntPointer.get(offset: Int): UInt = lw(this.ptr + offset * 4).toUInt()
+    operator fun UIntPointer.set(offset: Int, value: UInt): Unit = sw(this.ptr + offset * 4, (value).toInt())
+    var UIntPointer.value: UInt get() = this[0]; set(value): Unit { this[0] = value }
+    inline fun fixedArrayOfUInt(size: Int, setItems: UIntPointer.() -> Unit): UIntPointer = UIntPointer(alloca_zero(size * 4).ptr).apply(setItems)
+    fun fixedArrayOfUInt(vararg values: UInt, size: Int = values.size): UIntPointer = fixedArrayOfUInt(size) { for (n in 0 until values.size) this[n] = values[n] }
 
-    operator fun CPointer<ULong>.get(offset: Int): ULong = ld(this.ptr + offset * 8).toULong()
-    operator fun CPointer<ULong>.set(offset: Int, value: ULong): Unit = sd(this.ptr + offset * 8, (value).toLong())
-    var CPointer<ULong>.value: ULong get() = this[0]; set(value): Unit { this[0] = value }
-    operator fun CPointer<ULong>.plus(offset: Int): CPointer<ULong> = addPtr<ULong>(offset, 8)
-    operator fun CPointer<ULong>.minus(offset: Int): CPointer<ULong> = addPtr<ULong>(-offset, 8)
-    fun CPointer<ULong>.minusPtrULong(other: CPointer<ULong>): Int = (this.ptr - other.ptr) / 8
-    inline fun fixedArrayOfULong(size: Int, setItems: CPointer<ULong>.() -> Unit): CPointer<ULong> = CPointer<ULong>(alloca_zero(size * 8).ptr).apply(setItems)
-    fun fixedArrayOfULong(vararg values: ULong, size: Int = values.size): CPointer<ULong> = fixedArrayOfULong(size) { for (n in 0 until values.size) this[n] = values[n] }
+    operator fun ULongPointer.get(offset: Int): ULong = ld(this.ptr + offset * 8).toULong()
+    operator fun ULongPointer.set(offset: Int, value: ULong): Unit = sd(this.ptr + offset * 8, (value).toLong())
+    var ULongPointer.value: ULong get() = this[0]; set(value): Unit { this[0] = value }
+    inline fun fixedArrayOfULong(size: Int, setItems: ULongPointer.() -> Unit): ULongPointer = ULongPointer(alloca_zero(size * 8).ptr).apply(setItems)
+    fun fixedArrayOfULong(vararg values: ULong, size: Int = values.size): ULongPointer = fixedArrayOfULong(size) { for (n in 0 until values.size) this[n] = values[n] }
 
     ///////////////////////////////////////
     operator fun FloatPointer.get(offset: Int): Float = lwf(this.ptr + offset * 4)
@@ -284,14 +263,11 @@ public/*!*/ abstract class AbstractRuntime(val REQUESTED_HEAP_SIZE: Int = 0, val
     fun fixedArrayOfFloat(vararg values: Float, size: Int = values.size): FloatPointer = fixedArrayOfFloat(size) { for (n in 0 until values.size) this[n] = values[n] }
     ///////////////////////////////////////
 
-    operator fun CPointer<Double>.get(offset: Int): Double = ldf(this.ptr + offset * 4)
-    operator fun CPointer<Double>.set(offset: Int, value: Double): Unit = sdf(this.ptr + offset * 4, (value))
-    var CPointer<Double>.value: Double get() = this[0]; set(value): Unit { this[0] = value }
-    operator fun CPointer<Double>.plus(offset: Int): CPointer<Double> = addPtr<Double>(offset, 4)
-    operator fun CPointer<Double>.minus(offset: Int): CPointer<Double> = addPtr<Double>(-offset, 4)
-    fun CPointer<Double>.minusPtrDouble(other: CPointer<Double>): Int = (this.ptr - other.ptr) / 4
-    inline fun fixedArrayOfDouble(size: Int, setItems: CPointer<Double>.() -> Unit): CPointer<Double> = CPointer<Double>(alloca_zero(size * 4).ptr).apply(setItems)
-    fun fixedArrayOfDouble(vararg values: Double, size: Int = values.size): CPointer<Double> = fixedArrayOfDouble(size) { for (n in 0 until values.size) this[n] = values[n] }
+    operator fun DoublePointer.get(offset: Int): Double = ldf(this.ptr + offset * 4)
+    operator fun DoublePointer.set(offset: Int, value: Double): Unit = sdf(this.ptr + offset * 4, (value))
+    var DoublePointer.value: Double get() = this[0]; set(value): Unit { this[0] = value }
+    inline fun fixedArrayOfDouble(size: Int, setItems: DoublePointer.() -> Unit): DoublePointer = DoublePointer(alloca_zero(size * 4).ptr).apply(setItems)
+    fun fixedArrayOfDouble(vararg values: Double, size: Int = values.size): DoublePointer = fixedArrayOfDouble(size) { for (n in 0 until values.size) this[n] = values[n] }
 
     ///////////////////////////////////////
     // STACK ALLOC
@@ -336,31 +312,31 @@ public/*!*/ abstract class AbstractRuntime(val REQUESTED_HEAP_SIZE: Int = 0, val
     ///////////////////////////////////////
     // STRINGS
     ///////////////////////////////////////
-    private val STRINGS: LinkedHashMap<String, CPointer<Byte>> = LinkedHashMap<String, CPointer<Byte>>()
+    private val STRINGS: LinkedHashMap<String, BytePointer> = LinkedHashMap<String, BytePointer>()
 
-    val String.ptr: CPointer<Byte> get() = STRINGS.getOrPut(this) {
+    val String.ptr: BytePointer get() = STRINGS.getOrPut(this) {
         val bytes = this.encodeToByteArray()
-        val ptr = CPointer<Byte>(malloc(bytes.size + 1).ptr)
+        val ptr = BytePointer(malloc(bytes.size + 1).ptr)
         val p = ptr.ptr
         for (n in 0 until bytes.size) sb(p + n, bytes[n])
         sb(p + bytes.size, 0)
         ptr
     }
 
-    val Array<String>.ptr: CPointer<CPointer<Byte>> get() {
+    val Array<String>.ptr: CPointer<BytePointer> get() {
         val POINTER_SIZE: Int = 4
         val array = this
-        val ptr = CPointer<CPointer<Byte>>(malloc(POINTER_SIZE * array.size).ptr)
+        val ptr = CPointer<BytePointer>(malloc(POINTER_SIZE * array.size).ptr)
         for (n in 0 until array.size) sw(ptr.ptr + n * POINTER_SIZE, array[n].ptr.ptr)
         return ptr
     }
 
-    fun CPointer<Byte>.strlenz(): Int {
+    fun BytePointer.strlenz(): Int {
         for (n in 0 until Int.MAX_VALUE) if (this[n] == 0.toByte()) return n
         return Int.MAX_VALUE
     }
 
-    fun CPointer<Byte>.readStringz(): String {
+    fun BytePointer.readStringz(): String {
         val len = this.strlenz()
         val ba = ByteArray(len)
         var pos = this.ptr
@@ -368,9 +344,9 @@ public/*!*/ abstract class AbstractRuntime(val REQUESTED_HEAP_SIZE: Int = 0, val
         return ba.decodeToString()
     }
 
-    fun CPointer<Byte>.writeStringz(str: String) {
+    fun BytePointer.writeStringz(str: String) {
         val bytes = str.encodeToByteArray()
-        memWrite(this, bytes)
+        for (n in 0 until bytes.size) sb(this.ptr + n, bytes[n])
         this[bytes.size] = 0.toByte()
     }
 
@@ -429,13 +405,13 @@ public/*!*/ open class Runtime(REQUESTED_HEAP_SIZE: Int = 0, REQUESTED_STACK_PTR
 }
 
 public/*!*/ interface RuntimeSyscalls {
-    fun AbstractRuntime.fopen(file: CPointer<Byte>, mode: CPointer<Byte>): CPointer<CPointer<Unit>> = TODO()
+    fun AbstractRuntime.fopen(file: BytePointer, mode: BytePointer): CPointer<CPointer<Unit>> = TODO()
     fun AbstractRuntime.fread(ptr: CPointer<Unit>, size: Int, nmemb: Int, stream: CPointer<CPointer<Unit>>): Int = TODO()
     fun AbstractRuntime.fwrite(ptr: CPointer<Unit>, size: Int, nmemb: Int, stream: CPointer<CPointer<Unit>>): Int = TODO()
     fun AbstractRuntime.fflush(stream: CPointer<CPointer<Unit>>): Int = TODO()
     fun AbstractRuntime.ftell(stream: CPointer<CPointer<Unit>>): Long = TODO()
-    fun AbstractRuntime.fsetpos(stream: CPointer<CPointer<Unit>>, ptrHolder: CPointer<Long>): Int = TODO()
-    fun AbstractRuntime.fgetpos(stream: CPointer<CPointer<Unit>>, ptrHolder: CPointer<Long>): Int = TODO()
+    fun AbstractRuntime.fsetpos(stream: CPointer<CPointer<Unit>>, ptrHolder: LongPointer): Int = TODO()
+    fun AbstractRuntime.fgetpos(stream: CPointer<CPointer<Unit>>, ptrHolder: LongPointer): Int = TODO()
     fun AbstractRuntime.fseek(stream: CPointer<CPointer<Unit>>, offset: Long, whence: Int): Int = TODO()
     fun AbstractRuntime.fclose(stream: CPointer<CPointer<Unit>>): Unit = TODO()
 }
@@ -446,6 +422,75 @@ public/*!*/ object DummyRuntimeSyscalls : RuntimeSyscalls
 
 public class CPointer<T>(val ptr: Int)
 public class CFunction<T>(val ptr: Int)
+
+// Concrete primitive-pointer classes. Distinct Kotlin types (not `CPointer<T>`
+// generic specialisations) so JVM erasure preserves the receiver-type
+// difference and `plus`/`minus`/`get`/`set` operators don't clash across the
+// primitive families.
+
+public class BytePointer(val ptr: Int) {
+    operator fun plus(offset: Int): BytePointer = BytePointer(this.ptr + offset * 1)
+    operator fun minus(other: BytePointer): Int = (this.ptr - other.ptr) / 1
+    operator fun minus(offset: Int): BytePointer = this + (-offset)
+    operator fun inc(): BytePointer = this + 1
+    operator fun dec(): BytePointer = this - 1
+}
+
+public class ShortPointer(val ptr: Int) {
+    operator fun plus(offset: Int): ShortPointer = ShortPointer(this.ptr + offset * 2)
+    operator fun minus(other: ShortPointer): Int = (this.ptr - other.ptr) / 2
+    operator fun minus(offset: Int): ShortPointer = this + (-offset)
+    operator fun inc(): ShortPointer = this + 1
+    operator fun dec(): ShortPointer = this - 1
+}
+
+public class LongPointer(val ptr: Int) {
+    operator fun plus(offset: Int): LongPointer = LongPointer(this.ptr + offset * 8)
+    operator fun minus(other: LongPointer): Int = (this.ptr - other.ptr) / 8
+    operator fun minus(offset: Int): LongPointer = this + (-offset)
+    operator fun inc(): LongPointer = this + 1
+    operator fun dec(): LongPointer = this - 1
+}
+
+public class DoublePointer(val ptr: Int) {
+    operator fun plus(offset: Int): DoublePointer = DoublePointer(this.ptr + offset * 8)
+    operator fun minus(other: DoublePointer): Int = (this.ptr - other.ptr) / 8
+    operator fun minus(offset: Int): DoublePointer = this + (-offset)
+    operator fun inc(): DoublePointer = this + 1
+    operator fun dec(): DoublePointer = this - 1
+}
+
+public class UBytePointer(val ptr: Int) {
+    operator fun plus(offset: Int): UBytePointer = UBytePointer(this.ptr + offset * 1)
+    operator fun minus(other: UBytePointer): Int = (this.ptr - other.ptr) / 1
+    operator fun minus(offset: Int): UBytePointer = this + (-offset)
+    operator fun inc(): UBytePointer = this + 1
+    operator fun dec(): UBytePointer = this - 1
+}
+
+public class UShortPointer(val ptr: Int) {
+    operator fun plus(offset: Int): UShortPointer = UShortPointer(this.ptr + offset * 2)
+    operator fun minus(other: UShortPointer): Int = (this.ptr - other.ptr) / 2
+    operator fun minus(offset: Int): UShortPointer = this + (-offset)
+    operator fun inc(): UShortPointer = this + 1
+    operator fun dec(): UShortPointer = this - 1
+}
+
+public class UIntPointer(val ptr: Int) {
+    operator fun plus(offset: Int): UIntPointer = UIntPointer(this.ptr + offset * 4)
+    operator fun minus(other: UIntPointer): Int = (this.ptr - other.ptr) / 4
+    operator fun minus(offset: Int): UIntPointer = this + (-offset)
+    operator fun inc(): UIntPointer = this + 1
+    operator fun dec(): UIntPointer = this - 1
+}
+
+public class ULongPointer(val ptr: Int) {
+    operator fun plus(offset: Int): ULongPointer = ULongPointer(this.ptr + offset * 8)
+    operator fun minus(other: ULongPointer): Int = (this.ptr - other.ptr) / 8
+    operator fun minus(offset: Int): ULongPointer = this + (-offset)
+    operator fun inc(): ULongPointer = this + 1
+    operator fun dec(): ULongPointer = this - 1
+}
 
 public class FloatPointer(val ptr: Int) {
     operator fun plus(offset: Int): FloatPointer = FloatPointer(this.ptr + offset * 4)
