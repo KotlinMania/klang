@@ -31,3 +31,4 @@ a.out
 /kotlin-js-store/*
 !/kotlin-js-store/yarn.lock
 /.junie/
+/local.properties

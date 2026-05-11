@@ -41,16 +41,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up JDK 21
+        if: matrix.build-mode == 'manual'
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: zulu
+          java-version: '21'
+
+      - name: Setup Gradle
+        if: matrix.build-mode == 'manual'
+        uses: gradle/actions/setup-gradle@v6.1.0
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
 
-      - name: Build (Kotlin/JS — no cache so CodeQL can trace compilation)
+      - name: Compile Android Kotlin (JVM bytecode) for CodeQL extraction
         if: matrix.build-mode == 'manual'
+        # `compileAndroidMain` emits real JVM `.class` files under
+        # `build/classes/kotlin/android/main`. `--rerun-tasks` + `--no-build-cache`
+        # defeat Gradle's up-to-date check and `setup-gradle`'s cache restore so
+        # kotlinc is actually invoked. `kotlin.compiler.execution.strategy=
+        # out-of-process` spawns a fresh kotlinc JVM per compilation so CodeQL's
+        # LD_PRELOAD tracer has a process exec to intercept.
         run: |
-          ./gradlew --no-daemon --no-build-cache compileKotlinJs compileTestKotlinJs
+          ./gradlew compileAndroidMain \
+            --rerun-tasks \
+            --no-build-cache \
+            -Pkotlin.compiler.execution.strategy=out-of-process \
+            --no-configuration-cache \
+            --no-daemon
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
