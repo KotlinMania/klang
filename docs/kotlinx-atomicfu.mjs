@@ -383,7 +383,6 @@ function atomic$long$(initial, trace) {
   return AtomicLong.new_kotlinx_atomicfu_AtomicLong_hb423c_k$(initial);
 }
 function atomic$int$(initial, trace) {
-  trace = trace === VOID ? None_getInstance() : trace;
   return AtomicInt.new_kotlinx_atomicfu_AtomicInt_kxzl8u_k$(initial);
 }
 function get_traceFormatDefault() {
