@@ -1,6 +1,8 @@
 # KLang
 
-**Pure Kotlin multiplatform systems programming library for exact C code porting** — providing deterministic, bit-exact low-level primitives across all platforms (JVM, JavaScript, Native) to enable reliable C-to-Kotlin code migration.
+**Pure Kotlin multiplatform systems programming library for exact C code porting** — providing deterministic, bit-exact low-level primitives across Kotlin/JS and Kotlin/Native targets to enable reliable C-to-Kotlin code migration.
+
+> **Source-code rule:** no `import java.*` / `import javax.*` in `src/`. See [`CLAUDE.md`](CLAUDE.md).
 
 ## What is KLang?
 
@@ -23,7 +25,7 @@ KLang solves these issues by implementing C semantics in pure, portable Kotlin.
 KLang bridges the gap between Kotlin's high-level abstractions and C's low-level control, enabling:
 
 - **Exact C behavior**: Bit-exact replication of C operations in pure Kotlin
-- **Cross-platform determinism**: Identical behavior across JVM, JS, and Native targets with explicit little-endian semantics
+- **Cross-platform determinism**: Identical behavior across targets with explicit little-endian semantics
 - **Pure Kotlin implementation**: No native dependencies, GMP, or glibc required — everything is reproducible Kotlin code
 - **C code porting**: Direct mapping of C memory models, pointer arithmetic, and type semantics
 - **Performance**: Native-speed operations with optional arithmetic-mode for bit-exact C compatibility

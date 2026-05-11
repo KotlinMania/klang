@@ -1,14 +1,11 @@
 name: CodeQL
 
-# klang ships JS + Native + Android targets. The Android KMP target is here
-# specifically to give CodeQL's `java-kotlin` extractor real JVM `.class`
-# files to scan: `compileAndroidMain` runs the JVM `kotlinc`, which the
-# extractor's LD_PRELOAD tracer hooks. The `nonAndroidMain` intermediate
-# source set holds the generic-CPointer<T> operator overloads that clash
-# under JVM erasure; those four files are scanned by the Kotlin compiler
-# on Native and JS but excluded from the Android compile. Native targets
-# are disabled here via KLANG_NO_ENABLE_NATIVE so the build works on
-# `ubuntu-latest`. `javascript-typescript` and `actions` use `build-mode: none`.
+# CodeQL `java-kotlin` extractor uses `build-mode: manual` so the Kotlin
+# compiler is invoked directly and CodeQL can trace the compilation.
+# `--no-build-cache` prevents Gradle from short-circuiting compilation
+# with cached outputs, which would leave CodeQL nothing to trace.
+# `javascript-typescript` covers the generated JS test bundle; `actions`
+# covers the workflow files themselves.
 
 on:
   push:
@@ -63,8 +60,6 @@ jobs:
 
       - name: Compile Android Kotlin (JVM bytecode) for CodeQL extraction
         if: matrix.build-mode == 'manual'
-        env:
-          KLANG_NO_ENABLE_NATIVE: "1"
         # `compileAndroidMain` emits real JVM `.class` files under
         # `build/classes/kotlin/android/main`. `--rerun-tasks` + `--no-build-cache`
         # defeat Gradle's up-to-date check and `setup-gradle`'s cache restore so
