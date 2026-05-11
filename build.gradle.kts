@@ -15,25 +15,7 @@ plugins {
     alias(libs.plugins.taskinfo)
     alias(libs.plugins.kotlinx.benchmark)
     alias(libs.plugins.kotlin.allopen)
-    id("com.android.kotlin.multiplatform.library") version "9.2.0"
     idea
-}
-
-// Android SDK bootstrap — only used so the `com.android.kotlin.multiplatform.library`
-// plugin can resolve a sdk.dir. The Android target exists purely so
-// `compileAndroidMain` produces real JVM `.class` files for CodeQL's `kotlinc`
-// LD_PRELOAD tracer to hook (see `.github/workflows/codeql.yml`); the artifacts
-// are not published.
-val androidSdkDir: String? =
-    providers.environmentVariable("ANDROID_SDK_ROOT").orNull
-        ?: providers.environmentVariable("ANDROID_HOME").orNull
-
-if (androidSdkDir != null && file(androidSdkDir).exists()) {
-    val localProperties = rootProject.file("local.properties")
-    if (!localProperties.exists()) {
-        val sdkDirPropertyValue = file(androidSdkDir).absolutePath.replace("\\", "/")
-        localProperties.writeText("sdk.dir=$sdkDirPropertyValue")
-    }
 }
 
 // kotlinx-benchmark requires the @State class to be open for subclassing.
@@ -105,17 +87,7 @@ kotlin {
     //common {
     //}
 
-    // Android KMP target included to let CodeQL's `kotlinc` LD_PRELOAD tracer
-    // hook `compileAndroidMain` (which emits real JVM `.class` files). The
-    // Android target sees only `commonMain` + `androidMain`; the JVM-erasure
-    // -incompatible C-pointer runtime lives in `nonAndroidMain` (see below)
-    // so JS + Native targets keep their generic CPointer<T> operator surface.
-    android {
-        namespace = "io.github.kotlinmania.klang"
-        compileSdk = 34
-        minSdk = 24
-    }
-
+    // JVM target removed: pure multiplatform (JS + Native only)
     js {
         configureAll()
         browser()
@@ -154,20 +126,6 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.core)
             }
         }
-
-        // Intermediate source set for code that uses generic CPointer<T>
-        // operator overloads (plus/minus/index/get/set/value on
-        // CPointer<Byte|Short|Long|Double|UByte|UShort|UInt|ULong>). On JVM
-        // those overloads collide after type erasure ("platform declaration
-        // clash"); on Native and JS the erasure doesn't apply. Holding them
-        // here keeps `commonMain` JVM-compatible so the Android target can
-        // compile it for CodeQL extraction.
-        val nonAndroidMain by creating {
-            dependsOn(commonMain.get())
-        }
-        nativeMain.get().dependsOn(nonAndroidMain)
-        jsMain.get().dependsOn(nonAndroidMain)
-
         commonTest {
             dependencies {
                 implementation("org.jetbrains.kotlin:kotlin-test-annotations-common")
