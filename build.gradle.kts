@@ -541,17 +541,13 @@ mavenPublishing {
 // Register an aggregate task that depends on every per-target
 // test-compile task (jsTestClasses, wasmJsTestClasses, and the
 // compileTestKotlin<Target> tasks for native targets) so the convention
-// call resolves. We *also* pull in `compileAndroidMain` so the dynamic
-// Default Setup / Code Quality `autobuild` invocation drives the JVM
-// kotlinc that CodeQL's LD_PRELOAD tracer hooks.
+// call resolves.
 tasks.register("testClasses") {
     description = "Aggregate test-compile task for CodeQL and other JVM-convention callers."
     group = "verification"
     dependsOn(tasks.matching { other ->
         val n = other.name
         n != "testClasses" &&
-            (n.endsWith("TestClasses") ||
-                n.startsWith("compileTestKotlin") ||
-                n == "compileAndroidMain")
+            (n.endsWith("TestClasses") || n.startsWith("compileTestKotlin"))
     })
 }
