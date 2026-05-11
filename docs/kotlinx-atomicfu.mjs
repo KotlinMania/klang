@@ -374,7 +374,6 @@ function atomic$int$1(initial) {
   return atomic$int$(initial, None_getInstance());
 }
 function atomic$ref$(initial, trace) {
-  trace = trace === VOID ? None_getInstance() : trace;
   return AtomicRef.new_kotlinx_atomicfu_AtomicRef_dkafgf_k$(initial);
 }
 function atomic$boolean$(initial, trace) {
