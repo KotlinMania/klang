@@ -1,78 +1,109 @@
-name: CodeQL
+name: "CodeQL Advanced"
 
-# CodeQL `java-kotlin` extractor uses `build-mode: manual` so the Kotlin
-# compiler is invoked directly and CodeQL can trace the compilation.
-# `--no-build-cache` prevents Gradle from short-circuiting compilation
-# with cached outputs, which would leave CodeQL nothing to trace.
-# `javascript-typescript` covers the generated JS test bundle; `actions`
-# covers the workflow files themselves.
+# Job names, step names, and matrix shape follow GitHub's canonical
+# "CodeQL Advanced" Code Scanning template exactly. The Code Scanning UI
+# registers configurations keyed off `(workflow_path, job_id, category)`
+# tuples and shows status using template-default identifiers; deviating
+# from those names produces orphan configuration cards in the UI that
+# can't be cleaned up via API (PR-merge analyses are non-deletable).
+#
+# Three matrix entries cover the languages CodeQL detects in this repo:
+#   - actions             (source-only)
+#   - java-kotlin         (manual build via codeqlCompileJvm — see note below)
+#   - javascript-typescript (source-only)
+#
+# For java-kotlin, the matrix-shared `Initialize CodeQL → Perform CodeQL
+# Analysis` flow is augmented with two conditional steps that run ONLY
+# for that language:
+#
+#   1. JDK + Gradle setup (the other two languages need no toolchain).
+#   2. A direct `./gradlew codeqlCompileJvm` invocation under
+#      JAVA_TOOL_OPTIONS=-javaagent:codeql-java-agent.jar=java,kotlin.
+#
+# `codeqlCompileJvm` is a small Gradle alias task in build.gradle.kts that
+# depends on `compileAndroidMain`. The Android KMP target exists specifically
+# so that task emits real JVM `.class` files from Kotlin sources without
+# adding `java.*` imports to `src/`, which is enough for the CodeQL Java/Kotlin
+# extractor attached via JAVA_TOOL_OPTIONS below.
 
 on:
   push:
-    branches: [main]
+    branches: [ "main" ]
   pull_request:
-    branches: [main]
+    branches: [ "main" ]
+  # Weekly periodic scan catches supply-chain CVEs that appear after merge.
   schedule:
-    - cron: "27 4 * * 1"
+    - cron: '44 16 * * 0'
+
+permissions:
+  contents: read
 
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
     permissions:
+      # required for SARIF upload
       security-events: write
-      packages: read
+      # required by codeql-action/analyze@v4 in private repos
       actions: read
+      # required to fetch internal or private CodeQL packs from GHCR
+      packages: read
       contents: read
 
     strategy:
       fail-fast: false
       matrix:
         include:
+          - language: actions
+            build-mode: none
           - language: java-kotlin
             build-mode: manual
           - language: javascript-typescript
             build-mode: none
-          - language: actions
-            build-mode: none
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
+      # JDK + Gradle setup only for java-kotlin; the source-only languages
+      # don't run any build at all.
       - name: Set up JDK 21
-        if: matrix.build-mode == 'manual'
+        if: matrix.language == 'java-kotlin'
         uses: actions/setup-java@v5.2.0
         with:
           distribution: zulu
           java-version: '21'
 
       - name: Setup Gradle
-        if: matrix.build-mode == 'manual'
+        if: matrix.language == 'java-kotlin'
         uses: gradle/actions/setup-gradle@v6.1.0
 
+      # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
+          # Restores+stores the CodeQL bundle and dependency cache between
+          # runs. Default off in Advanced Setup; turning on cuts ~30-60s
+          # off the init step on warm cache.
+          dependency-caching: true
 
-      - name: Compile Android Kotlin (JVM bytecode) for CodeQL extraction
+      # Manual build: only java-kotlin gates this. The CodeQL Java agent
+      # is attached to every JVM in this step via JAVA_TOOL_OPTIONS — every
+      # conforming JVM honors -javaagent at startup independently of any
+      # OS-level LD_PRELOAD tracing chain. The `java,kotlin` spec registers
+      # both JavacMainInterceptor and KotlinInterceptor; the latter hooks
+      # `K2JVMCompiler.doExecute(...)` at class load time and writes
+      # per-source-file `*.kt.trap.gz` outputs under
+      # ${CODEQL_EXTRACTOR_JAVA_TRAP_DIR}.
+      - name: Run manual build steps
         if: matrix.build-mode == 'manual'
-        # `compileAndroidMain` emits real JVM `.class` files under
-        # `build/classes/kotlin/android/main`. `--rerun-tasks` + `--no-build-cache`
-        # defeat Gradle's up-to-date check and `setup-gradle`'s cache restore so
-        # kotlinc is actually invoked. `kotlin.compiler.execution.strategy=
-        # out-of-process` spawns a fresh kotlinc JVM per compilation so CodeQL's
-        # LD_PRELOAD tracer has a process exec to intercept.
         run: |
-          ./gradlew compileAndroidMain \
-            --rerun-tasks \
-            --no-build-cache \
-            -Pkotlin.compiler.execution.strategy=out-of-process \
-            --no-configuration-cache \
-            --no-daemon
+          export JAVA_TOOL_OPTIONS="-javaagent:${CODEQL_EXTRACTOR_JAVA_ROOT}/tools/codeql-java-agent.jar=java,kotlin"
+          echo "JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}"
+          ./gradlew --no-daemon codeqlCompileJvm --no-configuration-cache
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4

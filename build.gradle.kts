@@ -634,3 +634,9 @@ tasks.register("testClasses") {
                 n == "compileAndroidMain")
     })
 }
+
+tasks.register("codeqlCompileJvm") {
+    description = "Compile Android main sources so CodeQL can extract JVM Kotlin classes."
+    group = "build"
+    dependsOn("compileAndroidMain")
+}
