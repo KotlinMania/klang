@@ -10,7 +10,6 @@ import org.gradle.process.ExecOperations
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JsModuleKind
 import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJsCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -256,28 +255,18 @@ kotlin {
     // `binaries.framework { xcf.add(this) }`.
     val xcf = XCFramework("KLang")
 
-    // Named JS targets: the executor-keyed split (workspace template fix
-    // #3). Kotlin 2.3.21 does not expose separate `browser`/`nodejs`
-    // KotlinJsIrCompilation objects on a single `js` target — both runtimes
-    // share one `main` compilation, so a Node-only `require('fs')` in
-    // `jsMain` lands in the browser bundle. Splitting into named top-level
-    // targets gives each runtime its own Main source set
-    // (`jsBrowserMain` / `jsNodeMain` / `wasmJsBrowserMain` / `wasmJsNodeMain`)
-    // so Node-only `actual`s never reach the webpack browser bundle.
+    // Keep the standard JS target name so downstream KMP consumers resolve
+    // the normal `jsRuntimeElements` variant. Browser and Node executions are
+    // both wired as test/runtime environments for that target.
     val jsCompilerOptions: org.jetbrains.kotlin.gradle.dsl.KotlinJsCompilerOptions.() -> Unit = {
         this.target = "es2015"
         this.useEsClasses = true
         sourceMap = true
         moduleKind = JsModuleKind.MODULE_ES
     }
-    js("jsBrowser") {
+    js {
         configureAll()
         browser()
-        binaries.executable()
-        compilerOptions(jsCompilerOptions)
-    }
-    js("jsNode") {
-        configureAll()
         nodejs()
         binaries.executable()
         compilerOptions(jsCompilerOptions)
@@ -411,56 +400,11 @@ kotlin {
                 implementation("org.jetbrains.kotlin:kotlin-test-common")
             }
         }
-        // Executor-keyed split for the JS target family. `js` is the only
-        // target type Kotlin 2.3.21 lets us declare multiple times (backdoor
-        // pending a proper per-runtime compilation split — see
-        // https://kotl.in/declaring-multiple-targets). `jsBrowserMain` and
-        // `jsNodeMain` are the auto-created Main source sets for the
-        // `js("jsBrowser")` and `js("jsNode")` targets.
-        //
-        //                  commonMain
-        //                  /        \
-        //               jsMain     wasmJsMain         (target-family axis)
-        //               /    \
-        //      jsBrowserMain  jsNodeMain              (executor axis, JS only)
-        //
-        // `jsMain` is a runtime-agnostic intermediate so the existing
-        // `src/jsMain/kotlin/` directory keeps feeding both the browser and
-        // Node compilations of the `js` family.
-        //
-        // `wasmJsMain` remains a single source set across the browser and
-        // Node runtimes because KGP rejects multiple wasmJs targets; Node-
-        // only wasmJs `actual`s rely on the `typeof process` runtime guard
-        // (workspace CLAUDE.md fix #4) until KGP supports the split.
-        //
-        // `browserMain` / `nodeMain` per-executor intermediates are not
-        // wired here: with wasmJs unsplit they would have only one member
-        // each on the JS side, making them degenerate. Reintroduce them
-        // once Kotlin Multiplatform lifts the wasmJs single-target
-        // restriction.
-        val jsMain by creating { dependsOn(commonMain.get()) }
-        named("jsBrowserMain") { dependsOn(jsMain) }
-        named("jsNodeMain") { dependsOn(jsMain) }
-
-        named("jsBrowserTest") {
+        named("jsTest") {
             dependencies {
                 implementation("org.jetbrains.kotlin:kotlin-test-js")
             }
         }
-        named("jsNodeTest") {
-            dependencies {
-                implementation("org.jetbrains.kotlin:kotlin-test-js")
-            }
-        }
-    }
-}
-
-configurations.configureEach {
-    if (isCanBeConsumed && name.startsWith("jsBrowser")) {
-        outgoing.capability("${project.group}:klang-js-browser:${project.version}")
-    }
-    if (isCanBeConsumed && name.startsWith("jsNode")) {
-        outgoing.capability("${project.group}:klang-js-node:${project.version}")
     }
 }
 
@@ -493,10 +437,9 @@ afterEvaluate {
         "linuxX64"   to "linuxX64Benchmark",
         "linuxArm64" to "linuxArm64Benchmark",
         "mingwX64"   to "mingwX64Benchmark",
-        // JS benchmarks run on the Node runtime — webpack/karma overhead
-        // distorts measurement otherwise. The `js("jsNode")` named target
-        // provides a `jsNodeBenchmark` source set.
-        "jsNode"     to "jsNodeBenchmark",
+        // JS benchmarks run on the Node runtime; the standard JS target
+        // provides the `jsBenchmark` source set.
+        "js"         to "jsBenchmark",
     ).forEach { (_, benchmarkSetName) ->
         val benchmarkSs = ssContainer.findByName(benchmarkSetName) ?: return@forEach
         benchmarkSs.dependsOn(commonBenchmarkSs)
@@ -515,7 +458,7 @@ afterEvaluate {
 // ---------------------------------------------------------------------------
 benchmark {
     targets {
-        register("jsNodeBenchmark")
+        register("jsBenchmark")
         register("macosArm64Benchmark")
         register("linuxX64Benchmark")
         register("linuxArm64Benchmark")
@@ -541,13 +484,11 @@ val fullTargetBuildTaskNames = setOf(
     "assembleUnitTest",
     "assembleAndroidTest",
     "testAndroidHostTest",
-    "jsBrowserMainClasses",
-    "jsBrowserTestClasses",
-    "jsBrowserBrowserTest",
+    "jsMainClasses",
+    "jsTestClasses",
     "jsBrowserTest",
-    "jsNodeMainClasses",
-    "jsNodeTestClasses",
     "jsNodeTest",
+    "jsTest",
     "wasmJsMainClasses",
     "wasmJsTestClasses",
     "wasmJsBrowserTest",
@@ -589,11 +530,48 @@ afterEvaluate {
     }
 }
 
-val mainClassName = "io.github.kotlinmania.klang.KLangExportsKt"
+// The generated Wasm-WASI Node runner needs a project preopen on Node and must
+// tolerate Node versions where `WASI.finalizeBindings` is absent.
+val patchWasmWasiNodeRunner = tasks.register("patchWasmWasiNodeRunner") {
+    description = "Patch the generated Wasm-WASI Node test runner for local Node execution."
+    group = "verification"
+    dependsOn("compileTestDevelopmentExecutableKotlinWasmWasi")
+    outputs.upToDateWhen { false }
 
-// Browser variant's compilations drive the webpack/karma bundling and the
-// `jsWeb*` Copy tasks below that produce the demo page under `docs/`.
-val jsCompilations = kotlin.targets["jsBrowser"].compilations
+    doLast {
+        val runnerFile = layout.buildDirectory.file(
+            "compileSync/wasmWasi/test/testDevelopmentExecutable/kotlin/${rootProject.name}-test.mjs",
+        ).get().asFile
+        if (!runnerFile.exists()) {
+            return@doLast
+        }
+        val text = runnerFile.readText()
+        val withCwdImport = text.replace(
+            "import { argv, env } from 'node:process';",
+            "import { argv, env, cwd } from 'node:process';",
+        )
+        val withPreopens = withCwdImport.replace(
+            "const wasi = new WASI({ version: 'preview1', args: argv, env, });",
+            "const wasi = new WASI({ version: 'preview1', args: argv, env, preopens: { '/': cwd() }, });",
+        )
+        val withInitializedWasi = withPreopens.replace(
+            "const wasmInstance = new WebAssembly.Instance(wasmModule, wasi.getImportObject());",
+            "const wasmInstance = new WebAssembly.Instance(wasmModule, wasi.getImportObject());\n\n" +
+                "if (typeof wasi.initialize === 'function') wasi.initialize(wasmInstance);",
+        )
+        val patched = withInitializedWasi.replace(
+            "wasi.finalizeBindings(wasmInstance);",
+            "if (typeof wasi.finalizeBindings === 'function') wasi.finalizeBindings(wasmInstance);",
+        )
+        runnerFile.writeText(patched)
+    }
+}
+
+tasks.named("wasmWasiNodeTest") {
+    dependsOn(patchWasmWasiNodeRunner)
+}
+
+val mainClassName = "io.github.kotlinmania.klang.KLangExportsKt"
 
 // Removed GenerateSourcesTask and generated includes/runtime; unused in this fork
 
@@ -612,10 +590,9 @@ tasks {
     //}
 
     val jsWebResources by registering(Copy::class) {
-        // Demo site is browser-only — pull from the jsBrowser target's main
-        // classes and the (runtime-agnostic) jsMain intermediate's
-        // resources (`src/jsMain/resources/`: ace.js, index.html, etc).
-        dependsOn("jsBrowserMainClasses")
+        // Demo site is browser-only; pull from the standard JS target's main
+        // classes and JS resources (`src/jsMain/resources/`: ace.js, index.html, etc).
+        dependsOn("jsMainClasses")
         into(file("docs"))
         includeEmptyDirs = false
         from(kotlin.sourceSets["jsMain"].resources)
@@ -635,7 +612,7 @@ tasks {
         into(file("docs"))
         includeEmptyDirs = false
         exclude("**/*.kjsm", "**/*.kotlin_metadata", "**/*.kotlin_module", "**/*.MF", "**/*.meta.js", "**/*.map")
-        from(named("compileDevelopmentExecutableKotlinJsBrowser").get().outputs)
+        from(named("compileDevelopmentExecutableKotlinJs").get().outputs)
     }
 
     val buildDockerImage by registering(Exec::class) {
@@ -900,7 +877,7 @@ tasks.register("setupAndroidSdk") {
 // target do not provide. Without it, CodeQL aborts with
 // `Task 'testClasses' not found in root project` and skips the scan.
 // Register an aggregate task that depends on every per-target
-// test-compile task (jsBrowserTestClasses, jsNodeTestClasses,
+// test-compile task (jsTestClasses,
 // wasmJsTestClasses, and the compileTestKotlin<Target> tasks for native
 // targets) so the convention call resolves. We *also* pull in
 // `compileAndroidMain` so the dynamic Default Setup / Code Quality
