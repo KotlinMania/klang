@@ -28,6 +28,7 @@ a.out
 /temp/
 /.kotlin
 /summaries
+/.android-sdk/
 /kotlin-js-store/*
 !/kotlin-js-store/yarn.lock
 /.junie/
