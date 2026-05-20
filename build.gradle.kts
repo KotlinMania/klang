@@ -185,6 +185,7 @@ fun installProjectAndroidSdk(execOperations: ExecOperations) {
 //project.gradle.taskGraph.whenReady { println(project.gradle.taskGraph.allTasks) }
 
 repositories {
+    google()
     mavenCentral()
 }
 
