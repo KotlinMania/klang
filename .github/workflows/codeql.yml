@@ -27,14 +27,10 @@ name: "CodeQL Advanced"
 # extractor attached via JAVA_TOOL_OPTIONS below.
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-  # Weekly periodic scan catches supply-chain CVEs that appear after merge.
   schedule:
     - cron: '44 16 * * 0'
 
+  workflow_dispatch:
 permissions:
   contents: read
 
