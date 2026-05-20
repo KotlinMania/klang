@@ -17,14 +17,15 @@ name: "CodeQL Advanced"
 # for that language:
 #
 #   1. JDK + Gradle setup (the other two languages need no toolchain).
-#   2. A direct `./gradlew codeqlCompileJvm` invocation under
+#   2. A direct `./gradlew setupAndroidSdk codeqlCompileJvm` invocation under
 #      JAVA_TOOL_OPTIONS=-javaagent:codeql-java-agent.jar=java,kotlin.
 #
 # `codeqlCompileJvm` is a small Gradle alias task in build.gradle.kts that
-# depends on `compileAndroidMain`. The Android KMP target exists specifically
-# so that task emits real JVM `.class` files from Kotlin sources without
-# adding `java.*` imports to `src/`, which is enough for the CodeQL Java/Kotlin
-# extractor attached via JAVA_TOOL_OPTIONS below.
+# depends on `compileAndroidMain`. `setupAndroidSdk` first installs the
+# project-local Android SDK through Gradle so that task emits real JVM
+# `.class` files from Kotlin sources without adding `java.*` imports to
+# `src/`, which is enough for the CodeQL Java/Kotlin extractor attached via
+# JAVA_TOOL_OPTIONS below.
 
 on:
   schedule:
@@ -99,7 +100,7 @@ jobs:
         run: |
           export JAVA_TOOL_OPTIONS="-javaagent:${CODEQL_EXTRACTOR_JAVA_ROOT}/tools/codeql-java-agent.jar=java,kotlin"
           echo "JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}"
-          ./gradlew --no-daemon codeqlCompileJvm --no-configuration-cache
+          ./gradlew --no-daemon setupAndroidSdk codeqlCompileJvm --no-configuration-cache
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4

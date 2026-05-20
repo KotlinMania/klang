@@ -55,11 +55,11 @@ jobs:
         # validate that the publish job will succeed without actually pushing.
         env:
           ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
-        run: ./gradlew assemble --no-configuration-cache
+        run: ./gradlew setupAndroidSdk assemble --no-configuration-cache
 
       - name: Publish to Maven Central
         if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
-        run: ./gradlew publishAndReleaseToMavenCentral --no-configuration-cache
+        run: ./gradlew setupAndroidSdk publishAndReleaseToMavenCentral --no-configuration-cache
         env:
           ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
