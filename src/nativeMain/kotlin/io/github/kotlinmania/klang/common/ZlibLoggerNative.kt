@@ -7,6 +7,7 @@ package io.github.kotlinmania.klang.common
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.allocArray
+import kotlinx.cinterop.convert
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.toKString
@@ -37,7 +38,7 @@ actual fun currentTimestamp(): String {
         val buf = allocArray<ByteVar>(24)
         val t = alloc<time_tVar>()
         time(t.ptr)
-        strftime(buf, 24UL, "%Y-%m-%d %H:%M:%S", localtime(t.ptr))
+        strftime(buf, 24.convert(), "%Y-%m-%d %H:%M:%S", localtime(t.ptr))
         return buf.toKString()
     }
 }

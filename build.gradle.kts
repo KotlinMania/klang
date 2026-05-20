@@ -64,6 +64,16 @@ val androidSdkManager = projectAndroidSdkDir.resolve(
     },
 )
 val androidSdkInstallMarker = projectAndroidSdkDir.resolve(".install-complete")
+val requiredAndroidSdkPackageDirs = listOf(
+    projectAndroidSdkDir.resolve("platform-tools"),
+    projectAndroidSdkDir.resolve("platforms/android-$projectCompileSdk"),
+    projectAndroidSdkDir.resolve("build-tools/$projectAndroidBuildTools"),
+)
+
+fun isProjectAndroidSdkInstalled(): Boolean =
+    androidSdkInstallMarker.exists() &&
+        androidSdkManager.exists() &&
+        requiredAndroidSdkPackageDirs.all { it.exists() }
 
 fun writeAndroidLocalProperties() {
     val sdkDirPropertyValue = projectAndroidSdkDir.absolutePath.replace("\\", "/")
@@ -128,7 +138,7 @@ fun downloadAndroidCommandLineTools() {
 }
 
 fun installProjectAndroidSdk(execOperations: ExecOperations) {
-    if (androidSdkInstallMarker.exists() && androidSdkManager.exists()) {
+    if (isProjectAndroidSdkInstalled()) {
         writeAndroidLocalProperties()
         println("setup-android-sdk: SDK already installed at $projectAndroidSdkDir")
         return
@@ -287,6 +297,11 @@ kotlin {
         nodejs()
     }
 
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmWasi {
+        nodejs()
+    }
+
     macosArm64 {
         configureNative()
         binaries.framework {
@@ -309,16 +324,71 @@ kotlin {
             xcf.add(this)
         }
     }
+    iosX64 {
+        binaries.framework {
+            baseName = "KLang"
+            xcf.add(this)
+        }
+    }
+
+    tvosArm64 {
+        binaries.framework {
+            baseName = "KLang"
+            xcf.add(this)
+        }
+    }
+    tvosSimulatorArm64 {
+        binaries.framework {
+            baseName = "KLang"
+            xcf.add(this)
+        }
+    }
+
+    watchosArm32 {
+        binaries.framework {
+            baseName = "KLang"
+            xcf.add(this)
+        }
+    }
+    watchosArm64 {
+        binaries.framework {
+            baseName = "KLang"
+            xcf.add(this)
+        }
+    }
+    watchosDeviceArm64 {
+        binaries.framework {
+            baseName = "KLang"
+            xcf.add(this)
+        }
+    }
+    watchosSimulatorArm64 {
+        binaries.framework {
+            baseName = "KLang"
+            xcf.add(this)
+        }
+    }
+
+    androidNativeArm32 { configureNative() }
+    androidNativeArm64 { configureNative() }
+    androidNativeX86 { configureNative() }
+    androidNativeX64 { configureNative() }
 
     // Android KMP target. Exists so `compileAndroidMain` emits real JVM
     // `.class` files for CodeQL's `kotlinc` LD_PRELOAD tracer to hook.
     // The androidMain source set's actuals must obey the project's
     // `no import java.*` rule — see src/androidMain/.
-    androidLibrary {
+    android {
         namespace = "io.github.kotlinmania.klang"
         compileSdk = 34
         minSdk = 24
+        withHostTestBuilder {}.configure {}
+        withDeviceTestBuilder {
+            sourceSetTreeName = "test"
+        }
     }
+
+    jvm()
 
     swiftExport {
         moduleName = "KLang"
@@ -382,6 +452,15 @@ kotlin {
                 implementation("org.jetbrains.kotlin:kotlin-test-js")
             }
         }
+    }
+}
+
+configurations.configureEach {
+    if (isCanBeConsumed && name.startsWith("jsBrowser")) {
+        outgoing.capability("${project.group}:klang-js-browser:${project.version}")
+    }
+    if (isCanBeConsumed && name.startsWith("jsNode")) {
+        outgoing.capability("${project.group}:klang-js-node:${project.version}")
     }
 }
 
@@ -449,6 +528,64 @@ benchmark {
             iterationTime = 1
             iterationTimeUnit = "s"
         }
+    }
+}
+
+val fullTargetBuildTaskNames = setOf(
+    "compileAndroidMain",
+    "compileAndroidHostTest",
+    "compileAndroidDeviceTest",
+    "assembleAndroidMain",
+    "assembleAndroidHostTest",
+    "assembleAndroidDeviceTest",
+    "assembleUnitTest",
+    "assembleAndroidTest",
+    "testAndroidHostTest",
+    "jsBrowserMainClasses",
+    "jsBrowserTestClasses",
+    "jsBrowserBrowserTest",
+    "jsBrowserTest",
+    "jsNodeMainClasses",
+    "jsNodeTestClasses",
+    "jsNodeTest",
+    "wasmJsMainClasses",
+    "wasmJsTestClasses",
+    "wasmJsBrowserTest",
+    "wasmJsNodeTest",
+    "wasmJsTest",
+    "iosArm64Binaries",
+    "iosArm64TestBinaries",
+    "iosSimulatorArm64Binaries",
+    "iosSimulatorArm64TestBinaries",
+    "linuxArm64Binaries",
+    "linuxArm64TestBinaries",
+    "linuxX64Binaries",
+    "linuxX64TestBinaries",
+    "macosArm64Binaries",
+    "macosArm64TestBinaries",
+    "mingwX64Binaries",
+    "mingwX64TestBinaries",
+    "assembleKLangXCFramework",
+)
+
+afterEvaluate {
+    val missingFullTargetBuildTasks = fullTargetBuildTaskNames.filter { tasks.findByName(it) == null }
+    if (missingFullTargetBuildTasks.isNotEmpty()) {
+        throw GradleException("Missing expected full-target build tasks: ${missingFullTargetBuildTasks.joinToString()}")
+    }
+    tasks.named("build") {
+        dependsOn(fullTargetBuildTaskNames)
+        dependsOn(
+            tasks.matching {
+                    name.endsWith("MainClasses") ||
+                    name.endsWith("TestClasses") ||
+                    name.endsWith("Binaries") ||
+                    name.endsWith("XCFramework") ||
+                    name.startsWith("exportCommonSourceSetsMetadataLocationsFor") ||
+                    name.startsWith("exportRootPublicationCoordinatesFor") ||
+                    name.startsWith("exportTargetPublicationCoordinatesFor")
+            },
+        )
     }
 }
 
@@ -626,8 +763,6 @@ rootProject.plugins.withType(org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJ
 // ---------------------------------------------------------------------------
 // Kotlin/JS toolchain — pin Node 22 LTS and Yarn 1.22.22, plus webpack/karma
 // versions that close the dependabot alerts on the kotlin-js-store yarn lock.
-// Mirrors starlark-kotlin's build.gradle.kts; klang has no wasmJs target so
-// the Wasm-side configurations are intentionally omitted.
 // ---------------------------------------------------------------------------
 
 rootProject.extensions.configure<NodeJsEnvSpec>("kotlinNodeJsSpec") {
@@ -652,6 +787,8 @@ rootProject.extensions.configure<YarnRootExtension>("kotlinYarn") {
     // back in a vulnerable version through its own dependency tree.
     resolution("diff", "8.0.3")
     resolution("**/diff", "8.0.3")
+    resolution("fast-uri", "3.1.2")
+    resolution("**/fast-uri", "3.1.2")
     resolution("serialize-javascript", "7.0.5")
     resolution("**/serialize-javascript", "7.0.5")
     resolution("webpack", "5.106.2")
@@ -662,8 +799,8 @@ rootProject.extensions.configure<YarnRootExtension>("kotlinYarn") {
     resolution("**/lodash", "4.18.1")
     resolution("ajv", "8.20.0")
     resolution("**/ajv", "8.20.0")
-    resolution("brace-expansion", "5.0.5")
-    resolution("**/brace-expansion", "5.0.5")
+    resolution("brace-expansion", "5.0.6")
+    resolution("**/brace-expansion", "5.0.6")
     resolution("flatted", "3.4.2")
     resolution("**/flatted", "3.4.2")
     resolution("minimatch", "10.2.5")
@@ -674,6 +811,8 @@ rootProject.extensions.configure<YarnRootExtension>("kotlinYarn") {
     resolution("**/qs", "6.15.1")
     resolution("socket.io-parser", "4.2.6")
     resolution("**/socket.io-parser", "4.2.6")
+    resolution("ws", "8.20.1")
+    resolution("**/ws", "8.20.1")
 }
 
 // Path to the vendored karma-webpack patch package whose dependencies pin
