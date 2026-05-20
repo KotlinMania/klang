@@ -405,18 +405,164 @@ public/*!*/ open class Runtime(REQUESTED_HEAP_SIZE: Int = 0, REQUESTED_STACK_PTR
 }
 
 public/*!*/ interface RuntimeSyscalls {
-    fun AbstractRuntime.fopen(file: BytePointer, mode: BytePointer): CPointer<CPointer<Unit>> = TODO()
-    fun AbstractRuntime.fread(ptr: CPointer<Unit>, size: Int, nmemb: Int, stream: CPointer<CPointer<Unit>>): Int = TODO()
-    fun AbstractRuntime.fwrite(ptr: CPointer<Unit>, size: Int, nmemb: Int, stream: CPointer<CPointer<Unit>>): Int = TODO()
-    fun AbstractRuntime.fflush(stream: CPointer<CPointer<Unit>>): Int = TODO()
-    fun AbstractRuntime.ftell(stream: CPointer<CPointer<Unit>>): Long = TODO()
-    fun AbstractRuntime.fsetpos(stream: CPointer<CPointer<Unit>>, ptrHolder: LongPointer): Int = TODO()
-    fun AbstractRuntime.fgetpos(stream: CPointer<CPointer<Unit>>, ptrHolder: LongPointer): Int = TODO()
-    fun AbstractRuntime.fseek(stream: CPointer<CPointer<Unit>>, offset: Long, whence: Int): Int = TODO()
-    fun AbstractRuntime.fclose(stream: CPointer<CPointer<Unit>>): Unit = TODO()
+    fun AbstractRuntime.fopen(file: BytePointer, mode: BytePointer): CPointer<CPointer<Unit>> {
+        val handle = RuntimeStdio.open(file.readStringz(), mode.readStringz())
+        if (handle == 0) return CPointer(0)
+
+        val stream = CPointer<CPointer<Unit>>(malloc(FILE_POINTER_SIZE).ptr)
+        stream.value = CPointer(handle)
+        return stream
+    }
+
+    fun AbstractRuntime.fread(ptr: CPointer<Unit>, size: Int, nmemb: Int, stream: CPointer<CPointer<Unit>>): Int =
+        RuntimeStdio.read(stream.handleOrNull(this), size, nmemb) { index, byte ->
+            sb(ptr.ptr + index, byte)
+        }
+
+    fun AbstractRuntime.fwrite(ptr: CPointer<Unit>, size: Int, nmemb: Int, stream: CPointer<CPointer<Unit>>): Int =
+        RuntimeStdio.write(stream.handleOrNull(this), size, nmemb) { index ->
+            lb(ptr.ptr + index)
+        }
+
+    fun AbstractRuntime.fflush(stream: CPointer<CPointer<Unit>>): Int =
+        if (RuntimeStdio.isOpen(stream.handleOrNull(this))) 0 else -1
+
+    fun AbstractRuntime.ftell(stream: CPointer<CPointer<Unit>>): Long =
+        RuntimeStdio.tell(stream.handleOrNull(this))
+
+    fun AbstractRuntime.fsetpos(stream: CPointer<CPointer<Unit>>, ptrHolder: LongPointer): Int =
+        RuntimeStdio.seek(stream.handleOrNull(this), ptrHolder.value, SEEK_SET)
+
+    fun AbstractRuntime.fgetpos(stream: CPointer<CPointer<Unit>>, ptrHolder: LongPointer): Int {
+        val position = RuntimeStdio.tell(stream.handleOrNull(this))
+        if (position < 0) return -1
+        ptrHolder.value = position
+        return 0
+    }
+
+    fun AbstractRuntime.fseek(stream: CPointer<CPointer<Unit>>, offset: Long, whence: Int): Int =
+        RuntimeStdio.seek(stream.handleOrNull(this), offset, whence)
+
+    fun AbstractRuntime.fclose(stream: CPointer<CPointer<Unit>>): Unit {
+        RuntimeStdio.close(stream.handleOrNull(this))
+        if (stream.ptr != 0) free(stream)
+    }
+
+    private fun CPointer<CPointer<Unit>>.handleOrNull(runtime: AbstractRuntime): Int? =
+        if (ptr == 0) null else with(runtime) { value.ptr }
+
+    public companion object {
+        public const val SEEK_SET: Int = 0
+        public const val SEEK_CUR: Int = 1
+        public const val SEEK_END: Int = 2
+        private const val FILE_POINTER_SIZE: Int = 4
+    }
 }
 
 public/*!*/ object DummyRuntimeSyscalls : RuntimeSyscalls
+
+private object RuntimeStdio {
+    private data class FileState(
+        val path: String,
+        val readable: Boolean,
+        val writable: Boolean,
+        val append: Boolean,
+        var position: Int,
+    )
+
+    private val files: LinkedHashMap<String, ByteArray> = LinkedHashMap()
+    private val streams: LinkedHashMap<Int, FileState> = LinkedHashMap()
+    private var nextHandle: Int = 1
+
+    fun open(path: String, mode: String): Int {
+        val primaryMode = mode.firstOrNull { it == 'r' || it == 'w' || it == 'a' } ?: return 0
+        val update = mode.contains('+')
+
+        if (primaryMode == 'r' && !files.containsKey(path)) return 0
+        if (primaryMode == 'w') files[path] = ByteArray(0)
+        if (primaryMode == 'a') files.getOrPut(path) { ByteArray(0) }
+
+        val state = FileState(
+            path = path,
+            readable = primaryMode == 'r' || update,
+            writable = primaryMode == 'w' || primaryMode == 'a' || update,
+            append = primaryMode == 'a',
+            position = if (primaryMode == 'a') files.getValue(path).size else 0,
+        )
+        val handle = nextHandle++
+        streams[handle] = state
+        return handle
+    }
+
+    fun read(handle: Int?, size: Int, nmemb: Int, writeByte: (Int, Byte) -> Unit): Int {
+        val state = stream(handle) ?: return 0
+        if (!state.readable || size <= 0 || nmemb <= 0) return 0
+
+        val requested = elementBytes(size, nmemb)
+        if (requested == 0) return 0
+
+        val data = files[state.path] ?: ByteArray(0)
+        val available = (data.size - state.position).coerceAtLeast(0)
+        val bytesRead = minOf(requested, available)
+        for (index in 0 until bytesRead) {
+            writeByte(index, data[state.position + index])
+        }
+        state.position += bytesRead
+        return bytesRead / size
+    }
+
+    fun write(handle: Int?, size: Int, nmemb: Int, readByte: (Int) -> Byte): Int {
+        val state = stream(handle) ?: return 0
+        if (!state.writable || size <= 0 || nmemb <= 0) return 0
+
+        val requested = elementBytes(size, nmemb)
+        if (requested == 0) return 0
+        if (state.append) {
+            state.position = files.getOrElse(state.path) { ByteArray(0) }.size
+        }
+
+        val oldData = files.getOrElse(state.path) { ByteArray(0) }
+        val end = state.position + requested
+        val newData = if (end > oldData.size) oldData.copyOf(end) else oldData.copyOf()
+        for (index in 0 until requested) {
+            newData[state.position + index] = readByte(index)
+        }
+        files[state.path] = newData
+        state.position = end
+        return nmemb
+    }
+
+    fun isOpen(handle: Int?): Boolean = stream(handle) != null
+
+    fun tell(handle: Int?): Long = stream(handle)?.position?.toLong() ?: -1L
+
+    fun seek(handle: Int?, offset: Long, whence: Int): Int {
+        val state = stream(handle) ?: return -1
+        val size = files.getOrElse(state.path) { ByteArray(0) }.size.toLong()
+        val base = when (whence) {
+            RuntimeSyscalls.SEEK_SET -> 0L
+            RuntimeSyscalls.SEEK_CUR -> state.position.toLong()
+            RuntimeSyscalls.SEEK_END -> size
+            else -> return -1
+        }
+        val target = base + offset
+        if (target < 0L || target > Int.MAX_VALUE.toLong()) return -1
+        state.position = target.toInt()
+        return 0
+    }
+
+    fun close(handle: Int?) {
+        if (handle != null) streams.remove(handle)
+    }
+
+    private fun stream(handle: Int?): FileState? =
+        if (handle == null || handle == 0) null else streams[handle]
+
+    private fun elementBytes(size: Int, nmemb: Int): Int {
+        val total = size.toLong() * nmemb.toLong()
+        return if (total > Int.MAX_VALUE.toLong()) Int.MAX_VALUE else total.toInt()
+    }
+}
 
 //////////////////////
 
