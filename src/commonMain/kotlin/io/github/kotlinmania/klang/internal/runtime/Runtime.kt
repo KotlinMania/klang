@@ -74,7 +74,8 @@ package io.github.kotlinmania.klang.internal.runtime
  * @see io.github.kotlinmania.klang.mem.KMalloc For heap allocation implementation
  */
 @Suppress("MemberVisibilityCanBePrivate", "FunctionName", "CanBeVal", "DoubleNegation", "LocalVariableName", "NAME_SHADOWING", "VARIABLE_WITH_REDUNDANT_INITIALIZER", "RemoveRedundantCallsOfConversionMethods", "EXPERIMENTAL_IS_NOT_ENABLED", "RedundantExplicitType", "RemoveExplicitTypeArguments", "RedundantExplicitType", "unused", "UNCHECKED_CAST", "UNUSED_VARIABLE", "UNUSED_PARAMETER", "NOTHING_TO_INLINE", "PropertyName", "ClassName", "USELESS_CAST", "PrivatePropertyName", "CanBeParameter", "UnusedMainParameter")
-@OptIn(ExperimentalUnsignedTypes::class)
+@OptIn(ExperimentalUnsignedTypes::class, kotlin.experimental.ExperimentalObjCRefinement::class)
+@kotlin.native.HiddenFromObjC
 public/*!*/ abstract class AbstractRuntime(val REQUESTED_HEAP_SIZE: Int = 0, val REQUESTED_STACK_PTR: Int = 0, val __syscalls: RuntimeSyscalls = DummyRuntimeSyscalls) : RuntimeSyscalls by __syscalls {
     val HEAP_SIZE: Int = if (REQUESTED_HEAP_SIZE <= 0) 16 * 1024 * 1024 else REQUESTED_HEAP_SIZE // 16 MB default
     var STACK_PTR: Int = if (REQUESTED_STACK_PTR == 0) HEAP_SIZE else REQUESTED_STACK_PTR // 0.5 MB
@@ -378,6 +379,8 @@ public/*!*/ abstract class AbstractRuntime(val REQUESTED_HEAP_SIZE: Int = 0, val
 }
 
 @Suppress("UNCHECKED_CAST")
+@OptIn(kotlin.experimental.ExperimentalObjCRefinement::class)
+@kotlin.native.HiddenFromObjC
 public/*!*/ open class Runtime(REQUESTED_HEAP_SIZE: Int = 0, REQUESTED_STACK_PTR: Int = 0, __syscalls: RuntimeSyscalls = DummyRuntimeSyscalls) : AbstractRuntime(REQUESTED_HEAP_SIZE, REQUESTED_STACK_PTR, __syscalls) {
     init {
         // Initialize pure-Kotlin heap allocator
@@ -404,6 +407,8 @@ public/*!*/ open class Runtime(REQUESTED_HEAP_SIZE: Int = 0, REQUESTED_STACK_PTR
     }
 }
 
+@OptIn(kotlin.experimental.ExperimentalObjCRefinement::class)
+@kotlin.native.HiddenFromObjC
 public/*!*/ interface RuntimeSyscalls {
     fun AbstractRuntime.fopen(file: BytePointer, mode: BytePointer): CPointer<CPointer<Unit>> {
         val handle = RuntimeStdio.open(file.readStringz(), mode.readStringz())
@@ -459,6 +464,8 @@ public/*!*/ interface RuntimeSyscalls {
     }
 }
 
+@OptIn(kotlin.experimental.ExperimentalObjCRefinement::class)
+@kotlin.native.HiddenFromObjC
 public/*!*/ object DummyRuntimeSyscalls : RuntimeSyscalls
 
 private object RuntimeStdio {
