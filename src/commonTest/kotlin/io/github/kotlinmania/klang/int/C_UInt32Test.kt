@@ -5,57 +5,56 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 
 class C_UInt32Test {
 
     @BeforeTest
-    fun setup() {
-        KMalloc.init(64 * 1024)
-    }
+    fun setup() { KMalloc.init(64 * 1024) }
 
     @Test
-    fun zeroAndOne() {
+    fun zeroOneMax() {
         assertEquals(0u, C_UInt32.zero().toUInt())
         assertEquals(1u, C_UInt32.one().toUInt())
         assertEquals(UInt.MAX_VALUE, C_UInt32.maxValue().toUInt())
     }
 
     @Test
-    fun fromUIntRoundTrip() {
-        for (v in listOf(0u, 1u, 42u, 0xDEADBEEFu, 0xFFFFFFFFu, UInt.MAX_VALUE)) {
+    fun roundTripUInt() {
+        for (v in listOf(0u, 1u, 0x12345678u, 0xCAFEBABEu, 0xDEADBEEFu, UInt.MAX_VALUE)) {
             assertEquals(v, C_UInt32.fromUInt(v).toUInt())
         }
     }
 
     @Test
-    fun addition() {
-        val a = C_UInt32.fromUInt(100u)
-        val b = C_UInt32.fromUInt(250u)
-        assertEquals(350u, (a + b).toUInt())
+    fun fromIntPreservesBitPattern() {
+        // -1 → 0xFFFFFFFF as unsigned
+        assertEquals(UInt.MAX_VALUE, C_UInt32.fromInt(-1).toUInt())
+        assertEquals(0x80000000u, C_UInt32.fromInt(Int.MIN_VALUE).toUInt())
     }
 
     @Test
-    fun additionWrapsOnOverflow() {
-        val max = C_UInt32.maxValue()
-        val one = C_UInt32.one()
-        assertEquals(0u, (max + one).toUInt())
+    fun additionWraps() {
+        assertEquals(0u, (C_UInt32.maxValue() + C_UInt32.one()).toUInt())
+        assertEquals(UInt.MAX_VALUE - 1u, (C_UInt32.maxValue() + C_UInt32.maxValue()).toUInt())
+        assertEquals(0x1_0000_0000u.toUInt() - 1u,
+                     (C_UInt32.fromUInt(0xFFFFFFFFu) + C_UInt32.zero()).toUInt())
     }
 
     @Test
-    fun subtractionWrapsBelowZero() {
-        val zero = C_UInt32.zero()
-        val one = C_UInt32.one()
-        assertEquals(UInt.MAX_VALUE, (zero - one).toUInt())
+    fun subtractionWraps() {
+        assertEquals(UInt.MAX_VALUE, (C_UInt32.zero() - C_UInt32.one()).toUInt())
+        assertEquals(UInt.MAX_VALUE - 1u, (C_UInt32.zero() - C_UInt32.fromUInt(2u)).toUInt())
     }
 
     @Test
     fun multiplicationWraps() {
-        val a = C_UInt32.fromUInt(0x10000u) // 2^16
-        val b = C_UInt32.fromUInt(0x10000u)
-        // 2^32 wraps to 0
-        assertEquals(0u, (a * b).toUInt())
+        val a = C_UInt32.fromUInt(0x10000u)  // 2^16
+        assertEquals(0u, (a * a).toUInt())
+        // MAX * MAX = (2^32 - 1)^2 → low 32 bits = 1
+        assertEquals(1u, (C_UInt32.maxValue() * C_UInt32.maxValue()).toUInt())
     }
 
     @Test
@@ -64,40 +63,62 @@ class C_UInt32Test {
         val b = C_UInt32.fromUInt(7u)
         assertEquals(14u, (a / b).toUInt())
         assertEquals(2u, (a % b).toUInt())
+        // Large unsigned division
+        assertEquals(0x10000u, (C_UInt32.fromUInt(0x10000000u) / C_UInt32.fromUInt(0x1000u)).toUInt())
     }
 
     @Test
     fun divisionByZeroThrows() {
         val a = C_UInt32.fromUInt(10u)
-        val zero = C_UInt32.zero()
-        assertFailsWith<IllegalArgumentException> { a / zero }
-        assertFailsWith<IllegalArgumentException> { a % zero }
+        assertFailsWith<IllegalArgumentException> { a / C_UInt32.zero() }
+        assertFailsWith<IllegalArgumentException> { a % C_UInt32.zero() }
     }
 
     @Test
-    fun bitwiseOps() {
+    fun bitwiseTruthTables() {
         val a = C_UInt32.fromUInt(0xFF00FF00u)
         val b = C_UInt32.fromUInt(0x00FF00FFu)
         assertEquals(0u, (a and b).toUInt())
         assertEquals(0xFFFFFFFFu, (a or b).toUInt())
         assertEquals(0xFFFFFFFFu, (a xor b).toUInt())
-        assertEquals(0x00FF00FFu, a.inv().toUInt())
+        assertEquals(0u, (a xor a).toUInt())
+        assertEquals(b.toUInt(), a.inv().toUInt())
+        assertEquals(UInt.MAX_VALUE, C_UInt32.zero().inv().toUInt())
     }
 
     @Test
-    fun shifts() {
-        val v = C_UInt32.fromUInt(0x00000001u)
-        assertEquals(0x80000000u, v.shiftLeft(31).toUInt())
-        val high = C_UInt32.fromUInt(0x80000000u)
-        assertEquals(0x00000001u, high.shiftRight(31).toUInt())
+    fun shiftLeftAcrossWidth() {
+        val one = C_UInt32.one()
+        assertEquals(2u, one.shiftLeft(1).toUInt())
+        assertEquals(0x10000u, one.shiftLeft(16).toUInt())
+        assertEquals(0x80000000u, one.shiftLeft(31).toUInt())
+        assertEquals(0xCAFEBABEu, C_UInt32.fromUInt(0xCAFEBABEu).shiftLeft(0).toUInt())
+    }
+
+    @Test
+    fun shiftLeftWrapsHighBits() {
+        assertEquals(0xFFFFFFFEu, C_UInt32.maxValue().shiftLeft(1).toUInt())
+        assertEquals(0u, C_UInt32.fromUInt(0x80000000u).shiftLeft(1).toUInt())
+    }
+
+    @Test
+    fun shiftRightZeroFill() {
+        assertEquals(0x40000000u, C_UInt32.fromUInt(0x80000000u).shiftRight(1).toUInt())
+        assertEquals(1u, C_UInt32.fromUInt(0x80000000u).shiftRight(31).toUInt())
+        assertEquals(0x7FFFFFFFu, C_UInt32.fromUInt(0xFFFFFFFFu).shiftRight(1).toUInt())
+    }
+
+    @Test
+    fun shiftRangeReject() {
+        assertFailsWith<IllegalArgumentException> { C_UInt32.one().shiftLeft(32) }
+        assertFailsWith<IllegalArgumentException> { C_UInt32.one().shiftRight(32) }
     }
 
     @Test
     fun comparison() {
-        val small = C_UInt32.fromUInt(100u)
-        val big = C_UInt32.fromUInt(UInt.MAX_VALUE)
-        assertTrue(small < big)
-        assertFalse(big < small)
+        assertTrue(C_UInt32.fromUInt(100u) < C_UInt32.maxValue())
+        // 0x80000000u (= -1 if reinterpreted as signed) is still less than MAX
+        assertTrue(C_UInt32.fromUInt(0x80000000u) < C_UInt32.maxValue())
         assertEquals(0, C_UInt32.fromUInt(42u).compareTo(C_UInt32.fromUInt(42u)))
     }
 
@@ -105,15 +126,17 @@ class C_UInt32Test {
     fun equalsAndHashCode() {
         val a = C_UInt32.fromUInt(0xCAFEBABEu)
         val b = C_UInt32.fromUInt(0xCAFEBABEu)
-        val c = C_UInt32.fromUInt(0xDEADBEEFu)
         assertEquals(a, b)
+        assertNotEquals(a, C_UInt32.fromUInt(0xDEADBEEFu))
         assertEquals(a.hashCode(), b.hashCode())
-        assertTrue(a != c)
+        assertFalse(a.equals(0xCAFEBABEu))
+        assertFalse(a.equals(null))
     }
 
     @Test
     fun hexFormat() {
         assertEquals("0x00000000", C_UInt32.zero().toHexString())
+        assertEquals("0x0000000a", C_UInt32.fromUInt(10u).toHexString())
         assertEquals("0xdeadbeef", C_UInt32.fromUInt(0xDEADBEEFu).toHexString())
         assertEquals("0xffffffff", C_UInt32.maxValue().toHexString())
     }

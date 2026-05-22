@@ -5,15 +5,14 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 
 class C_Int32Test {
 
     @BeforeTest
-    fun setup() {
-        KMalloc.init(64 * 1024)
-    }
+    fun setup() { KMalloc.init(64 * 1024) }
 
     @Test
     fun zeroOneMinMax() {
@@ -24,8 +23,8 @@ class C_Int32Test {
     }
 
     @Test
-    fun fromIntRoundTrip() {
-        for (v in listOf(0, 1, -1, 42, -42, Int.MIN_VALUE, Int.MAX_VALUE)) {
+    fun roundTripInt() {
+        for (v in listOf(0, 1, -1, 42, -42, 0x7FFFFFFF, Int.MIN_VALUE, Int.MAX_VALUE)) {
             assertEquals(v, C_Int32.fromInt(v).toInt())
         }
     }
@@ -33,93 +32,110 @@ class C_Int32Test {
     @Test
     fun signDetection() {
         assertTrue(C_Int32.fromInt(-1).isNegative())
-        assertFalse(C_Int32.zero().isNegative())
-        assertFalse(C_Int32.fromInt(1).isNegative())
         assertTrue(C_Int32.minValue().isNegative())
+        assertFalse(C_Int32.zero().isNegative())
+        assertFalse(C_Int32.maxValue().isNegative())
     }
 
     @Test
-    fun additionPositiveAndNegative() {
+    fun additionMixedSigns() {
         assertEquals(50, (C_Int32.fromInt(100) + C_Int32.fromInt(-50)).toInt())
         assertEquals(-50, (C_Int32.fromInt(-100) + C_Int32.fromInt(50)).toInt())
+        assertEquals(0, (C_Int32.fromInt(-12345) + C_Int32.fromInt(12345)).toInt())
     }
 
     @Test
-    fun additionWrapsOnOverflow() {
-        // Int.MAX_VALUE + 1 wraps to Int.MIN_VALUE in two's complement
+    fun additionWraps() {
         assertEquals(Int.MIN_VALUE, (C_Int32.maxValue() + C_Int32.one()).toInt())
+        assertEquals(Int.MAX_VALUE, (C_Int32.minValue() + C_Int32.fromInt(-1)).toInt())
+        assertEquals(-2, (C_Int32.maxValue() + C_Int32.maxValue()).toInt())
     }
 
     @Test
-    fun subtraction() {
-        assertEquals(150, (C_Int32.fromInt(100) - C_Int32.fromInt(-50)).toInt())
+    fun subtractionWraps() {
+        assertEquals(Int.MAX_VALUE, (C_Int32.minValue() - C_Int32.one()).toInt())
     }
 
     @Test
-    fun negation() {
+    fun negationAndAbs() {
         assertEquals(-100, C_Int32.fromInt(100).negate().toInt())
-        assertEquals(100, C_Int32.fromInt(-100).negate().toInt())
-        // -MIN_VALUE wraps back to MIN_VALUE (two's complement)
+        assertEquals(100, C_Int32.fromInt(-100).abs().toInt())
+        assertEquals(Int.MAX_VALUE, C_Int32.maxValue().abs().toInt())
+        // -MIN wraps to MIN in two's complement
         assertEquals(Int.MIN_VALUE, C_Int32.minValue().negate().toInt())
-    }
-
-    @Test
-    fun unaryMinusOperator() {
+        assertEquals(Int.MIN_VALUE, C_Int32.minValue().abs().toInt())
         assertEquals(-42, (-C_Int32.fromInt(42)).toInt())
     }
 
     @Test
-    fun absoluteValue() {
-        assertEquals(100, C_Int32.fromInt(-100).abs().toInt())
-        assertEquals(100, C_Int32.fromInt(100).abs().toInt())
-    }
-
-    @Test
-    fun multiplication() {
+    fun multiplicationWraps() {
         assertEquals(-200, (C_Int32.fromInt(10) * C_Int32.fromInt(-20)).toInt())
+        assertEquals(200, (C_Int32.fromInt(-10) * C_Int32.fromInt(-20)).toInt())
+        // 0x10000 * 0x10000 = 0x1_00000000 → low 32 bits = 0
+        assertEquals(0, (C_Int32.fromInt(0x10000) * C_Int32.fromInt(0x10000)).toInt())
     }
 
     @Test
     fun divisionAndModulus() {
-        val a = C_Int32.fromInt(-100)
-        val b = C_Int32.fromInt(7)
-        assertEquals(-100 / 7, (a / b).toInt())
-        assertEquals(-100 % 7, (a % b).toInt())
+        assertEquals(-100 / 7, (C_Int32.fromInt(-100) / C_Int32.fromInt(7)).toInt())
+        assertEquals(-100 % 7, (C_Int32.fromInt(-100) % C_Int32.fromInt(7)).toInt())
+        assertEquals(100 / -7, (C_Int32.fromInt(100) / C_Int32.fromInt(-7)).toInt())
+        assertEquals((-100) / (-7), (C_Int32.fromInt(-100) / C_Int32.fromInt(-7)).toInt())
+        assertFailsWith<IllegalArgumentException> { C_Int32.fromInt(1) / C_Int32.zero() }
+        assertFailsWith<IllegalArgumentException> { C_Int32.fromInt(1) % C_Int32.zero() }
     }
 
     @Test
-    fun divisionByZeroThrows() {
-        val a = C_Int32.fromInt(10)
-        val zero = C_Int32.zero()
-        assertFailsWith<IllegalArgumentException> { a / zero }
-        assertFailsWith<IllegalArgumentException> { a % zero }
-    }
-
-    @Test
-    fun bitwiseOps() {
+    fun bitwiseTruthTables() {
         val a = C_Int32.fromInt(0x0F0F0F0F)
         val b = C_Int32.fromInt(0x00FF00FF)
         assertEquals(0x0F0F0F0F and 0x00FF00FF, (a and b).toInt())
         assertEquals(0x0F0F0F0F or 0x00FF00FF, (a or b).toInt())
         assertEquals(0x0F0F0F0F xor 0x00FF00FF, (a xor b).toInt())
-        assertEquals((0x0F0F0F0F).inv(), a.inv().toInt())
+        // ~0 = -1; double-inv identity
+        assertEquals(-1, C_Int32.zero().inv().toInt())
+        assertEquals(0xCAFEBABE.toInt(), C_Int32.fromInt(0xCAFEBABE.toInt()).inv().inv().toInt())
     }
 
     @Test
-    fun arithmeticAndLogicalShifts() {
-        val neg = C_Int32.fromInt(-256)
-        // Arithmetic right shift preserves sign
-        assertEquals(-64, neg.shiftRight(2).toInt())
-        // Logical right shift fills zero
-        assertEquals((-256).ushr(2), neg.shiftRightUnsigned(2).toInt())
-        // Left shift
+    fun shiftLeftAcrossWidth() {
         assertEquals(2, C_Int32.one().shiftLeft(1).toInt())
+        assertEquals(0x40000000, C_Int32.one().shiftLeft(30).toInt())
+        // Shift 1 → bit 31 → MIN_VALUE
+        assertEquals(Int.MIN_VALUE, C_Int32.one().shiftLeft(31).toInt())
     }
 
     @Test
-    fun comparison() {
+    fun arithmeticRightShiftSignExtends() {
+        // -256 >> 2 = -64
+        assertEquals(-64, C_Int32.fromInt(-256).shiftRight(2).toInt())
+        // -1 >> 31 stays -1
+        assertEquals(-1, C_Int32.fromInt(-1).shiftRight(31).toInt())
+        // 256 >> 2 = 64
+        assertEquals(64, C_Int32.fromInt(256).shiftRight(2).toInt())
+        // identity
+        assertEquals(-1234567, C_Int32.fromInt(-1234567).shiftRight(0).toInt())
+    }
+
+    @Test
+    fun logicalRightShiftZeroFill() {
+        // -1 ushr 1 → 0x7FFFFFFF
+        assertEquals(0x7FFFFFFF, C_Int32.fromInt(-1).shiftRightUnsigned(1).toInt())
+        // -256 ushr 8 → 0xFFFFFF00 ushr 8 = 0x00FFFFFF
+        assertEquals(0x00FFFFFF, C_Int32.fromInt(-256).shiftRightUnsigned(8).toInt())
+    }
+
+    @Test
+    fun shiftRangeReject() {
+        assertFailsWith<IllegalArgumentException> { C_Int32.one().shiftLeft(32) }
+        assertFailsWith<IllegalArgumentException> { C_Int32.one().shiftRight(32) }
+    }
+
+    @Test
+    fun comparisonAcrossSigns() {
         assertTrue(C_Int32.fromInt(-1) < C_Int32.zero())
         assertTrue(C_Int32.minValue() < C_Int32.maxValue())
+        assertTrue(C_Int32.minValue() < C_Int32.fromInt(Int.MIN_VALUE + 1))
         assertEquals(0, C_Int32.fromInt(42).compareTo(C_Int32.fromInt(42)))
     }
 
@@ -128,6 +144,17 @@ class C_Int32Test {
         val a = C_Int32.fromInt(-12345)
         val b = C_Int32.fromInt(-12345)
         assertEquals(a, b)
+        assertNotEquals(a, C_Int32.fromInt(12345))
         assertEquals(a.hashCode(), b.hashCode())
+        assertFalse(a.equals(-12345))
+        assertFalse(a.equals(null))
+    }
+
+    @Test
+    fun hexFormat() {
+        assertEquals("0x00000000", C_Int32.zero().toHexString())
+        assertEquals("0xffffffff", C_Int32.fromInt(-1).toHexString())
+        assertEquals("0x80000000", C_Int32.minValue().toHexString())
+        assertEquals("0x7fffffff", C_Int32.maxValue().toHexString())
     }
 }
