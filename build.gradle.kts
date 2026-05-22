@@ -474,7 +474,50 @@ benchmark {
     }
 }
 
+// embedSwiftExportForXcode reads several SDK_*/CONFIGURATION/TARGET_*
+// environment variables that Xcode injects during a swiftpm/xcodebuild
+// invocation. When invoked from a plain `./gradlew build` on CI or
+// locally those variables are absent and the task fails. Gate it on the
+// Xcode environment being present, or on explicit invocation by the
+// user (the task name appears in gradle.startParameter.taskNames). This
+// matches the syn-kotlin pattern.
+val xcodeSwiftExportEnvironmentNames = listOf(
+    "SDK_NAME",
+    "CONFIGURATION",
+    "TARGET_BUILD_DIR",
+    "BUILT_PRODUCTS_DIR",
+    "ARCHS",
+    "FRAMEWORKS_FOLDER_PATH",
+    "DEPLOYMENT_TARGET_SETTING_NAME",
+)
+
+fun hasXcodeSwiftExportEnvironment(): Boolean {
+    if (!xcodeSwiftExportEnvironmentNames.all { !System.getenv(it).isNullOrBlank() }) {
+        return false
+    }
+    val deploymentTargetSettingName = System.getenv("DEPLOYMENT_TARGET_SETTING_NAME")
+    return !System.getenv(deploymentTargetSettingName).isNullOrBlank()
+}
+
+val swiftExportTaskDirectlyRequested =
+    gradle.startParameter.taskNames.any {
+        it == "embedSwiftExportForXcode" || it.endsWith(":embedSwiftExportForXcode")
+    }
+
+tasks.matching { it.name == "embedSwiftExportForXcode" }.configureEach {
+    onlyIf {
+        val hasXcodeEnvironment = hasXcodeSwiftExportEnvironment()
+        if (!hasXcodeEnvironment && !swiftExportTaskDirectlyRequested) {
+            logger.lifecycle(
+                "embedSwiftExportForXcode: skipped because Xcode environment variables are not present",
+            )
+        }
+        hasXcodeEnvironment || swiftExportTaskDirectlyRequested
+    }
+}
+
 val fullTargetBuildTaskNames = setOf(
+    // Android KMP + host/device test
     "compileAndroidMain",
     "compileAndroidHostTest",
     "compileAndroidDeviceTest",
@@ -484,28 +527,68 @@ val fullTargetBuildTaskNames = setOf(
     "assembleUnitTest",
     "assembleAndroidTest",
     "testAndroidHostTest",
+    // JVM
+    "jvmMainClasses",
+    "jvmTestClasses",
+    "jvmTest",
+    // JS
     "jsMainClasses",
     "jsTestClasses",
     "jsBrowserTest",
     "jsNodeTest",
     "jsTest",
+    // Wasm-JS + Wasm-WASI
     "wasmJsMainClasses",
     "wasmJsTestClasses",
     "wasmJsBrowserTest",
     "wasmJsNodeTest",
     "wasmJsTest",
+    "wasmWasiMainClasses",
+    "wasmWasiTestClasses",
+    "wasmWasiNodeTest",
+    "wasmWasiTest",
+    // Android Native (cross-compile only — no test execution)
+    "androidNativeArm32Binaries",
+    "androidNativeArm32TestBinaries",
+    "androidNativeArm64Binaries",
+    "androidNativeArm64TestBinaries",
+    "androidNativeX64Binaries",
+    "androidNativeX64TestBinaries",
+    "androidNativeX86Binaries",
+    "androidNativeX86TestBinaries",
+    // iOS
     "iosArm64Binaries",
     "iosArm64TestBinaries",
     "iosSimulatorArm64Binaries",
     "iosSimulatorArm64TestBinaries",
+    "iosX64Binaries",
+    "iosX64TestBinaries",
+    // Linux
     "linuxArm64Binaries",
     "linuxArm64TestBinaries",
     "linuxX64Binaries",
     "linuxX64TestBinaries",
+    // macOS
     "macosArm64Binaries",
     "macosArm64TestBinaries",
+    // Mingw
     "mingwX64Binaries",
     "mingwX64TestBinaries",
+    // tvOS
+    "tvosArm64Binaries",
+    "tvosArm64TestBinaries",
+    "tvosSimulatorArm64Binaries",
+    "tvosSimulatorArm64TestBinaries",
+    // watchOS
+    "watchosArm32Binaries",
+    "watchosArm32TestBinaries",
+    "watchosArm64Binaries",
+    "watchosArm64TestBinaries",
+    "watchosDeviceArm64Binaries",
+    "watchosDeviceArm64TestBinaries",
+    "watchosSimulatorArm64Binaries",
+    "watchosSimulatorArm64TestBinaries",
+    // XCFramework + Swift export
     "assembleKLangXCFramework",
 )
 
@@ -522,8 +605,10 @@ afterEvaluate {
                     name.endsWith("TestClasses") ||
                     name.endsWith("Binaries") ||
                     name.endsWith("XCFramework") ||
+                    name == "embedSwiftExportForXcode" ||
                     name.startsWith("exportCommonSourceSetsMetadataLocationsFor") ||
                     name.startsWith("exportRootPublicationCoordinatesFor") ||
+                    name.startsWith("exportCrossCompilationMetadataFor") ||
                     name.startsWith("exportTargetPublicationCoordinatesFor")
             },
         )
@@ -554,16 +639,13 @@ val patchWasmWasiNodeRunner = tasks.register("patchWasmWasiNodeRunner") {
             "const wasi = new WASI({ version: 'preview1', args: argv, env, });",
             "const wasi = new WASI({ version: 'preview1', args: argv, env, preopens: { '/': cwd() }, });",
         )
-        val withInitializedWasi = withPreopens.replace(
-            "const wasmInstance = new WebAssembly.Instance(wasmModule, wasi.getImportObject());",
-            "const wasmInstance = new WebAssembly.Instance(wasmModule, wasi.getImportObject());\n\n" +
-                "if (typeof wasi.initialize === 'function') wasi.initialize(wasmInstance);",
-        )
-        val patched = withInitializedWasi.replace(
-            "wasi.finalizeBindings(wasmInstance);",
-            "if (typeof wasi.finalizeBindings === 'function') wasi.finalizeBindings(wasmInstance);",
-        )
-        runnerFile.writeText(patched)
+        // The generated runner already calls `wasi.finalizeBindings(wasmInstance)`,
+        // which is the correct entry point on Node 24 (workspace standard). Older
+        // Node versions exposed `wasi.initialize` instead; we used to inject that
+        // call as a fallback, but Node 24 has BOTH methods and calling them in
+        // sequence trips ERR_WASI_ALREADY_STARTED. Leave the generated
+        // finalizeBindings call as-is.
+        runnerFile.writeText(withPreopens)
     }
 }
 
@@ -738,16 +820,19 @@ rootProject.plugins.withType(org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJ
 }
 
 // ---------------------------------------------------------------------------
-// Kotlin/JS toolchain — pin Node 22 LTS and Yarn 1.22.22, plus webpack/karma
-// versions that close the dependabot alerts on the kotlin-js-store yarn lock.
+// Kotlin/JS toolchain — pin Node 24 (Active LTS "Krypton") and Yarn 1.22.22,
+// plus webpack/karma versions that close the dependabot alerts on the
+// kotlin-js-store yarn lock. Node 24 is required for the generated
+// wasmWasiNodeTest runner: it calls `wasi.finalizeBindings(...)`, which
+// only exists on Node 24+.
 // ---------------------------------------------------------------------------
 
 rootProject.extensions.configure<NodeJsEnvSpec>("kotlinNodeJsSpec") {
-    version.set("22.22.2")
+    version.set("24.15.0")
 }
 
 rootProject.extensions.configure<WasmNodeJsEnvSpec>("kotlinWasmNodeJsSpec") {
-    version.set("22.22.2")
+    version.set("24.15.0")
 }
 
 rootProject.extensions.configure<YarnRootEnvSpec>("kotlinYarnSpec") {
