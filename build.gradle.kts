@@ -40,7 +40,7 @@ allOpen {
 }
 
 group = "io.github.kotlinmania"
-version = "0.8.0"
+version = "0.8.1"
 
 val hostOsName: String = System.getProperty("os.name").lowercase()
 val isWindowsHost: Boolean = hostOsName.contains("windows") || hostOsName.contains("mingw")
