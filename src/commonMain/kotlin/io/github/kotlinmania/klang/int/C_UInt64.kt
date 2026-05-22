@@ -8,18 +8,14 @@ import io.github.kotlinmania.klang.mem.KMalloc
 /**
  * C_UInt64: C-compatible `uint64_t` with zero-copy heap operations.
  *
- * Range: 0 to 2^64 - 1. Shifts/bitwise/masks go through a [BitShiftEngine]
- * configured for 64 bits. Arithmetic uses Kotlin's `ULong` (which wraps
- * modulo 2^64 — matching unsigned C semantics).
+ * Range: 0 to 2^64 - 1. Shifts route through a [BitShiftEngine] configured
+ * for 64 bits. Arithmetic uses Kotlin's `ULong` (which wraps modulo 2^64 —
+ * matching unsigned C semantics). AND/OR/XOR/NOT use native operators on
+ * full Long values (the stored bit pattern is identical to ULong).
  */
 class C_UInt64 private constructor(val addr: Int) : Comparable<C_UInt64> {
 
-    /**
-     * Raw 64-bit stored value as Long. Since the engine works on Long
-     * and ULong's bit pattern is identical, no engine roundtrip needed
-     * to load — but every downstream bitwise/shift operation still goes
-     * through the engine.
-     */
+    /** Raw 64-bit stored value as Long. */
     private fun toRawLong(): Long = GlobalHeap.ld(addr)
 
     fun toULong(): ULong = toRawLong().toULong()
@@ -61,15 +57,15 @@ class C_UInt64 private constructor(val addr: Int) : Comparable<C_UInt64> {
     }
 
     infix fun and(other: C_UInt64): C_UInt64 =
-        store(engine.bitwiseAnd(this.toRawLong(), other.toRawLong()))
+        store(this.toRawLong() and other.toRawLong())
 
     infix fun or(other: C_UInt64): C_UInt64 =
-        store(engine.bitwiseOr(this.toRawLong(), other.toRawLong()))
+        store(this.toRawLong() or other.toRawLong())
 
     infix fun xor(other: C_UInt64): C_UInt64 =
-        store(engine.bitwiseXor(this.toRawLong(), other.toRawLong()))
+        store(this.toRawLong() xor other.toRawLong())
 
-    fun inv(): C_UInt64 = store(engine.bitwiseNot(this.toRawLong()))
+    fun inv(): C_UInt64 = store(this.toRawLong().inv())
 
     fun shiftLeft(bits: Int): C_UInt64 {
         require(bits in 0..63) { "C_UInt64 shift amount out of range: $bits" }
@@ -92,14 +88,14 @@ class C_UInt64 private constructor(val addr: Int) : Comparable<C_UInt64> {
     companion object {
         const val BYTES: Int = 8
 
-        /** BitShiftEngine for 64-bit operations. */
+        /** BitShiftEngine for 64-bit shifts. */
         private val engine = BitShiftEngine(BitShiftMode.NATIVE, 64)
 
         fun alloc(): C_UInt64 = C_UInt64(KMalloc.malloc(BYTES))
         fun zero(): C_UInt64 = alloc().also { GlobalHeap.sd(it.addr, 0L) }
         fun one(): C_UInt64 = alloc().also { GlobalHeap.sd(it.addr, 1L) }
         /** All-1s bit pattern = 2^64 - 1. */
-        fun maxValue(): C_UInt64 = alloc().also { GlobalHeap.sd(it.addr, engine.bitwiseNot(0L)) }
+        fun maxValue(): C_UInt64 = alloc().also { GlobalHeap.sd(it.addr, 0L.inv()) }
 
         fun fromULong(value: ULong): C_UInt64 =
             alloc().also { GlobalHeap.sd(it.addr, value.toLong()) }
