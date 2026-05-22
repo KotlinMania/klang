@@ -396,13 +396,14 @@ kotlin {
         }
         commonTest {
             dependencies {
-                implementation("org.jetbrains.kotlin:kotlin-test-annotations-common")
-                implementation("org.jetbrains.kotlin:kotlin-test-common")
-            }
-        }
-        named("jsTest") {
-            dependencies {
-                implementation("org.jetbrains.kotlin:kotlin-test-js")
+                // kotlin("test") resolves to the right per-target test artifact
+                // (kotlin-test-junit on Android host JVM, kotlin-test-js on JS,
+                // kotlin-test-wasm-* on Wasm, etc.) so every target's test
+                // compilation has kotlin.test.Test/BeforeTest/etc. on its
+                // classpath. The old explicit kotlin-test-common /
+                // kotlin-test-annotations-common pair did not propagate to
+                // the Android KMP target's host-test compilation.
+                implementation(kotlin("test"))
             }
         }
     }
