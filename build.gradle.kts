@@ -310,12 +310,14 @@ kotlin {
     iosSimulatorArm64 {
         binaries.framework {
             baseName = "KLang"
+            isStatic = true
             xcf.add(this)
         }
     }
     iosX64 {
         binaries.framework {
             baseName = "KLang"
+            isStatic = true
             xcf.add(this)
         }
     }
