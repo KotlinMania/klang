@@ -40,7 +40,7 @@ allOpen {
 }
 
 group = "io.github.kotlinmania"
-version = "0.8.0"
+version = "0.8.1"
 
 val hostOsName: String = System.getProperty("os.name").lowercase()
 val isWindowsHost: Boolean = hostOsName.contains("windows") || hostOsName.contains("mingw")
@@ -304,18 +304,21 @@ kotlin {
     iosArm64 {
         binaries.framework {
             baseName = "KLang"
+            isStatic = true
             xcf.add(this)
         }
     }
     iosSimulatorArm64 {
         binaries.framework {
             baseName = "KLang"
+            isStatic = true
             xcf.add(this)
         }
     }
     iosX64 {
         binaries.framework {
             baseName = "KLang"
+            isStatic = true
             xcf.add(this)
         }
     }
@@ -956,6 +959,24 @@ tasks.register("setupAndroidSdk") {
     doLast {
         installProjectAndroidSdk(androidSdkExecOperations)
     }
+}
+
+tasks.register("test") {
+    group = "verification"
+    description =
+        "Runs the host-portable test suite (macOS + JS + WasmJS + Android unit). " +
+        "Non-host native targets only run on their own host."
+
+    val defaultTestTasks = listOf(
+        "macosArm64Test",
+        "jvmTest",
+        "jsNodeTest",
+        "wasmJsNodeTest",
+        "compileAndroidMain",
+        "assembleUnitTest",
+    )
+
+    dependsOn(defaultTestTasks.mapNotNull { taskName -> tasks.findByName(taskName) })
 }
 
 // CodeQL's Gradle autobuild invokes `./gradlew testClasses`, which is a

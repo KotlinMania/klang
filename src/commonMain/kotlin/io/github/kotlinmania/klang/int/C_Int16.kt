@@ -1,0 +1,137 @@
+package io.github.kotlinmania.klang.int
+
+import io.github.kotlinmania.klang.bitwise.BitShiftEngine
+import io.github.kotlinmania.klang.bitwise.BitShiftMode
+import io.github.kotlinmania.klang.mem.GlobalHeap
+import io.github.kotlinmania.klang.mem.KMalloc
+
+/**
+ * C_Int16: C-compatible `int16_t` with zero-copy heap operations.
+ *
+ * Range: -32_768 to 32_767 (two's complement). Shifts/bitwise/masks all go
+ * through a [BitShiftEngine] configured for 16 bits.
+ */
+class C_Int16 private constructor(val addr: Int) : Comparable<C_Int16> {
+
+    private fun toUnsignedLong(): Long = engine.bitwiseAnd(GlobalHeap.lh(addr).toLong(), MASK_16)
+    private fun toSignedLong(): Long = signExtender.signExtend(toUnsignedLong(), 16)
+
+    fun toShort(): Short = toSignedLong().toShort()
+    fun toInt(): Int = toSignedLong().toInt()
+
+    fun isNegative(): Boolean = engine.isBitSet(toUnsignedLong(), 15)
+
+    fun toHexString(): String = "0x" + toUnsignedLong().toString(16).padStart(4, '0')
+
+    override fun toString(): String = toInt().toString()
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is C_Int16) return false
+        return GlobalHeap.lh(this.addr) == GlobalHeap.lh(other.addr)
+    }
+
+    override fun hashCode(): Int = GlobalHeap.lh(addr).toInt()
+
+    override fun compareTo(other: C_Int16): Int =
+        this.toSignedLong().compareTo(other.toSignedLong())
+
+    operator fun plus(other: C_Int16): C_Int16 =
+        store(this.toSignedLong() + other.toSignedLong())
+
+    operator fun minus(other: C_Int16): C_Int16 =
+        store(this.toSignedLong() - other.toSignedLong())
+
+    operator fun times(other: C_Int16): C_Int16 =
+        store(this.toSignedLong() * other.toSignedLong())
+
+    operator fun div(other: C_Int16): C_Int16 {
+        val divisor = other.toSignedLong()
+        require(divisor != 0L) { "C_Int16 division by zero" }
+        return store(this.toSignedLong() / divisor)
+    }
+
+    operator fun rem(other: C_Int16): C_Int16 {
+        val divisor = other.toSignedLong()
+        require(divisor != 0L) { "C_Int16 modulus by zero" }
+        return store(this.toSignedLong() % divisor)
+    }
+
+    operator fun unaryMinus(): C_Int16 = negate()
+
+    fun negate(): C_Int16 = store(-this.toSignedLong())
+
+    fun abs(): C_Int16 = if (isNegative()) negate() else copy()
+
+    infix fun and(other: C_Int16): C_Int16 =
+        store(engine.bitwiseAnd(this.toUnsignedLong(), other.toUnsignedLong()))
+
+    infix fun or(other: C_Int16): C_Int16 =
+        store(engine.bitwiseOr(this.toUnsignedLong(), other.toUnsignedLong()))
+
+    infix fun xor(other: C_Int16): C_Int16 =
+        store(engine.bitwiseXor(this.toUnsignedLong(), other.toUnsignedLong()))
+
+    fun inv(): C_Int16 = store(engine.bitwiseNot(this.toUnsignedLong()))
+
+    fun shiftLeft(bits: Int): C_Int16 {
+        require(bits in 0..15) { "C_Int16 shift amount out of range: $bits" }
+        return store(engine.leftShift(this.toUnsignedLong(), bits).value)
+    }
+
+    /** Arithmetic right shift (sign-extending). */
+    fun shiftRight(bits: Int): C_Int16 {
+        require(bits in 0..15) { "C_Int16 shift amount out of range: $bits" }
+        if (bits == 0) return copy()
+        val shifted = engine.unsignedRightShift(this.toUnsignedLong(), bits).value
+        val result = if (isNegative()) {
+            val signMask = engine.bitwiseAnd(
+                engine.leftShift(engine.getMask(bits), 16 - bits).value,
+                MASK_16,
+            )
+            engine.bitwiseOr(shifted, signMask)
+        } else {
+            shifted
+        }
+        return store(result)
+    }
+
+    /** Logical right shift (zero-fill). */
+    fun shiftRightUnsigned(bits: Int): C_Int16 {
+        require(bits in 0..15) { "C_Int16 shift amount out of range: $bits" }
+        return store(engine.unsignedRightShift(this.toUnsignedLong(), bits).value)
+    }
+
+    fun copy(): C_Int16 = alloc().also { GlobalHeap.sh(it.addr, GlobalHeap.lh(this.addr)) }
+
+    private fun store(value: Long): C_Int16 {
+        val res = alloc()
+        GlobalHeap.sh(res.addr, engine.bitwiseAnd(value, MASK_16).toShort())
+        return res
+    }
+
+    companion object {
+        const val BYTES: Int = 2
+        const val MIN_VALUE: Short = Short.MIN_VALUE
+        const val MAX_VALUE: Short = Short.MAX_VALUE
+
+        /** BitShiftEngine for 16-bit operations (shifts, bitwise, width mask). */
+        private val engine = BitShiftEngine(BitShiftMode.NATIVE, 16)
+
+        /** 64-bit engine used solely to sign-extend 16-bit values to a full Long. */
+        private val signExtender = BitShiftEngine(BitShiftMode.NATIVE, 64)
+        private val MASK_16: Long = engine.getMask(16)
+
+        fun alloc(): C_Int16 = C_Int16(KMalloc.malloc(BYTES))
+        fun zero(): C_Int16 = alloc().also { GlobalHeap.sh(it.addr, 0) }
+        fun one(): C_Int16 = alloc().also { GlobalHeap.sh(it.addr, 1) }
+        fun minValue(): C_Int16 = alloc().also { GlobalHeap.sh(it.addr, MIN_VALUE) }
+        fun maxValue(): C_Int16 = alloc().also { GlobalHeap.sh(it.addr, MAX_VALUE) }
+
+        fun fromShort(value: Short): C_Int16 =
+            alloc().also { GlobalHeap.sh(it.addr, value) }
+
+        fun fromInt(value: Int): C_Int16 =
+            alloc().also { GlobalHeap.sh(it.addr, engine.bitwiseAnd(value.toLong(), MASK_16).toShort()) }
+    }
+}
