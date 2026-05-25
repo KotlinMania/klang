@@ -11,6 +11,11 @@ import io.github.kotlinmania.klang.mem.KMalloc
  * Range: Long.MIN_VALUE to Long.MAX_VALUE (two's complement). Shifts route
  * through a [BitShiftEngine] configured for 64 bits. AND/OR/XOR/NOT use
  * native operators on full Long values.
+ *
+ * @native-bitshift-allowed Native AND/OR/XOR/NOT on full Long values are
+ * uniformly safe across all targets (no alignment differences). For 64-bit
+ * values stored in Long, no width mask or sign extension is needed. Only
+ * shifts use the engine's cross-platform shift logic.
  */
 class C_Int64 private constructor(val addr: Int) : Comparable<C_Int64> {
 

@@ -11,6 +11,12 @@ import io.github.kotlinmania.klang.mem.KMalloc
  * Range: -32_768 to 32_767 (two's complement). Shifts route through a
  * [BitShiftEngine] configured for 16 bits. Sign extension uses Kotlin's
  * primitive `Short.toLong()` widening; AND/OR/XOR/NOT use native operators.
+ *
+ * @native-bitshift-allowed Native AND/OR/XOR/NOT on full Long values are
+ * uniformly safe across all targets (no alignment differences). Sign extension
+ * via primitive widening is a single CPU instruction on all backends. The width
+ * mask comes from BitShiftEngine.getMask(). Only shifts use the engine's
+ * cross-platform shift logic.
  */
 class C_Int16 private constructor(val addr: Int) : Comparable<C_Int16> {
 

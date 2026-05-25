@@ -86,8 +86,7 @@ class FixedWidthIntBenchmark {
 
     @Setup
     fun setup() {
-        GlobalHeap.init(1 shl 16) // 64 KB
-        KMalloc.init(1 shl 16)
+        KMalloc.init(1 shl 16) // 64 KB (also initializes GlobalHeap)
 
         cU8a = C_UInt8.fromUByte(nativeU8a)
         cU8b = C_UInt8.fromUByte(nativeU8b)

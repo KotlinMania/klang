@@ -13,6 +13,11 @@ import io.github.kotlinmania.klang.mem.KMalloc
  * AND/OR/XOR/NOT on full Long values are uniformly safe across targets, so
  * the type applies the engine-built width mask with the native `and` operator
  * for speed.
+ *
+ * @native-bitshift-allowed Native AND/OR/XOR/NOT on full Long values are
+ * uniformly safe across all targets (no alignment differences). The width
+ * mask comes from BitShiftEngine.getMask(), ensuring correct wrapping. Only
+ * shifts use the engine's cross-platform shift logic.
  */
 class C_UInt8 private constructor(val addr: Int) : Comparable<C_UInt8> {
 
