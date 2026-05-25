@@ -8,18 +8,13 @@ import io.github.kotlinmania.klang.mem.KMalloc
 /**
  * C_UInt64: C-compatible `uint64_t` with zero-copy heap operations.
  *
- * Range: 0 to 2^64 - 1. Shifts/bitwise/masks go through a [BitShiftEngine]
+ * Range: 0 to 2^64 - 1. All shifts/bitwise ops go through a [BitShiftEngine]
  * configured for 64 bits. Arithmetic uses Kotlin's `ULong` (which wraps
  * modulo 2^64 — matching unsigned C semantics).
  */
 class C_UInt64 private constructor(val addr: Int) : Comparable<C_UInt64> {
 
-    /**
-     * Raw 64-bit stored value as Long. Since the engine works on Long
-     * and ULong's bit pattern is identical, no engine roundtrip needed
-     * to load — but every downstream bitwise/shift operation still goes
-     * through the engine.
-     */
+    /** Raw 64-bit stored value as Long. */
     private fun toRawLong(): Long = GlobalHeap.ld(addr)
 
     fun toULong(): ULong = toRawLong().toULong()
@@ -92,7 +87,7 @@ class C_UInt64 private constructor(val addr: Int) : Comparable<C_UInt64> {
     companion object {
         const val BYTES: Int = 8
 
-        /** BitShiftEngine for 64-bit operations. */
+        /** BitShiftEngine for 64-bit operations (shifts, bitwise). */
         private val engine = BitShiftEngine(BitShiftMode.NATIVE, 64)
 
         fun alloc(): C_UInt64 = C_UInt64(KMalloc.malloc(BYTES))

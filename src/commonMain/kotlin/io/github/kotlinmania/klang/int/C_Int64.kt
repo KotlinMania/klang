@@ -8,8 +8,8 @@ import io.github.kotlinmania.klang.mem.KMalloc
 /**
  * C_Int64: C-compatible `int64_t` with zero-copy heap operations.
  *
- * Range: Long.MIN_VALUE to Long.MAX_VALUE (two's complement). Shifts/bitwise/
- * masks go through a [BitShiftEngine] configured for 64 bits.
+ * Range: Long.MIN_VALUE to Long.MAX_VALUE (two's complement). All shifts/bitwise
+ * ops/masks go through a [BitShiftEngine] configured for 64 bits.
  */
 class C_Int64 private constructor(val addr: Int) : Comparable<C_Int64> {
 
@@ -83,7 +83,6 @@ class C_Int64 private constructor(val addr: Int) : Comparable<C_Int64> {
         if (bits == 0) return copy()
         val shifted = engine.unsignedRightShift(this.toRawLong(), bits).value
         val result = if (isNegative()) {
-            // Sign mask: top `bits` bits = 1
             val signMask = engine.leftShift(engine.getMask(bits), 64 - bits).value
             engine.bitwiseOr(shifted, signMask)
         } else {
@@ -109,7 +108,7 @@ class C_Int64 private constructor(val addr: Int) : Comparable<C_Int64> {
     companion object {
         const val BYTES: Int = 8
 
-        /** BitShiftEngine for 64-bit operations. */
+        /** BitShiftEngine for 64-bit shifts. */
         private val engine = BitShiftEngine(BitShiftMode.NATIVE, 64)
 
         fun alloc(): C_Int64 = C_Int64(KMalloc.malloc(BYTES))

@@ -8,8 +8,8 @@ import io.github.kotlinmania.klang.mem.KMalloc
 /**
  * C_UInt8: C-compatible `uint8_t` with zero-copy heap operations.
  *
- * Range: 0 to 255. Every shift, bitwise op, and width mask routes through a
- * [BitShiftEngine] configured for 8 bits.
+ * Range: 0 to 255. All shifts/bitwise ops/masks go through a [BitShiftEngine]
+ * configured for 8 bits.
  */
 class C_UInt8 private constructor(val addr: Int) : Comparable<C_UInt8> {
 
@@ -65,8 +65,7 @@ class C_UInt8 private constructor(val addr: Int) : Comparable<C_UInt8> {
     infix fun xor(other: C_UInt8): C_UInt8 =
         store(engine.bitwiseXor(this.toLong(), other.toLong()))
 
-    fun inv(): C_UInt8 =
-        store(engine.bitwiseAnd(engine.bitwiseNot(this.toLong()), MASK_8))
+    fun inv(): C_UInt8 = store(engine.bitwiseAnd(engine.bitwiseNot(this.toLong()), MASK_8))
 
     fun shiftLeft(bits: Int): C_UInt8 {
         require(bits in 0..7) { "C_UInt8 shift amount out of range: $bits" }
@@ -89,7 +88,7 @@ class C_UInt8 private constructor(val addr: Int) : Comparable<C_UInt8> {
     companion object {
         const val BYTES: Int = 1
 
-        /** BitShiftEngine for 8-bit operations. */
+        /** BitShiftEngine for 8-bit operations (shifts, bitwise, width mask). */
         private val engine = BitShiftEngine(BitShiftMode.NATIVE, 8)
         private val MASK_8: Long = engine.getMask(8)
 

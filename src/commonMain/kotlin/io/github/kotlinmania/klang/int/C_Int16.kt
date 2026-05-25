@@ -8,7 +8,7 @@ import io.github.kotlinmania.klang.mem.KMalloc
 /**
  * C_Int16: C-compatible `int16_t` with zero-copy heap operations.
  *
- * Range: -32_768 to 32_767 (two's complement). Shifts/bitwise/masks all go
+ * Range: -32_768 to 32_767 (two's complement). All shifts/bitwise ops/masks go
  * through a [BitShiftEngine] configured for 16 bits.
  */
 class C_Int16 private constructor(val addr: Int) : Comparable<C_Int16> {
