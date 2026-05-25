@@ -13,6 +13,11 @@ import io.github.kotlinmania.klang.mem.KMalloc
  * Kotlin's primitive `Int.toLong()` widening; AND/OR/XOR/NOT use native
  * operators on full Long values.
  *
+ * @native-bitshift-allowed This fixed-width integer type uses native bitwise
+ * operators (and, or, xor, inv) for masking Long values, which is safe across
+ * all targets. Shifts are routed through BitShiftEngine for cross-platform
+ * determinism.
+ *
  * @property addr Heap address of the 4-byte value
  */
 class C_Int32 private constructor(val addr: Int) : Comparable<C_Int32> {
