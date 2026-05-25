@@ -39,7 +39,7 @@ class C_UInt32Test {
     fun additionWraps() {
         assertEquals(0u, (C_UInt32.maxValue() + C_UInt32.one()).toUInt())
         assertEquals(UInt.MAX_VALUE - 1u, (C_UInt32.maxValue() + C_UInt32.maxValue()).toUInt())
-        assertEquals(0x1_0000_0000u.toUInt() - 1u,
+        assertEquals(UInt.MAX_VALUE,
                      (C_UInt32.fromUInt(0xFFFFFFFFu) + C_UInt32.zero()).toUInt())
     }
 
@@ -117,7 +117,7 @@ class C_UInt32Test {
     @Test
     fun comparison() {
         assertTrue(C_UInt32.fromUInt(100u) < C_UInt32.maxValue())
-        // 0x80000000u (= -1 if reinterpreted as signed) is still less than MAX
+        // 0x80000000u (= Int.MIN_VALUE if reinterpreted as signed) is still less than MAX
         assertTrue(C_UInt32.fromUInt(0x80000000u) < C_UInt32.maxValue())
         assertEquals(0, C_UInt32.fromUInt(42u).compareTo(C_UInt32.fromUInt(42u)))
     }

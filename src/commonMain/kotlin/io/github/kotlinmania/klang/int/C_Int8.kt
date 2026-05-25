@@ -13,6 +13,12 @@ import io.github.kotlinmania.klang.mem.KMalloc
  * cross-target bit-alignment problems matter. Sign extension uses Kotlin's
  * primitive `Byte.toLong()` widening (one canonical sign-extension instruction
  * on every backend). AND/OR/XOR/NOT use native operators on full Long values.
+ *
+ * @native-bitshift-allowed Native AND/OR/XOR/NOT on full Long values are
+ * uniformly safe across all targets (no alignment differences). Sign extension
+ * via primitive widening is a single CPU instruction on all backends. The width
+ * mask comes from BitShiftEngine.getMask(). Only shifts use the engine's
+ * cross-platform shift logic.
  */
 class C_Int8 private constructor(val addr: Int) : Comparable<C_Int8> {
 
