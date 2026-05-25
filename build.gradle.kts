@@ -304,6 +304,7 @@ kotlin {
     iosArm64 {
         binaries.framework {
             baseName = "KLang"
+            isStatic = true
             xcf.add(this)
         }
     }
@@ -398,13 +399,7 @@ kotlin {
         }
         commonTest {
             dependencies {
-                implementation("org.jetbrains.kotlin:kotlin-test-annotations-common")
-                implementation("org.jetbrains.kotlin:kotlin-test-common")
-            }
-        }
-        named("jsTest") {
-            dependencies {
-                implementation("org.jetbrains.kotlin:kotlin-test-js")
+                implementation(kotlin("test"))
             }
         }
     }
@@ -957,6 +952,24 @@ tasks.register("setupAndroidSdk") {
     doLast {
         installProjectAndroidSdk(androidSdkExecOperations)
     }
+}
+
+tasks.register("test") {
+    group = "verification"
+    description =
+        "Runs the host-portable test suite (macOS + JS + WasmJS + Android unit). " +
+        "Non-host native targets only run on their own host."
+
+    val defaultTestTasks = listOf(
+        "macosArm64Test",
+        "jvmTest",
+        "jsNodeTest",
+        "wasmJsNodeTest",
+        "compileAndroidMain",
+        "assembleUnitTest",
+    )
+
+    dependsOn(defaultTestTasks.mapNotNull { taskName -> tasks.findByName(taskName) })
 }
 
 // CodeQL's Gradle autobuild invokes `./gradlew testClasses`, which is a
