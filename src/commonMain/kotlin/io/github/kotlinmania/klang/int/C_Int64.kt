@@ -8,8 +8,14 @@ import io.github.kotlinmania.klang.mem.KMalloc
 /**
  * C_Int64: C-compatible `int64_t` with zero-copy heap operations.
  *
- * Range: Long.MIN_VALUE to Long.MAX_VALUE (two's complement). All shifts/bitwise
- * ops/masks go through a [BitShiftEngine] configured for 64 bits.
+ * Range: Long.MIN_VALUE to Long.MAX_VALUE (two's complement). Shifts route
+ * through a [BitShiftEngine] configured for 64 bits. AND/OR/XOR/NOT use
+ * native operators on full Long values.
+ *
+ * @native-bitshift-allowed This fixed-width integer type uses native bitwise
+ * operators (and, or, xor, inv) on Long values, which is safe across all
+ * targets. Shifts are routed through BitShiftEngine for cross-platform
+ * determinism.
  */
 class C_Int64 private constructor(val addr: Int) : Comparable<C_Int64> {
 

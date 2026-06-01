@@ -8,9 +8,15 @@ import io.github.kotlinmania.klang.mem.KMalloc
 /**
  * C_UInt64: C-compatible `uint64_t` with zero-copy heap operations.
  *
- * Range: 0 to 2^64 - 1. All shifts/bitwise ops go through a [BitShiftEngine]
- * configured for 64 bits. Arithmetic uses Kotlin's `ULong` (which wraps
- * modulo 2^64 — matching unsigned C semantics).
+ * Range: 0 to 2^64 - 1. Shifts route through a [BitShiftEngine] configured
+ * for 64 bits. Arithmetic uses Kotlin's `ULong` (which wraps modulo 2^64 —
+ * matching unsigned C semantics). AND/OR/XOR/NOT use native operators on
+ * full Long values (the stored bit pattern is identical to ULong).
+ *
+ * @native-bitshift-allowed This fixed-width integer type uses native bitwise
+ * operators (and, or, xor, inv) on Long values, which is safe across all
+ * targets. Shifts are routed through BitShiftEngine for cross-platform
+ * determinism.
  */
 class C_UInt64 private constructor(val addr: Int) : Comparable<C_UInt64> {
 

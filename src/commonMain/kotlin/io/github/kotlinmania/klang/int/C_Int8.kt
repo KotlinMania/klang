@@ -8,8 +8,16 @@ import io.github.kotlinmania.klang.mem.KMalloc
 /**
  * C_Int8: C-compatible `int8_t` with zero-copy heap operations.
  *
- * Range: -128 to 127 (two's complement). All shifts/bitwise ops/masks go
- * through a [BitShiftEngine] configured for 8 bits.
+ * Range: -128 to 127 (two's complement). Shifts route through a
+ * [BitShiftEngine] configured for 8 bits — that's the only place Kotlin's
+ * cross-target bit-alignment problems matter. Sign extension uses Kotlin's
+ * primitive `Byte.toLong()` widening (one canonical sign-extension instruction
+ * on every backend). AND/OR/XOR/NOT use native operators on full Long values.
+ *
+ * @native-bitshift-allowed This fixed-width integer type uses native bitwise
+ * operators (and, or, xor, inv) for masking Long values, which is safe across
+ * all targets. Shifts are routed through BitShiftEngine for cross-platform
+ * determinism.
  */
 class C_Int8 private constructor(val addr: Int) : Comparable<C_Int8> {
 

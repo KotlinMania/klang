@@ -12,6 +12,11 @@ import io.github.kotlinmania.klang.mem.KMalloc
  * arithmetic. All shifts/bitwise ops/masks go through a [BitShiftEngine]
  * configured for 32 bits.
  *
+ * @native-bitshift-allowed This fixed-width integer type uses native bitwise
+ * operators (and, or, xor, inv) for masking Long values, which is safe across
+ * all targets. Shifts are routed through BitShiftEngine for cross-platform
+ * determinism.
+ *
  * @property addr Heap address of the 4-byte value
  */
 class C_UInt32 private constructor(val addr: Int) : Comparable<C_UInt32> {

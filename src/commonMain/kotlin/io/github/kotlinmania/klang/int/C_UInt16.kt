@@ -8,8 +8,16 @@ import io.github.kotlinmania.klang.mem.KMalloc
 /**
  * C_UInt16: C-compatible `uint16_t` with zero-copy heap operations.
  *
- * Range: 0 to 65_535. All shifts/bitwise ops/masks go through a [BitShiftEngine]
- * configured for 16 bits.
+ * Range: 0 to 65_535. Shifts go through a [BitShiftEngine] configured for
+ * 16 bits — that's where Kotlin's cross-target bit-alignment problems live.
+ * AND/OR/XOR/NOT on full Long values are uniformly safe across targets, so
+ * the type applies the engine-built width mask with the native `and` operator
+ * for speed.
+ *
+ * @native-bitshift-allowed This fixed-width integer type uses native bitwise
+ * operators (and, or, xor, inv) for masking Long values, which is safe across
+ * all targets. Shifts are routed through BitShiftEngine for cross-platform
+ * determinism.
  */
 class C_UInt16 private constructor(val addr: Int) : Comparable<C_UInt16> {
 
