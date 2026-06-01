@@ -9,9 +9,8 @@ import io.github.kotlinmania.klang.mem.KMalloc
  * C_UInt32: C-compatible `uint32_t` with zero-copy heap operations.
  *
  * Range: 0 to 4_294_967_295. Stored as 4 bytes on heap; loaded into a Long for
- * arithmetic. Shifts route through a [BitShiftEngine] configured for 32 bits.
- * AND/OR/XOR/NOT use native operators on full Long values, applying the
- * engine-built width mask.
+ * arithmetic. All shifts/bitwise ops/masks go through a [BitShiftEngine]
+ * configured for 32 bits.
  *
  * @native-bitshift-allowed This fixed-width integer type uses native bitwise
  * operators (and, or, xor, inv) for masking Long values, which is safe across
@@ -23,7 +22,7 @@ import io.github.kotlinmania.klang.mem.KMalloc
 class C_UInt32 private constructor(val addr: Int) : Comparable<C_UInt32> {
 
     /** Load the stored value as a Long (zero-extended). */
-    private fun toLong(): Long = GlobalHeap.lw(addr).toLong() and MASK_32
+    private fun toLong(): Long = engine.bitwiseAnd(GlobalHeap.lw(addr).toLong(), MASK_32)
 
     /** Load the stored value as a Kotlin UInt. */
     fun toUInt(): UInt = toLong().toUInt()
@@ -48,15 +47,15 @@ class C_UInt32 private constructor(val addr: Int) : Comparable<C_UInt32> {
 
     /** Wrapping addition (32-bit). */
     operator fun plus(other: C_UInt32): C_UInt32 =
-        store((this.toLong() + other.toLong()) and MASK_32)
+        store(engine.bitwiseAnd(this.toLong() + other.toLong(), MASK_32))
 
     /** Wrapping subtraction (32-bit). */
     operator fun minus(other: C_UInt32): C_UInt32 =
-        store((this.toLong() - other.toLong()) and MASK_32)
+        store(engine.bitwiseAnd(this.toLong() - other.toLong(), MASK_32))
 
     /** Wrapping multiplication (32-bit). */
     operator fun times(other: C_UInt32): C_UInt32 =
-        store((this.toUInt() * other.toUInt()).toLong() and MASK_32)
+        store(engine.bitwiseAnd((this.toUInt() * other.toUInt()).toLong(), MASK_32))
 
     operator fun div(other: C_UInt32): C_UInt32 {
         val divisor = other.toUInt()
@@ -71,15 +70,15 @@ class C_UInt32 private constructor(val addr: Int) : Comparable<C_UInt32> {
     }
 
     infix fun and(other: C_UInt32): C_UInt32 =
-        store(this.toLong() and other.toLong())
+        store(engine.bitwiseAnd(this.toLong(), other.toLong()))
 
     infix fun or(other: C_UInt32): C_UInt32 =
-        store(this.toLong() or other.toLong())
+        store(engine.bitwiseOr(this.toLong(), other.toLong()))
 
     infix fun xor(other: C_UInt32): C_UInt32 =
-        store(this.toLong() xor other.toLong())
+        store(engine.bitwiseXor(this.toLong(), other.toLong()))
 
-    fun inv(): C_UInt32 = store(this.toLong().inv() and MASK_32)
+    fun inv(): C_UInt32 = store(engine.bitwiseAnd(engine.bitwiseNot(this.toLong()), MASK_32))
 
     fun shiftLeft(bits: Int): C_UInt32 {
         require(bits in 0..31) { "C_UInt32 shift amount out of range: $bits" }
@@ -106,7 +105,7 @@ class C_UInt32 private constructor(val addr: Int) : Comparable<C_UInt32> {
         /** Size in bytes (matches sizeof(uint32_t) in C). */
         const val BYTES: Int = 4
 
-        /** BitShiftEngine for 32-bit shifts. */
+        /** BitShiftEngine for 32-bit operations (shifts, bitwise, width mask). */
         private val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
 
         /** Cached 32-bit width mask. */

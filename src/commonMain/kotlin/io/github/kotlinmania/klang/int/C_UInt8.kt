@@ -21,7 +21,7 @@ import io.github.kotlinmania.klang.mem.KMalloc
  */
 class C_UInt8 private constructor(val addr: Int) : Comparable<C_UInt8> {
 
-    private fun toLong(): Long = GlobalHeap.lb(addr).toLong() and MASK_8
+    private fun toLong(): Long = engine.bitwiseAnd(GlobalHeap.lb(addr).toLong(), MASK_8)
     fun toUByte(): UByte = toLong().toUByte()
     fun toUInt(): UInt = toLong().toUInt()
 
@@ -44,13 +44,13 @@ class C_UInt8 private constructor(val addr: Int) : Comparable<C_UInt8> {
         this.toLong().compareTo(other.toLong())
 
     operator fun plus(other: C_UInt8): C_UInt8 =
-        store((this.toLong() + other.toLong()) and MASK_8)
+        store(engine.bitwiseAnd(this.toLong() + other.toLong(), MASK_8))
 
     operator fun minus(other: C_UInt8): C_UInt8 =
-        store((this.toLong() - other.toLong()) and MASK_8)
+        store(engine.bitwiseAnd(this.toLong() - other.toLong(), MASK_8))
 
     operator fun times(other: C_UInt8): C_UInt8 =
-        store((this.toLong() * other.toLong()) and MASK_8)
+        store(engine.bitwiseAnd(this.toLong() * other.toLong(), MASK_8))
 
     operator fun div(other: C_UInt8): C_UInt8 {
         val divisor = other.toLong()
@@ -65,15 +65,15 @@ class C_UInt8 private constructor(val addr: Int) : Comparable<C_UInt8> {
     }
 
     infix fun and(other: C_UInt8): C_UInt8 =
-        store(this.toLong() and other.toLong())
+        store(engine.bitwiseAnd(this.toLong(), other.toLong()))
 
     infix fun or(other: C_UInt8): C_UInt8 =
-        store(this.toLong() or other.toLong())
+        store(engine.bitwiseOr(this.toLong(), other.toLong()))
 
     infix fun xor(other: C_UInt8): C_UInt8 =
-        store(this.toLong() xor other.toLong())
+        store(engine.bitwiseXor(this.toLong(), other.toLong()))
 
-    fun inv(): C_UInt8 = store(this.toLong().inv() and MASK_8)
+    fun inv(): C_UInt8 = store(engine.bitwiseAnd(engine.bitwiseNot(this.toLong()), MASK_8))
 
     fun shiftLeft(bits: Int): C_UInt8 {
         require(bits in 0..7) { "C_UInt8 shift amount out of range: $bits" }
@@ -89,14 +89,14 @@ class C_UInt8 private constructor(val addr: Int) : Comparable<C_UInt8> {
 
     private fun store(value: Long): C_UInt8 {
         val res = alloc()
-        GlobalHeap.sb(res.addr, (value and MASK_8).toByte())
+        GlobalHeap.sb(res.addr, engine.bitwiseAnd(value, MASK_8).toByte())
         return res
     }
 
     companion object {
         const val BYTES: Int = 1
 
-        /** BitShiftEngine for 8-bit shifts. */
+        /** BitShiftEngine for 8-bit operations (shifts, bitwise, width mask). */
         private val engine = BitShiftEngine(BitShiftMode.NATIVE, 8)
         private val MASK_8: Long = engine.getMask(8)
 
@@ -109,6 +109,6 @@ class C_UInt8 private constructor(val addr: Int) : Comparable<C_UInt8> {
             alloc().also { GlobalHeap.sb(it.addr, value.toByte()) }
 
         fun fromUInt(value: UInt): C_UInt8 =
-            alloc().also { GlobalHeap.sb(it.addr, (value.toLong() and MASK_8).toByte()) }
+            alloc().also { GlobalHeap.sb(it.addr, engine.bitwiseAnd(value.toLong(), MASK_8).toByte()) }
     }
 }

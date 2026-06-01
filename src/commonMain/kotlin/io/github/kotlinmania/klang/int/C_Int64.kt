@@ -23,7 +23,7 @@ class C_Int64 private constructor(val addr: Int) : Comparable<C_Int64> {
 
     fun toLong(): Long = toRawLong()
 
-    fun isNegative(): Boolean = toRawLong() < 0L
+    fun isNegative(): Boolean = engine.isBitSet(toRawLong(), 63)
 
     fun toHexString(): String = "0x" + toLong().toULong().toString(16).padStart(16, '0')
 
@@ -68,15 +68,15 @@ class C_Int64 private constructor(val addr: Int) : Comparable<C_Int64> {
     fun abs(): C_Int64 = if (isNegative()) negate() else copy()
 
     infix fun and(other: C_Int64): C_Int64 =
-        store(this.toRawLong() and other.toRawLong())
+        store(engine.bitwiseAnd(this.toRawLong(), other.toRawLong()))
 
     infix fun or(other: C_Int64): C_Int64 =
-        store(this.toRawLong() or other.toRawLong())
+        store(engine.bitwiseOr(this.toRawLong(), other.toRawLong()))
 
     infix fun xor(other: C_Int64): C_Int64 =
-        store(this.toRawLong() xor other.toRawLong())
+        store(engine.bitwiseXor(this.toRawLong(), other.toRawLong()))
 
-    fun inv(): C_Int64 = store(this.toRawLong().inv())
+    fun inv(): C_Int64 = store(engine.bitwiseNot(this.toRawLong()))
 
     fun shiftLeft(bits: Int): C_Int64 {
         require(bits in 0..63) { "C_Int64 shift amount out of range: $bits" }
@@ -90,7 +90,7 @@ class C_Int64 private constructor(val addr: Int) : Comparable<C_Int64> {
         val shifted = engine.unsignedRightShift(this.toRawLong(), bits).value
         val result = if (isNegative()) {
             val signMask = engine.leftShift(engine.getMask(bits), 64 - bits).value
-            shifted or signMask
+            engine.bitwiseOr(shifted, signMask)
         } else {
             shifted
         }

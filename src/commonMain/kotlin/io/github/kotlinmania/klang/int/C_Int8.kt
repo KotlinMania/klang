@@ -21,13 +21,13 @@ import io.github.kotlinmania.klang.mem.KMalloc
  */
 class C_Int8 private constructor(val addr: Int) : Comparable<C_Int8> {
 
-    private fun toSignedLong(): Long = GlobalHeap.lb(addr).toLong()
-    private fun toUnsignedLong(): Long = toSignedLong() and MASK_8
+    private fun toUnsignedLong(): Long = engine.bitwiseAnd(GlobalHeap.lb(addr).toLong(), MASK_8)
+    private fun toSignedLong(): Long = signExtender.signExtend(toUnsignedLong(), 8)
 
-    fun toByte(): Byte = GlobalHeap.lb(addr)
+    fun toByte(): Byte = toSignedLong().toByte()
     fun toInt(): Int = toSignedLong().toInt()
 
-    fun isNegative(): Boolean = GlobalHeap.lb(addr) < 0
+    fun isNegative(): Boolean = engine.isBitSet(toUnsignedLong(), 7)
 
     fun toHexString(): String = "0x" + toUnsignedLong().toString(16).padStart(2, '0')
 
@@ -72,15 +72,15 @@ class C_Int8 private constructor(val addr: Int) : Comparable<C_Int8> {
     fun abs(): C_Int8 = if (isNegative()) negate() else copy()
 
     infix fun and(other: C_Int8): C_Int8 =
-        store(this.toUnsignedLong() and other.toUnsignedLong())
+        store(engine.bitwiseAnd(this.toUnsignedLong(), other.toUnsignedLong()))
 
     infix fun or(other: C_Int8): C_Int8 =
-        store(this.toUnsignedLong() or other.toUnsignedLong())
+        store(engine.bitwiseOr(this.toUnsignedLong(), other.toUnsignedLong()))
 
     infix fun xor(other: C_Int8): C_Int8 =
-        store(this.toUnsignedLong() xor other.toUnsignedLong())
+        store(engine.bitwiseXor(this.toUnsignedLong(), other.toUnsignedLong()))
 
-    fun inv(): C_Int8 = store(this.toUnsignedLong().inv())
+    fun inv(): C_Int8 = store(engine.bitwiseNot(this.toUnsignedLong()))
 
     fun shiftLeft(bits: Int): C_Int8 {
         require(bits in 0..7) { "C_Int8 shift amount out of range: $bits" }
@@ -93,8 +93,11 @@ class C_Int8 private constructor(val addr: Int) : Comparable<C_Int8> {
         if (bits == 0) return copy()
         val shifted = engine.unsignedRightShift(this.toUnsignedLong(), bits).value
         val result = if (isNegative()) {
-            val signMask = engine.leftShift(engine.getMask(bits), 8 - bits).value and MASK_8
-            shifted or signMask
+            val signMask = engine.bitwiseAnd(
+                engine.leftShift(engine.getMask(bits), 8 - bits).value,
+                MASK_8,
+            )
+            engine.bitwiseOr(shifted, signMask)
         } else {
             shifted
         }
@@ -111,7 +114,7 @@ class C_Int8 private constructor(val addr: Int) : Comparable<C_Int8> {
 
     private fun store(value: Long): C_Int8 {
         val res = alloc()
-        GlobalHeap.sb(res.addr, (value and MASK_8).toByte())
+        GlobalHeap.sb(res.addr, engine.bitwiseAnd(value, MASK_8).toByte())
         return res
     }
 
@@ -120,8 +123,11 @@ class C_Int8 private constructor(val addr: Int) : Comparable<C_Int8> {
         const val MIN_VALUE: Byte = Byte.MIN_VALUE
         const val MAX_VALUE: Byte = Byte.MAX_VALUE
 
-        /** BitShiftEngine for 8-bit shifts. */
+        /** BitShiftEngine for 8-bit operations (shifts, bitwise, width mask). */
         private val engine = BitShiftEngine(BitShiftMode.NATIVE, 8)
+
+        /** 64-bit engine used solely to sign-extend 8-bit values to a full Long. */
+        private val signExtender = BitShiftEngine(BitShiftMode.NATIVE, 64)
         private val MASK_8: Long = engine.getMask(8)
 
         fun alloc(): C_Int8 = C_Int8(KMalloc.malloc(BYTES))
@@ -134,6 +140,6 @@ class C_Int8 private constructor(val addr: Int) : Comparable<C_Int8> {
             alloc().also { GlobalHeap.sb(it.addr, value) }
 
         fun fromInt(value: Int): C_Int8 =
-            alloc().also { GlobalHeap.sb(it.addr, (value.toLong() and MASK_8).toByte()) }
+            alloc().also { GlobalHeap.sb(it.addr, engine.bitwiseAnd(value.toLong(), MASK_8).toByte()) }
     }
 }

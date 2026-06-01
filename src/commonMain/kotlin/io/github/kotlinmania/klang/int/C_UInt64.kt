@@ -62,15 +62,15 @@ class C_UInt64 private constructor(val addr: Int) : Comparable<C_UInt64> {
     }
 
     infix fun and(other: C_UInt64): C_UInt64 =
-        store(this.toRawLong() and other.toRawLong())
+        store(engine.bitwiseAnd(this.toRawLong(), other.toRawLong()))
 
     infix fun or(other: C_UInt64): C_UInt64 =
-        store(this.toRawLong() or other.toRawLong())
+        store(engine.bitwiseOr(this.toRawLong(), other.toRawLong()))
 
     infix fun xor(other: C_UInt64): C_UInt64 =
-        store(this.toRawLong() xor other.toRawLong())
+        store(engine.bitwiseXor(this.toRawLong(), other.toRawLong()))
 
-    fun inv(): C_UInt64 = store(this.toRawLong().inv())
+    fun inv(): C_UInt64 = store(engine.bitwiseNot(this.toRawLong()))
 
     fun shiftLeft(bits: Int): C_UInt64 {
         require(bits in 0..63) { "C_UInt64 shift amount out of range: $bits" }
@@ -93,14 +93,14 @@ class C_UInt64 private constructor(val addr: Int) : Comparable<C_UInt64> {
     companion object {
         const val BYTES: Int = 8
 
-        /** BitShiftEngine for 64-bit shifts. */
+        /** BitShiftEngine for 64-bit operations (shifts, bitwise). */
         private val engine = BitShiftEngine(BitShiftMode.NATIVE, 64)
 
         fun alloc(): C_UInt64 = C_UInt64(KMalloc.malloc(BYTES))
         fun zero(): C_UInt64 = alloc().also { GlobalHeap.sd(it.addr, 0L) }
         fun one(): C_UInt64 = alloc().also { GlobalHeap.sd(it.addr, 1L) }
         /** All-1s bit pattern = 2^64 - 1. */
-        fun maxValue(): C_UInt64 = alloc().also { GlobalHeap.sd(it.addr, 0L.inv()) }
+        fun maxValue(): C_UInt64 = alloc().also { GlobalHeap.sd(it.addr, engine.bitwiseNot(0L)) }
 
         fun fromULong(value: ULong): C_UInt64 =
             alloc().also { GlobalHeap.sd(it.addr, value.toLong()) }

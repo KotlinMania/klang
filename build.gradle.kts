@@ -4,6 +4,10 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.zip.ZipInputStream
 import org.gradle.api.GradleException
+import org.gradle.api.artifacts.Configuration
+import org.gradle.api.tasks.ClasspathNormalizer
+import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.gradle.kotlin.dsl.support.serviceOf
 import org.gradle.process.ExecOperations
@@ -304,18 +308,21 @@ kotlin {
     iosArm64 {
         binaries.framework {
             baseName = "KLang"
+            isStatic = true
             xcf.add(this)
         }
     }
     iosSimulatorArm64 {
         binaries.framework {
             baseName = "KLang"
+            isStatic = true
             xcf.add(this)
         }
     }
     iosX64 {
         binaries.framework {
             baseName = "KLang"
+            isStatic = true
             xcf.add(this)
         }
     }
@@ -396,13 +403,14 @@ kotlin {
         }
         commonTest {
             dependencies {
-                implementation("org.jetbrains.kotlin:kotlin-test-annotations-common")
-                implementation("org.jetbrains.kotlin:kotlin-test-common")
-            }
-        }
-        named("jsTest") {
-            dependencies {
-                implementation("org.jetbrains.kotlin:kotlin-test-js")
+                // kotlin("test") resolves to the right per-target test artifact
+                // (kotlin-test-junit on Android host JVM, kotlin-test-js on JS,
+                // kotlin-test-wasm-* on Wasm, etc.) so every target's test
+                // compilation has kotlin.test.Test/BeforeTest/etc. on its
+                // classpath. The old explicit kotlin-test-common /
+                // kotlin-test-annotations-common pair did not propagate to
+                // the Android KMP target's host-test compilation.
+                implementation(kotlin("test"))
             }
         }
     }
@@ -957,6 +965,120 @@ tasks.register("setupAndroidSdk") {
     }
 }
 
+tasks.register("test") {
+    group = "verification"
+    description =
+        "Runs the host-portable test suite (macOS + JS + WasmJS + Android unit). " +
+        "Non-host native targets only run on their own host."
+
+    val defaultTestTasks = listOf(
+        "macosArm64Test",
+        "jvmTest",
+        "jsNodeTest",
+        "wasmJsNodeTest",
+        "compileAndroidMain",
+        "assembleUnitTest",
+    )
+
+    dependsOn(defaultTestTasks.mapNotNull { taskName -> tasks.findByName(taskName) })
+}
+
+// ---------------------------------------------------------------------------
+// CodeQL Java/Kotlin extraction task
+//
+// GitHub Code Scanning "Default Setup" uses CodeQL's Gradle autobuild, which
+// typically runs conventional tasks like `testClasses`. For Kotlin
+// Multiplatform builds, the standard KGP compilation pipeline can bypass the
+// CodeQL Kotlin interceptor, producing no Kotlin TRAP output and failing the
+// analysis with "no source code seen during build".
+//
+// `codeqlCompileJvm` is a standalone `kotlinc` invocation (via
+// kotlin-compiler-embeddable) that compiles `commonMain` as a single
+// multiplatform-aware compile. This ensures the CodeQL Java agent's Kotlin
+// hook (`K2JVMCompiler.doExecute`) is exercised and Kotlin TRAP is emitted.
+val codeqlKotlinc: Configuration by configurations.creating {
+    description = "Kotlin compiler (CodeQL extraction target only - not published)"
+    isCanBeResolved = true
+    isCanBeConsumed = false
+}
+
+val codeqlSourceClasspath: Configuration by configurations.creating {
+    description = "Runtime classpath for CodeQL extraction of commonMain sources"
+    isCanBeResolved = true
+    isCanBeConsumed = false
+}
+
+dependencies {
+    val kotlinVersion = libs.versions.kotlin.get()
+    val coroutinesVersion = libs.versions.coroutines.get()
+    codeqlKotlinc("org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion")
+    codeqlSourceClasspath("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
+    codeqlSourceClasspath("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:$coroutinesVersion")
+}
+
+val codeqlCompileJvm = tasks.register<JavaExec>("codeqlCompileJvm") {
+    description = "Compile commonMain Kotlin sources with kotlinc for CodeQL Java/Kotlin extraction."
+    group = "verification"
+
+    classpath(codeqlKotlinc)
+    mainClass.set("org.jetbrains.kotlin.cli.jvm.K2JVMCompiler")
+
+    val outDir = layout.buildDirectory.dir("classes/kotlin/codeql-jvm")
+    val commonSources = fileTree("src/commonMain/kotlin") { include("**/*.kt") }
+    val jvmSources = fileTree("src/jvmMain/kotlin") { include("**/*.kt") }
+    val sentinelDir = layout.buildDirectory.dir("generated/codeql-empty-source")
+    inputs.files(commonSources).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(jvmSources).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(codeqlSourceClasspath).withNormalizer(ClasspathNormalizer::class.java)
+    outputs.dir(outDir)
+    outputs.dir(sentinelDir)
+    outputs.upToDateWhen { false }
+
+    doFirst {
+        outDir.get().asFile.mkdirs()
+
+        val commonSourceFiles = commonSources.files.toMutableList()
+        val sourceFiles = (commonSourceFiles + jvmSources.files).toMutableList()
+        if (commonSourceFiles.isEmpty()) {
+            val sentinelFile =
+                sentinelDir
+                    .get()
+                    .asFile
+                    .resolve("io/github/kotlinmania/klang/CodeqlEmptySentinel.kt")
+            sentinelFile.parentFile.mkdirs()
+            sentinelFile.writeText(
+                """
+                // Auto-generated. Present so codeqlCompileJvm has at least
+                // one Kotlin source to feed kotlinc.
+                package io.github.kotlinmania.klang
+
+                private object CodeqlEmptySentinel
+                """.trimIndent(),
+            )
+            commonSourceFiles += sentinelFile
+            sourceFiles += sentinelFile
+        }
+
+        val fullClasspath = codeqlSourceClasspath.resolve().joinToString(File.pathSeparator) { it.absolutePath }
+        val kotlinVersion = libs.versions.kotlin.get()
+        val languageVersion = kotlinVersion.split('.').take(2).joinToString(".")
+        args =
+            listOf(
+                "-d", outDir.get().asFile.absolutePath,
+                "-classpath", fullClasspath,
+                "-jvm-target", "21",
+                "-no-stdlib",
+                "-no-reflect",
+                "-language-version", languageVersion,
+                "-api-version", languageVersion,
+                "-Xmulti-platform",
+                "-Xcommon-sources=${commonSourceFiles.joinToString(",") { it.absolutePath }}",
+                "-opt-in", "kotlin.time.ExperimentalTime",
+                "-opt-in", "kotlin.concurrent.atomics.ExperimentalAtomicApi",
+            ) + sourceFiles.map { it.absolutePath }
+    }
+}
+
 // CodeQL's Gradle autobuild invokes `./gradlew testClasses`, which is a
 // JVM-convention task that Kotlin Multiplatform projects without a JVM
 // target do not provide. Without it, CodeQL aborts with
@@ -965,9 +1087,8 @@ tasks.register("setupAndroidSdk") {
 // test-compile task (jsTestClasses,
 // wasmJsTestClasses, and the compileTestKotlin<Target> tasks for native
 // targets) so the convention call resolves. We *also* pull in
-// `compileAndroidMain` so the dynamic Default Setup / Code Quality
-// `autobuild` invocation drives the JVM kotlinc that CodeQL's LD_PRELOAD
-// tracer hooks.
+// `codeqlCompileJvm` so the CodeQL Java agent sees a Kotlin compile that
+// reliably emits TRAP output.
 tasks.register("testClasses") {
     description = "Aggregate test-compile task for CodeQL and other JVM-convention callers."
     group = "verification"
@@ -976,12 +1097,6 @@ tasks.register("testClasses") {
         n != "testClasses" &&
             (n.endsWith("TestClasses") ||
                 n.startsWith("compileTestKotlin") ||
-                n == "compileAndroidMain")
+                n == codeqlCompileJvm.name)
     })
-}
-
-tasks.register("codeqlCompileJvm") {
-    description = "Compile Android main sources so CodeQL can extract JVM Kotlin classes."
-    group = "build"
-    dependsOn("compileAndroidMain")
 }
