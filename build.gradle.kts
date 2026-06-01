@@ -24,6 +24,12 @@ import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsEnvSpec
 import org.jetbrains.kotlin.gradle.targets.wasm.yarn.WasmYarnRootEnvSpec
 
+buildscript {
+    dependencies {
+        classpath("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+    }
+}
+
 // Source-code rule: no `import java.*` / `import javax.*` anywhere in `src/`.
 // Everything else about targets / plugins is the build's call. See CLAUDE.md.
 plugins {
