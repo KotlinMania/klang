@@ -49,66 +49,15 @@ jobs:
           swift --version
           xcodebuild -version
 
-      # `embedSwiftExportForXcode` is the entry point for Kotlin's Swift
-      # Export pipeline. Outside an `xcodebuild`-driven invocation, the
-      # plugin's `BuildSPMSwiftExportPackage` task fails its property
-      # validation because the environment variables Xcode normally injects
-      # aren't present. The variables below cover what the plugin reads:
-      #
-      #   * SDK_NAME / ARCHS / CONFIGURATION — which slice to build.
-      #   * BUILT_PRODUCTS_DIR / TARGET_BUILD_DIR — where to land the static
-      #     archive and `.swiftmodule` bundles.
-      #   * FRAMEWORKS_FOLDER_PATH — relative path inside BUILT_PRODUCTS_DIR
-      #     where embedded frameworks would land.
-      #   * MACOSX_DEPLOYMENT_TARGET — the minimum macOS version.
-      #   * DEPLOYMENT_TARGET_SETTING_NAME — the indirection variable
-      #     telling the plugin which deployment-target env var to read.
-      #     Xcode sets this automatically per-target; outside Xcode it
-      #     must be set explicitly or the task fails with
-      #     `property 'deploymentTargetSettingName' doesn't have a
-      #     configured value`.
-      #
-      # Output lands in `build/swift-test/`:
-      #   * `lib<Module>.a` — the merged static archive containing every
-      #     `@ExportedBridge`-annotated function emitted by
-      #     `build/SwiftExport/macosArm64/Debug/**/*.kt`. `<Module>` is the
-      #     repo's `project.frameworkName` (the Swift Export module name).
-      #   * Four `.swiftmodule/` directories: <Module>,
-      #     KotlinRuntimeSupport, ExportedKotlinPackages, KotlinRuntime.
-      - name: Build Swift Export package
-        env:
-          BUILT_PRODUCTS_DIR: ${{ github.workspace }}/build/swift-test
-          TARGET_BUILD_DIR: ${{ github.workspace }}/build/swift-test
-          SDK_NAME: macosx
-          CONFIGURATION: Debug
-          ARCHS: arm64
-          FRAMEWORKS_FOLDER_PATH: Frameworks
-          MACOSX_DEPLOYMENT_TARGET: "14.0"
-          DEPLOYMENT_TARGET_SETTING_NAME: MACOSX_DEPLOYMENT_TARGET
-        run: ./gradlew embedSwiftExportForXcode --no-configuration-cache
-
-      - name: Set Swift package macOS platform
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          package = Path("build/SPMPackage/macosArm64/Debug/Package.swift")
-          text = package.read_text()
-          if "platforms:" not in text:
-              package.write_text(
-                  re.sub(
-                      r'(name:\s*"[^"]*",)',
-                      r'\1\n    platforms: [.macOS(.v14)],',
-                      text,
-                      count=1,
-                  )
-              )
-          PY
-
-      - name: Run swift test against Kotlin-exported module
-        working-directory: swift-test-harness
-        run: swift test
+      # `swiftExportSmokeTest` is the local source of truth for the Swift
+      # Export contract. It invokes `embedSwiftExportForXcode` with the
+      # Xcode-style environment, patches generated Package.swift platform
+      # declarations, copies the generated SPM packages into
+      # build/swift-test-packages/, then runs both Swift harnesses:
+      #   * swift-test-harness imports the public Klang module.
+      #   * swift-common-test-harness imports the generated commonTest runner.
+      - name: Run Swift Export smoke tests
+        run: ./gradlew swiftExportSmokeTest --no-configuration-cache --console=plain
 
       - name: Upload Swift Export artifacts
         if: success() || failure()
@@ -119,5 +68,7 @@ jobs:
             build/swift-test/lib*.a
             build/swift-test/*.swiftmodule/
             build/SPMPackage/macosArm64/Debug/
+            build/swift-test-packages/
+            swift-common-test-export/build/SPMPackage/macosArm64/Debug/
           retention-days: 7
           if-no-files-found: warn
