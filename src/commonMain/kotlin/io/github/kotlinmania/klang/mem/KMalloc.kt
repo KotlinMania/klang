@@ -140,31 +140,31 @@ package io.github.kotlinmania.klang.mem
 object KMalloc {
     /** Alignment boundary: all allocations are multiples of 16 bytes. */
     private const val ALIGN = 16
-    
+
     /** Header size: 4-byte tag stores (size << 1 | inUse). */
     private const val HEADER_SIZE = 4
-    
+
     /** Footer size: 4-byte tag copy enables backward coalescing. */
     private const val FOOTER_SIZE = 4
-    
+
     /** Total overhead per allocation: 8 bytes. */
     private const val OVERHEAD = HEADER_SIZE + FOOTER_SIZE
-    
+
     /** Minimum payload size: 16 bytes (room for next pointer in free chunks). */
     private const val MIN_CHUNK = 16
-    
+
     /** Small allocation threshold: blocks ≤1024 use segregated bins. */
     private const val SMALL_LIMIT = 1024
-    
+
     /** Bin size class shift: 16-byte increments (1 << 4). */
     private const val BIN_SHIFT = 4
-    
+
     /** Number of segregated bins: 64 (for 16, 32, 48, ..., 1024 bytes). */
     private const val BIN_COUNT = (SMALL_LIMIT shr BIN_SHIFT)
 
     /** Segregated free list bins for small allocations. Each bin holds chunks of similar size. */
     private val bins = IntArray(BIN_COUNT) { -1 }
-    
+
     /** Head of large free block list (>1024 bytes). */
     private var largeFreeHead: Int = -1
 
@@ -442,11 +442,17 @@ object KMalloc {
         GlobalHeap.sw(chunk, tag)
         GlobalHeap.sw(chunk + HEADER_SIZE + size, tag)
     }
+
     private fun pack(size: Int, inUse: Boolean): Int = (size shl 1) or (if (inUse) 1 else 0)
+
     private fun readTag(chunk: Int): Int = GlobalHeap.lw(chunk)
+
     private fun readSize(chunk: Int): Int = readTag(chunk) ushr 1
+
     private fun isInUse(chunk: Int): Boolean = (readTag(chunk) and 1) != 0
+
     private fun nextChunk(chunk: Int): Int = chunk + HEADER_SIZE + readSize(chunk) + FOOTER_SIZE
+
     private fun prevChunk(chunk: Int): Int {
         if (chunk < FOOTER_SIZE) return -1
         val prevTag = GlobalHeap.lw(chunk - FOOTER_SIZE)

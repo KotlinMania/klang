@@ -21,34 +21,34 @@ class HeapUInt128Test {
         // We only check suffix to avoid formatting assumptions
         assertTrue(hex.endsWith("0000"))
     }
-    
+
     @Test
     fun zeroCopyOperations() {
         GlobalHeap.init(1 shl 20)
         KMalloc.init(1 shl 18)
-        
+
         // Create two values
         val a = HeapUInt128.fromULong(100u)
         val b = HeapUInt128.fromULong(200u)
-        
+
         println("a addr: ${a.addr}, hex: ${a.toHexString()}")
         println("b addr: ${b.addr}, hex: ${b.toHexString()}")
-        
+
         // Perform addition (should be zero-copy on heap)
         val sum = a + b
         val sumHex = sum.toHexString()
         println("sum addr: ${sum.addr}, hex: $sumHex")
-        
+
         val sumLimbs = sum.toIntArray()
         println("sum limbs[0]: ${sumLimbs[0]}")
         assertEquals(300, sumLimbs[0], "Addition failed")
-        
+
         // Perform subtraction
         val diff = sum - a
         val diffLimbs = diff.toIntArray()
         println("diff limbs[0]: ${diffLimbs[0]}")
         assertEquals(200, diffLimbs[0], "Subtraction failed")
-        
+
         // Perform shift
         val shifted = sum.shiftLeft(8)
         // 300 << 8 = 76800 = 0x12C00
@@ -58,32 +58,31 @@ class HeapUInt128Test {
         assertEquals(11264, shiftedLimbs[0], "Shift failed on limb 0")
         assertEquals(1, shiftedLimbs[1], "Shift failed on limb 1")
     }
-    
+
     @Test
     fun comparison() {
         GlobalHeap.init(1 shl 20)
         KMalloc.init(1 shl 18)
-        
+
         val small = HeapUInt128.fromULong(100u)
         val large = HeapUInt128.fromULong(200u)
-        
+
         assertTrue(small < large)
         assertTrue(large > small)
         assertEquals(0, small.compareTo(HeapUInt128.fromULong(100u)))
     }
-    
+
     @Test
     fun equality() {
         GlobalHeap.init(1 shl 20)
         KMalloc.init(1 shl 18)
-        
+
         val a = HeapUInt128.fromULong(12345u)
         val b = HeapUInt128.fromULong(12345u)
         val c = HeapUInt128.fromULong(54321u)
-        
+
         assertEquals(a, b)
         assertTrue(a != c)
         assertEquals(a.hashCode(), b.hashCode())
     }
 }
-

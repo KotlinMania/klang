@@ -42,14 +42,17 @@ object KAligned {
      * posix_memalign semantics: alignment must be power of two and a multiple of sizeof(void*).
      * Returns (err, ptr). On error, ptr is 0. Errors: EINVAL (22), ENOMEM (12).
      */
-    data class MemalignResult(val err: Int, val ptr: Int)
+    data class MemalignResult(
+        val err: Int,
+        val ptr: Int,
+    )
 
     fun posixMemalign(alignment: Int, size: Int): MemalignResult {
         // Validate parameters upfront - all the same checks as alignedAlloc
         if (alignment <= 0 || (alignment and (alignment - 1)) != 0) return MemalignResult(EINVAL, 0)
         if (alignment % PTR_SIZE != 0) return MemalignResult(EINVAL, 0)
         if (size < 0) return MemalignResult(EINVAL, 0)
-        
+
         // All validation passed - delegate to alignedAlloc which will succeed or throw
         // (throwing is acceptable here since it means OOM or heap corruption, not user error)
         val p = alignedAlloc(alignment, size)

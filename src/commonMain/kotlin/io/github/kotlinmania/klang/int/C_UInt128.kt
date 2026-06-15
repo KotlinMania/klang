@@ -142,8 +142,9 @@ import io.github.kotlinmania.klang.mem.KMalloc
  * @see KMalloc Heap memory allocator
  * @since 0.1.0
  */
-class C_UInt128 private constructor(val addr: Int) : Comparable<C_UInt128> {
-    
+class C_UInt128 private constructor(
+    val addr: Int,
+) : Comparable<C_UInt128> {
     /**
      * Convert to hexadecimal string.
      *
@@ -158,7 +159,7 @@ class C_UInt128 private constructor(val addr: Int) : Comparable<C_UInt128> {
      * ```
      */
     fun toHexString(): String = "0x" + SwAR128.toBigEndianHexHeap(addr)
-    
+
     /**
      * String representation (delegates to [toHexString]).
      */
@@ -308,7 +309,7 @@ class C_UInt128 private constructor(val addr: Int) : Comparable<C_UInt128> {
     companion object {
         /** BitShiftEngine for 8-bit byte operations (reading limbs from heap). */
         private val byteShifter = BitShiftEngine(BitShiftMode.NATIVE, 8)
-        
+
         /**
          * Allocate uninitialized C_UInt128.
          *
@@ -318,7 +319,7 @@ class C_UInt128 private constructor(val addr: Int) : Comparable<C_UInt128> {
          * @return New C_UInt128 pointing to allocated memory
          */
         fun alloc(): C_UInt128 = C_UInt128(KMalloc.malloc(SwAR128.LIMB_COUNT * 2))
-        
+
         /**
          * Create zero-initialized value.
          *
@@ -331,7 +332,7 @@ class C_UInt128 private constructor(val addr: Int) : Comparable<C_UInt128> {
          * ```
          */
         fun zero(): C_UInt128 = alloc().also { SwAR128.zeroHeap(it.addr) }
-        
+
         /**
          * Create value 1.
          *
@@ -343,10 +344,11 @@ class C_UInt128 private constructor(val addr: Int) : Comparable<C_UInt128> {
          * println(one.toHexString())  // "0x1"
          * ```
          */
-        fun one(): C_UInt128 = alloc().also {
-            SwAR128.zeroHeap(it.addr)
-            GlobalHeap.sb(it.addr, 1)
-        }
+        fun one(): C_UInt128 =
+            alloc().also {
+                SwAR128.zeroHeap(it.addr)
+                GlobalHeap.sb(it.addr, 1)
+            }
 
         /**
          * Create from ULong (zero-extended to 128 bits).
@@ -362,8 +364,9 @@ class C_UInt128 private constructor(val addr: Int) : Comparable<C_UInt128> {
          * println(x.toHexString())  // "0xab54a98ceb1f0ad2"
          * ```
          */
-        fun fromULong(value: ULong): C_UInt128 = alloc().also {
-            SwAR128.writeULongToHeap(it.addr, value)
-        }
+        fun fromULong(value: ULong): C_UInt128 =
+            alloc().also {
+                SwAR128.writeULongToHeap(it.addr, value)
+            }
     }
 }

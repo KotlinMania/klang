@@ -16,25 +16,26 @@
 package io.github.kotlinmania.klang.math
 
 object Float64Bits {
-
-    private const val SIGN_MASK   = Long.MIN_VALUE                  // 0x8000_0000_0000_0000
-    private const val EXP_MASK    = 0x7FF0_0000_0000_0000L
-    private const val MANT_MASK   = 0x000F_FFFF_FFFF_FFFFL          // 52 bits
-    private const val IMPLICIT_BIT = 0x0010_0000_0000_0000L         // bit 52
+    private const val SIGN_MASK = Long.MIN_VALUE // 0x8000_0000_0000_0000
+    private const val EXP_MASK = 0x7FF0_0000_0000_0000L
+    private const val MANT_MASK = 0x000F_FFFF_FFFF_FFFFL // 52 bits
+    private const val IMPLICIT_BIT = 0x0010_0000_0000_0000L // bit 52
     private const val BIAS = 1023
     private const val MANT_BITS = 52
-    private const val EXP_MAX = 0x7FF                               // 2047
+    private const val EXP_MAX = 0x7FF // 2047
 
     private const val POS_ZERO = 0x0000_0000_0000_0000L
     private const val NEG_ZERO = SIGN_MASK
-    private const val POS_ONE  = 0x3FF0_0000_0000_0000L             // 1.0
-    private const val NEG_ONE  = SIGN_MASK or POS_ONE               // -1.0
+    private const val POS_ONE = 0x3FF0_0000_0000_0000L // 1.0
+    private const val NEG_ONE = SIGN_MASK or POS_ONE // -1.0
     private const val QNAN_BITS = 0x7FF8_0000_0000_0000L
 
     // ---- low-level field accessors (bit-only) ----
 
     private fun rawExp(bits: Long): Int = ((bits ushr MANT_BITS) and 0x7FFL).toInt()
+
     private fun rawMant(bits: Long): Long = bits and MANT_MASK
+
     private fun signBit(bits: Long): Long = bits and SIGN_MASK
 
     private fun isNaN(bits: Long): Boolean =
@@ -66,13 +67,13 @@ object Float64Bits {
         if (isNaN(bits)) return QNAN_BITS
         if (isInf(bits) || isZero(bits)) return bits
         val e = rawExp(bits) - BIAS
-        if (e >= MANT_BITS) return bits                 // already integral
+        if (e >= MANT_BITS) return bits // already integral
         if (e < 0) {
             // |x| < 1 : negatives → -1, positives → +0
             return if (signBit(bits) != 0L) NEG_ONE else POS_ZERO
         }
-        val fracBits = MANT_BITS - e                    // 1..52
-        val mask = (1L shl fracBits) - 1L               // low fracBits set
+        val fracBits = MANT_BITS - e // 1..52
+        val mask = (1L shl fracBits) - 1L // low fracBits set
         val truncated = bits and mask.inv()
         val droppedNonZero = (bits and mask) != 0L
         return if (signBit(bits) != 0L && droppedNonZero) {
@@ -141,7 +142,7 @@ object Float64Bits {
             // 0.5 <= |x| < 1.0 → round half away from zero → ±1
             return if (signBit(bits) != 0L) NEG_ONE else POS_ONE
         }
-        val fracBits = MANT_BITS - e                    // 1..52
+        val fracBits = MANT_BITS - e // 1..52
         val mask = (1L shl fracBits) - 1L
         val guardBit = 1L shl (fracBits - 1)
         val truncated = bits and mask.inv()
@@ -233,8 +234,8 @@ object Float64Bits {
                 shift++
             }
             val normalizedMant = m and MANT_MASK
-            val unbiasedOriginal = 1 - BIAS - shift     // exponent of original subnormal
-            val outE = unbiasedOriginal + 1             // mantissa now in [0.5,1)
+            val unbiasedOriginal = 1 - BIAS - shift // exponent of original subnormal
+            val outE = unbiasedOriginal + 1 // mantissa now in [0.5,1)
             // Place mantissa with biased exp = BIAS - 1 (unbiased -1).
             val outBits = sign or ((BIAS - 1).toLong() shl MANT_BITS) or normalizedMant
             outBits to outE
@@ -321,7 +322,7 @@ object Float64Bits {
         // boundary, scaled back into a normalized FP representation.
         val e = rawExp(bits) - BIAS
         if (e >= MANT_BITS) return intBits to signBit(bits) // already integral, fractional = ±0
-        if (e < 0) return signBit(bits) to bits             // |x| < 1, integer = ±0
+        if (e < 0) return signBit(bits) to bits // |x| < 1, integer = ±0
         val fracBits = MANT_BITS - e
         val mask = (1L shl fracBits) - 1L
         val fracMantBits = bits and mask
@@ -332,11 +333,11 @@ object Float64Bits {
         // with k the unbiased exponent of the leading 1 bit of fracMantBits.
         // Find the leading bit position.
         var m = fracMantBits
-        var leadPos = 0       // 0..(fracBits-1); position of highest set bit
+        var leadPos = 0 // 0..(fracBits-1); position of highest set bit
         // count from top down
         var probe = fracBits - 1
         while (probe >= 0 && (m and (1L shl probe)) == 0L) probe--
-        leadPos = probe       // guaranteed >= 0 since fracMantBits != 0
+        leadPos = probe // guaranteed >= 0 since fracMantBits != 0
         // The leading 1 bit currently sits at bit `leadPos` of m. We want it
         // at bit MANT_BITS (implicit-bit position) for normalization.
         val shiftLeft = MANT_BITS - leadPos
@@ -388,7 +389,7 @@ object Float64Bits {
         // Extract unbiased exponent + significand.
         var xExp = exp - BIAS
         var xMant: Long
-        val one = IMPLICIT_BIT  // 1 << 52 represents "1.0" in our fixed-point view
+        val one = IMPLICIT_BIT // 1 << 52 represents "1.0" in our fixed-point view
 
         if (exp == 0) {
             // Subnormal: normalize mantissa until the implicit bit appears.
@@ -466,7 +467,7 @@ object Float64Bits {
             if (mant == 0L) return FP_ILOGB0
             // Subnormal: locate the leading 1 in the 52-bit mantissa.
             // mant fits in low 52 bits; high 12 bits are zero, so leadingZeros >= 12.
-            val lz = mant.countLeadingZeroBits()      // 12..63 for non-zero subnormal
+            val lz = mant.countLeadingZeroBits() // 12..63 for non-zero subnormal
             // Position of the leading 1 (LSB = 0): k = 63 - lz, so k ∈ 0..51.
             // Subnormal value = mant * 2^-1074; leading 1 at bit k contributes 2^(k-1074).
             // Therefore the normalized exponent is k - 1074 = -1011 - lz.
@@ -502,6 +503,7 @@ object Float64Bits {
 
     /** `ilogb(±0)` sentinel — matches musl / glibc / FreeBSD. */
     const val FP_ILOGB0: Int = Int.MIN_VALUE
+
     /** `ilogb(NaN)` sentinel — matches musl / glibc / FreeBSD. */
     const val FP_ILOGBNAN: Int = Int.MIN_VALUE + 1
 }

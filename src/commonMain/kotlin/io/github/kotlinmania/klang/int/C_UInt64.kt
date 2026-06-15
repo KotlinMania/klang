@@ -18,8 +18,9 @@ import io.github.kotlinmania.klang.mem.KMalloc
  * targets. Shifts are routed through BitShiftEngine for cross-platform
  * determinism.
  */
-class C_UInt64 private constructor(val addr: Int) : Comparable<C_UInt64> {
-
+class C_UInt64 private constructor(
+    val addr: Int,
+) : Comparable<C_UInt64> {
     /** Raw 64-bit stored value as Long. */
     private fun toRawLong(): Long = GlobalHeap.ld(addr)
 
@@ -97,8 +98,11 @@ class C_UInt64 private constructor(val addr: Int) : Comparable<C_UInt64> {
         private val engine = BitShiftEngine(BitShiftMode.NATIVE, 64)
 
         fun alloc(): C_UInt64 = C_UInt64(KMalloc.malloc(BYTES))
+
         fun zero(): C_UInt64 = alloc().also { GlobalHeap.sd(it.addr, 0L) }
+
         fun one(): C_UInt64 = alloc().also { GlobalHeap.sd(it.addr, 1L) }
+
         /** All-1s bit pattern = 2^64 - 1. */
         fun maxValue(): C_UInt64 = alloc().also { GlobalHeap.sd(it.addr, engine.bitwiseNot(0L)) }
 

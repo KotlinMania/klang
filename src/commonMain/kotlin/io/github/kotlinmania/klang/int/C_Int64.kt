@@ -17,8 +17,9 @@ import io.github.kotlinmania.klang.mem.KMalloc
  * targets. Shifts are routed through BitShiftEngine for cross-platform
  * determinism.
  */
-class C_Int64 private constructor(val addr: Int) : Comparable<C_Int64> {
-
+class C_Int64 private constructor(
+    val addr: Int,
+) : Comparable<C_Int64> {
     private fun toRawLong(): Long = GlobalHeap.ld(addr)
 
     fun toLong(): Long = toRawLong()
@@ -88,12 +89,13 @@ class C_Int64 private constructor(val addr: Int) : Comparable<C_Int64> {
         require(bits in 0..63) { "C_Int64 shift amount out of range: $bits" }
         if (bits == 0) return copy()
         val shifted = engine.unsignedRightShift(this.toRawLong(), bits).value
-        val result = if (isNegative()) {
-            val signMask = engine.leftShift(engine.getMask(bits), 64 - bits).value
-            engine.bitwiseOr(shifted, signMask)
-        } else {
-            shifted
-        }
+        val result =
+            if (isNegative()) {
+                val signMask = engine.leftShift(engine.getMask(bits), 64 - bits).value
+                engine.bitwiseOr(shifted, signMask)
+            } else {
+                shifted
+            }
         return store(result)
     }
 
@@ -118,9 +120,13 @@ class C_Int64 private constructor(val addr: Int) : Comparable<C_Int64> {
         private val engine = BitShiftEngine(BitShiftMode.NATIVE, 64)
 
         fun alloc(): C_Int64 = C_Int64(KMalloc.malloc(BYTES))
+
         fun zero(): C_Int64 = alloc().also { GlobalHeap.sd(it.addr, 0L) }
+
         fun one(): C_Int64 = alloc().also { GlobalHeap.sd(it.addr, 1L) }
+
         fun minValue(): C_Int64 = alloc().also { GlobalHeap.sd(it.addr, Long.MIN_VALUE) }
+
         fun maxValue(): C_Int64 = alloc().also { GlobalHeap.sd(it.addr, Long.MAX_VALUE) }
 
         fun fromLong(value: Long): C_Int64 =

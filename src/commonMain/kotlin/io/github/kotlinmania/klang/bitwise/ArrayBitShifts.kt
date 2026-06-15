@@ -9,24 +9,30 @@ import kotlinx.coroutines.launch
  * Array-wide bit shifts for limb arrays (little-endian) with optional sticky tracking.
  * These are scalar implementations designed to be allocation-free and branch-light.
  * Future: provide platform-optimized actuals (JVM Vector API / Kotlin/Native Vector128).
- * 
+ *
  * @native-bitshift-allowed This is a core BitShift implementation file.
  * Native bitwise operations (shl, shr, ushr, and, or) are permitted here
  * as this file provides the foundation for the BitShift engine.
  */
 object ArrayBitShifts {
-    data class ShiftResult(val carryOut: Int, val sticky: Boolean)
+    data class ShiftResult(
+        val carryOut: Int,
+        val sticky: Boolean,
+    )
+
     private val eng16 get() = BitShiftEngine(BitShiftConfig.defaultMode, 16)
     private val a16 = ArithmeticBitwiseOps(16)
     private val a32 = ArithmeticBitwiseOps.BITS_32
     private const val BASE16: Int = 65536
+
     // Use vector-friendly 3-pass even for small limb windows like HPC16x8 (8 limbs)
     private const val VECTOR_THRESHOLD: Int = 8
+
     // Heuristics for parallel fanout
     private const val MIN_PAR_CHUNK: Int = 8192
 
     // Coroutines (multiplatform)
-    var parallelDispatcher: CoroutineDispatcher = Dispatchers.Default
+    internal var parallelDispatcher: CoroutineDispatcher = Dispatchers.Default
 
     /**
      * In-place left shift of a little-endian IntArray of 16-bit limbs: a[from .. from+len-1].
@@ -58,7 +64,7 @@ object ArrayBitShifts {
      * Splits work into chunks; Pass A computes lo/hi locally, Pass C merges with neighbor hi.
      * Returns carryOut (upper s bits of last limb). Sticky is currently false (left shift).
      */
-    suspend fun shl16LEInPlaceParallel(
+    internal suspend fun shl16LEInPlaceParallel(
         a: IntArray,
         from: Int,
         len: Int,
@@ -120,9 +126,12 @@ object ArrayBitShifts {
                 if (start >= end) continue
                 launch(context = parallelDispatcher) {
                     var i = start
-                    var neighbor = if (i == 0) carryInNorm else {
-                        if (i == start) boundaries[ck - 1] else hi[i - 1]
-                    }
+                    var neighbor =
+                        if (i == 0) {
+                            carryInNorm
+                        } else {
+                            if (i == start) boundaries[ck - 1] else hi[i - 1]
+                        }
                     while (i < end) {
                         if (i != start) neighbor = hi[i - 1]
                         val combined = BitwiseOps.orArithmeticGeneral(lo[i], neighbor)
@@ -241,7 +250,7 @@ object ArrayBitShifts {
      * Parallel 3-pass right shift using coroutines. Returns carryOut (low s bits dropped from limb 0)
      * and sticky (OR of all dropped bits across limbs).
      */
-    suspend fun rsh16LEInPlaceParallel(
+    internal suspend fun rsh16LEInPlaceParallel(
         a: IntArray,
         from: Int,
         len: Int,
@@ -297,11 +306,12 @@ object ArrayBitShifts {
                 launch(context = parallelDispatcher) {
                     var i = start
                     while (i < end) {
-                        val neighbor = if (i + 1 < end) {
-                            ((dropped[i + 1].toLong() * pow2_16_minus_s) % BASE16).toInt()
-                        } else {
-                            ((nextChunkFirst.toLong() * pow2_16_minus_s) % BASE16).toInt()
-                        }
+                        val neighbor =
+                            if (i + 1 < end) {
+                                ((dropped[i + 1].toLong() * pow2_16_minus_s) % BASE16).toInt()
+                            } else {
+                                ((nextChunkFirst.toLong() * pow2_16_minus_s) % BASE16).toInt()
+                            }
                         val combined = BitwiseOps.orArithmeticGeneral(hi[i], neighbor)
                         a[from + i] = combined % BASE16
                         i++
@@ -313,7 +323,10 @@ object ArrayBitShifts {
         val carryOut = if (len > 0) dropped[0] and 0xFFFF else 0
         var sticky = false
         var i = 0
-        while (i < len) { sticky = sticky or (dropped[i] != 0); i++ }
+        while (i < len) {
+            sticky = sticky or (dropped[i] != 0)
+            i++
+        }
         return ShiftResult(carryOut, sticky)
     }
 
@@ -341,15 +354,15 @@ object ArrayBitShifts {
     fun shl16LEInPlace(baseAddr: Int, fromLimb: Int, len: Int, s: Int, carryIn: Int = 0): ShiftResult {
         require(s in 0..15) { "s must be in 0..15" }
         if (len <= 0 || s == 0) return ShiftResult(carryIn and 0xFFFF, false) // @native-bitshift-allowed
-        
+
         val pow2s = ShiftTables16.POW2[s]
         val mask16 = ShiftTables16.MASK16
         val maskLowS = ShiftTables16.LOW_MASK[s]
         val eng16Local = BitShiftEngine(BitShiftConfig.defaultMode, 16)
-        
+
         var carry = carryIn and 0xFFFF // @native-bitshift-allowed
         var sticky = false
-        
+
         for (i in 0 until len) {
             val off = baseAddr + (fromLimb + i) * 2
             val lowByte = GlobalHeap.lbu(off)
@@ -358,20 +371,20 @@ object ArrayBitShifts {
             val highShifted = eng16Local.byteShiftLeft(highByte.toLong(), 1)
             val orResult = eng16Local.bitwiseOr(lowByte.toLong(), highShifted.value)
             val cur = eng16Local.bitwiseAnd(orResult, mask16.toLong()).toInt()
-            
+
             val rs = eng16.leftShift(cur.toLong(), s)
             val lowShifted = a16.normalize(rs.value).toInt()
             val carryLow = if (maskLowS == 0) 0 else (carry % (maskLowS + 1))
             val combined = BitwiseOps.orArithmetic(lowShifted, carryLow)
             val result = (combined % BASE16)
-            
+
             // Decompose back to bytes (little-endian) using BitShiftEngine
             val resultByte0 = eng16Local.bitwiseAnd(result.toLong(), 0xFF)
             GlobalHeap.sb(off, resultByte0.toByte())
             val highByteResult = eng16Local.byteShiftRight(result.toLong(), 1)
             val resultByte1 = eng16Local.bitwiseAnd(highByteResult.value, 0xFF)
             GlobalHeap.sb(off + 1, resultByte1.toByte())
-            
+
             // Compute carry as top s bits of original value (shifted out)
             carry = if (maskLowS == 0) 0 else ((cur / ShiftTables16.POW2[16 - s]) % (maskLowS + 1))
         }
@@ -381,15 +394,15 @@ object ArrayBitShifts {
     fun rsh16LEInPlace(baseAddr: Int, fromLimb: Int, len: Int, s: Int): ShiftResult {
         require(s in 0..15) { "s must be in 0..15" }
         if (len <= 0 || s == 0) return ShiftResult(0, false)
-        
+
         val pow2s = ShiftTables16.POW2[s]
         val mask16 = ShiftTables16.MASK16
         val eng16Local = BitShiftEngine(BitShiftConfig.defaultMode, 16)
-        
+
         var nextCarry = 0
         var sticky = false
         var carryOut = 0
-        
+
         for (i in len - 1 downTo 0) {
             val off = baseAddr + (fromLimb + i) * 2
             val lowByte = GlobalHeap.lbu(off)
@@ -398,7 +411,7 @@ object ArrayBitShifts {
             val highShifted = eng16Local.byteShiftLeft(highByte.toLong(), 1)
             val orResult = eng16Local.bitwiseOr(lowByte.toLong(), highShifted.value)
             val cur = eng16Local.bitwiseAnd(orResult, mask16.toLong()).toInt()
-            
+
             val rs = eng16.unsignedRightShift(cur.toLong(), s)
             val lowPart = a16.normalize(rs.value).toInt()
             // compute nextCarry * 2^(16-s) arithmetically
@@ -409,14 +422,14 @@ object ArrayBitShifts {
             if (i == 0) carryOut = dropped
             sticky = sticky or (dropped != 0) // @native-bitshift-allowed
             val result = (out % BASE16)
-            
+
             // Decompose back to bytes (little-endian) using BitShiftEngine
             val resultByte0 = eng16Local.bitwiseAnd(result.toLong(), 0xFF)
             GlobalHeap.sb(off, resultByte0.toByte())
             val highByteResult = eng16Local.byteShiftRight(result.toLong(), 1)
             val resultByte1 = eng16Local.bitwiseAnd(highByteResult.value, 0xFF)
             GlobalHeap.sb(off + 1, resultByte1.toByte())
-            
+
             nextCarry = dropped
         }
         return ShiftResult(carryOut and 0xFFFF, sticky) // @native-bitshift-allowed

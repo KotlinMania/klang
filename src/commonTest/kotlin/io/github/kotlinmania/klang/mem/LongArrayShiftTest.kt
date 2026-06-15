@@ -10,7 +10,6 @@ import kotlin.test.assertEquals
  * do we get clean unsigned values or sign-extended garbage?
  */
 class LongArrayShiftTest {
-
     @Test
     fun testLongShiftNoSignExtension() {
         println("\n" + "=".repeat(70))
@@ -84,8 +83,8 @@ class LongArrayShiftTest {
 
         // Write bytes at various positions
         fun setByte(addr: Int, value: Int) {
-            val idx = addr ushr 3  // addr / 8
-            val shift = (addr and 7) shl 3  // (addr % 8) * 8
+            val idx = addr ushr 3 // addr / 8
+            val shift = (addr and 7) shl 3 // (addr % 8) * 8
             val mask = (0xFFL shl shift).inv()
             data[idx] = (data[idx] and mask) or ((value.toLong() and 0xFF) shl shift)
         }
@@ -127,7 +126,7 @@ class LongArrayShiftTest {
         fun setInt(addr: Int, value: Int) {
             // addr must be 4-byte aligned for simplicity
             val idx = addr ushr 3
-            val shift = (addr and 4) shl 3  // 0 or 32
+            val shift = (addr and 4) shl 3 // 0 or 32
             val mask = (0xFFFFFFFFL shl shift).inv()
             data[idx] = (data[idx] and mask) or ((value.toLong() and 0xFFFFFFFFL) shl shift)
         }
@@ -167,7 +166,7 @@ class LongArrayShiftTest {
         println("TYPE VERIFICATION: Do Long operations stay as Long?")
         println("=".repeat(70))
 
-        val a: Long = 0x8000000000000000UL.toLong()  // High bit set
+        val a: Long = 0x8000000000000000UL.toLong() // High bit set
 
         println("a = 0x${a.toULong().toString(16)} (Long.MIN_VALUE)")
 

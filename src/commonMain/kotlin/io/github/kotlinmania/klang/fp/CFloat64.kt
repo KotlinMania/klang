@@ -78,8 +78,9 @@ import io.github.kotlinmania.klang.bitwise.Float64Math
  * @see CLongDouble For intent-based precision selection
  * @since 0.1.0
  */
-class CFloat64 private constructor(private val bits: Long) {
-    
+class CFloat64 private constructor(
+    private val bits: Long,
+) {
     /**
      * The value as a Kotlin [Double].
      *
@@ -87,14 +88,14 @@ class CFloat64 private constructor(private val bits: Long) {
      * further arithmetic. Use CFloat64 operations to maintain cross-platform consistency.
      */
     val value: Double get() = Double.fromBits(bits)
-    
+
     /**
      * Convert to Kotlin [Double].
      *
      * @return The IEEE-754 binary64 value as a Double
      */
     fun toDouble(): Double = value
-    
+
     /**
      * Convert to [Float] with proper rounding.
      *
@@ -103,21 +104,21 @@ class CFloat64 private constructor(private val bits: Long) {
      * @return The value as a Float, rounded to nearest-even
      */
     fun toFloat(): Float = Float.fromBits(Float64Math.toFloat32Bits(bits))
-    
+
     /**
      * Get raw IEEE-754 binary64 bits.
      *
      * @return The 64-bit representation as a Long
      */
     fun toBits(): Long = bits
-    
+
     /**
      * Unary negation operator.
      *
      * @return A new CFloat64 with the sign bit flipped
      */
     operator fun unaryMinus(): CFloat64 = fromBits(Float64Math.negateBits(bits))
-    
+
     /**
      * Addition operator.
      *
@@ -126,69 +127,89 @@ class CFloat64 private constructor(private val bits: Long) {
      * @param other Value to add
      * @return A new CFloat64 representing the sum
      */
-    operator fun plus(other: CFloat64): CFloat64 {
-        return fromBits(Float64Math.addBits(this.bits, other.bits))
-    }
-    
+    operator fun plus(other: CFloat64): CFloat64 = fromBits(Float64Math.addBits(this.bits, other.bits))
+
     /**
      * Subtraction operator.
      *
      * @param other Value to subtract
      * @return A new CFloat64 representing the difference
      */
-    operator fun minus(other: CFloat64): CFloat64 {
-        return fromBits(Float64Math.subBits(this.bits, other.bits))
-    }
-    
+    operator fun minus(other: CFloat64): CFloat64 = fromBits(Float64Math.subBits(this.bits, other.bits))
+
     /**
      * Multiplication operator.
      *
      * @param other Value to multiply by
      * @return A new CFloat64 representing the product
      */
-    operator fun times(other: CFloat64): CFloat64 {
-        return fromBits(Float64Math.mulBits(this.bits, other.bits))
-    }
-    
+    operator fun times(other: CFloat64): CFloat64 = fromBits(Float64Math.mulBits(this.bits, other.bits))
+
     /**
      * Division operator.
      *
      * @param other Divisor
      * @return A new CFloat64 representing the quotient
      */
-    operator fun div(other: CFloat64): CFloat64 {
-        return fromBits(Float64Math.divBits(this.bits, other.bits))
-    }
+    operator fun div(other: CFloat64): CFloat64 = fromBits(Float64Math.divBits(this.bits, other.bits))
 
     // ===== Basic math: sqrt, rounding modes, FP utilities =====
 
     /** IEEE-754 square root. */
-    fun sqrt(): CFloat64 = fromDouble(io.github.kotlinmania.klang.math.BasicMath.sqrt(value))
+    fun sqrt(): CFloat64 =
+        fromDouble(
+            io.github.kotlinmania.klang.math.BasicMath
+                .sqrt(value),
+        )
 
     /** Round toward -∞. */
-    fun floor(): CFloat64 = fromDouble(io.github.kotlinmania.klang.math.BasicMath.floor(value))
+    fun floor(): CFloat64 =
+        fromDouble(
+            io.github.kotlinmania.klang.math.BasicMath
+                .floor(value),
+        )
 
     /** Round toward +∞. */
-    fun ceil(): CFloat64 = fromDouble(io.github.kotlinmania.klang.math.BasicMath.ceil(value))
+    fun ceil(): CFloat64 =
+        fromDouble(
+            io.github.kotlinmania.klang.math.BasicMath
+                .ceil(value),
+        )
 
     /** Round toward zero. */
-    fun trunc(): CFloat64 = fromDouble(io.github.kotlinmania.klang.math.BasicMath.trunc(value))
+    fun trunc(): CFloat64 =
+        fromDouble(
+            io.github.kotlinmania.klang.math.BasicMath
+                .trunc(value),
+        )
 
     /** Round half away from zero (C99 round). */
-    fun round(): CFloat64 = fromDouble(io.github.kotlinmania.klang.math.BasicMath.round(value))
+    fun round(): CFloat64 =
+        fromDouble(
+            io.github.kotlinmania.klang.math.BasicMath
+                .round(value),
+        )
 
     /** Decompose into (mantissa in [0.5,1.0), exponent). */
     fun frexp(): Pair<CFloat64, Int> {
-        val (m, e) = io.github.kotlinmania.klang.math.BasicMath.frexp(value)
+        val (m, e) =
+            io.github.kotlinmania.klang.math.BasicMath
+                .frexp(value)
         return fromDouble(m) to e
     }
 
     /** Compute `this * 2^exp`. */
-    fun ldexp(exp: Int): CFloat64 = fromDouble(io.github.kotlinmania.klang.math.BasicMath.ldexp(value, exp))
+    fun ldexp(exp: Int): CFloat64 =
+        fromDouble(
+            io.github.kotlinmania.klang.math.BasicMath
+                .ldexp(value, exp),
+        )
 
     /** Decompose into integer and fractional parts. */
     fun modf(): Pair<CFloat64, CFloat64> {
-        val (i, f) = io.github.kotlinmania.klang.math.BasicMath.modf(value)
+        val (i, f) =
+            io.github.kotlinmania.klang.math.BasicMath
+                .modf(value)
         return fromDouble(i) to fromDouble(f)
     }
 
@@ -202,17 +223,15 @@ class CFloat64 private constructor(private val bits: Long) {
      * @param other Value to compare against
      * @return Negative if this < other, zero if equal, positive if this > other
      */
-    operator fun compareTo(other: CFloat64): Int {
-        return Float64Math.compareBits(this.bits, other.bits)
-    }
-    
+    operator fun compareTo(other: CFloat64): Int = Float64Math.compareBits(this.bits, other.bits)
+
     /**
      * String representation of the value.
      *
      * @return String representation (delegates to Double.toString)
      */
     override fun toString(): String = value.toString()
-    
+
     /**
      * Equality check based on bit representation.
      *
@@ -222,40 +241,40 @@ class CFloat64 private constructor(private val bits: Long) {
      * @return true if other is a CFloat64 with identical bit representation
      */
     override fun equals(other: Any?): Boolean = other is CFloat64 && other.toBits() == bits
-    
+
     /**
      * Hash code based on bit representation.
      *
      * @return Hash code of the underlying bits
      */
     override fun hashCode(): Int = bits.hashCode()
-    
+
     companion object {
         /**
          * Positive zero (+0.0).
          */
         val ZERO = CFloat64(Float64Math.ZERO_BITS)
-        
+
         /**
          * One (1.0).
          */
         val ONE = CFloat64(Float64Math.ONE_BITS)
-        
+
         /**
          * Not-a-Number (NaN).
          */
         val NaN = CFloat64(Float64Math.NAN_BITS)
-        
+
         /**
          * Positive infinity (+∞).
          */
         val POSITIVE_INFINITY = CFloat64(Float64Math.INF_BITS)
-        
+
         /**
          * Negative infinity (-∞).
          */
         val NEGATIVE_INFINITY = CFloat64(Float64Math.NEG_INF_BITS)
-        
+
         /**
          * Create CFloat64 from raw IEEE-754 bits.
          *
@@ -263,7 +282,7 @@ class CFloat64 private constructor(private val bits: Long) {
          * @return A new CFloat64 with the specified bit pattern
          */
         fun fromBits(bits: Long): CFloat64 = CFloat64(bits)
-        
+
         /**
          * Create CFloat64 from Kotlin [Double].
          *
@@ -271,7 +290,7 @@ class CFloat64 private constructor(private val bits: Long) {
          * @return A new CFloat64 representing the same value
          */
         fun fromDouble(value: Double): CFloat64 = CFloat64(value.toRawBits())
-        
+
         /**
          * Create CFloat64 from [Float] with proper widening conversion.
          *
@@ -284,7 +303,7 @@ class CFloat64 private constructor(private val bits: Long) {
             val f64bits = Float64Math.fromFloat32Bits(value.toRawBits())
             return CFloat64(f64bits)
         }
-        
+
         /**
          * Create CFloat64 from [Int].
          *
@@ -292,7 +311,7 @@ class CFloat64 private constructor(private val bits: Long) {
          * @return A new CFloat64 representing the value
          */
         fun fromInt(value: Int): CFloat64 = fromDouble(value.toDouble())
-        
+
         /**
          * Create CFloat64 from [Long].
          *

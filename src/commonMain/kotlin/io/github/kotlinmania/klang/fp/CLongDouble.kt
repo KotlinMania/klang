@@ -190,11 +190,12 @@ class CLongDouble private constructor(
      *
      * @return The value as a standard Double
      */
-    fun toDouble(): Double = when (flavorResolved()) {
-        Flavor.DOUBLE64 -> d!!.toDouble()
-        Flavor.EXTENDED80, Flavor.IEEE128 -> q!!.toDouble()
-        else -> error("unreachable")
-    }
+    fun toDouble(): Double =
+        when (flavorResolved()) {
+            Flavor.DOUBLE64 -> d!!.toDouble()
+            Flavor.EXTENDED80, Flavor.IEEE128 -> q!!.toDouble()
+            else -> error("unreachable")
+        }
 
     /**
      * Convert to [CFloat128].
@@ -203,11 +204,12 @@ class CLongDouble private constructor(
      *
      * @return The value as a CFloat128
      */
-    fun toCFloat128(): CFloat128 = when (flavorResolved()) {
-        Flavor.DOUBLE64 -> CFloat128.fromDouble(d!!.toDouble())
-        Flavor.EXTENDED80, Flavor.IEEE128 -> q!!
-        else -> error("unreachable")
-    }
+    fun toCFloat128(): CFloat128 =
+        when (flavorResolved()) {
+            Flavor.DOUBLE64 -> CFloat128.fromDouble(d!!.toDouble())
+            Flavor.EXTENDED80, Flavor.IEEE128 -> q!!
+            else -> error("unreachable")
+        }
 
     /**
      * Addition operator.
@@ -217,14 +219,15 @@ class CLongDouble private constructor(
      * @param other Value to add
      * @return A new CLongDouble representing the sum
      */
-    operator fun plus(other: CLongDouble): CLongDouble = operate(other) { a, b ->
-        when (flavorResolved()) {
-            Flavor.DOUBLE64 -> ofDouble(a.d!!.toDouble() + b.d!!.toDouble(), Flavor.DOUBLE64)
-            Flavor.EXTENDED80 -> ofCFloat128(a.q!! + b.q!!, Flavor.EXTENDED80)
-            Flavor.IEEE128 -> ofCFloat128(roundToIeee128(a.q!! + b.q!!), Flavor.IEEE128)
-            else -> error("unreachable")
+    operator fun plus(other: CLongDouble): CLongDouble =
+        operate(other) { a, b ->
+            when (flavorResolved()) {
+                Flavor.DOUBLE64 -> ofDouble(a.d!!.toDouble() + b.d!!.toDouble(), Flavor.DOUBLE64)
+                Flavor.EXTENDED80 -> ofCFloat128(a.q!! + b.q!!, Flavor.EXTENDED80)
+                Flavor.IEEE128 -> ofCFloat128(roundToIeee128(a.q!! + b.q!!), Flavor.IEEE128)
+                else -> error("unreachable")
+            }
         }
-    }
 
     /**
      * Subtraction operator.
@@ -232,14 +235,15 @@ class CLongDouble private constructor(
      * @param other Value to subtract
      * @return A new CLongDouble representing the difference
      */
-    operator fun minus(other: CLongDouble): CLongDouble = operate(other) { a, b ->
-        when (flavorResolved()) {
-            Flavor.DOUBLE64 -> ofDouble(a.d!!.toDouble() - b.d!!.toDouble(), Flavor.DOUBLE64)
-            Flavor.EXTENDED80 -> ofCFloat128(a.q!! - b.q!!, Flavor.EXTENDED80)
-            Flavor.IEEE128 -> ofCFloat128(roundToIeee128(a.q!! - b.q!!), Flavor.IEEE128)
-            else -> error("unreachable")
+    operator fun minus(other: CLongDouble): CLongDouble =
+        operate(other) { a, b ->
+            when (flavorResolved()) {
+                Flavor.DOUBLE64 -> ofDouble(a.d!!.toDouble() - b.d!!.toDouble(), Flavor.DOUBLE64)
+                Flavor.EXTENDED80 -> ofCFloat128(a.q!! - b.q!!, Flavor.EXTENDED80)
+                Flavor.IEEE128 -> ofCFloat128(roundToIeee128(a.q!! - b.q!!), Flavor.IEEE128)
+                else -> error("unreachable")
+            }
         }
-    }
 
     /**
      * Multiplication operator.
@@ -247,14 +251,15 @@ class CLongDouble private constructor(
      * @param other Value to multiply by
      * @return A new CLongDouble representing the product
      */
-    operator fun times(other: CLongDouble): CLongDouble = operate(other) { a, b ->
-        when (flavorResolved()) {
-            Flavor.DOUBLE64 -> ofDouble(a.d!!.toDouble() * b.d!!.toDouble(), Flavor.DOUBLE64)
-            Flavor.EXTENDED80 -> ofCFloat128(a.q!! * b.q!!, Flavor.EXTENDED80)
-            Flavor.IEEE128 -> ofCFloat128(roundToIeee128(a.q!! * b.q!!), Flavor.IEEE128)
-            else -> error("unreachable")
+    operator fun times(other: CLongDouble): CLongDouble =
+        operate(other) { a, b ->
+            when (flavorResolved()) {
+                Flavor.DOUBLE64 -> ofDouble(a.d!!.toDouble() * b.d!!.toDouble(), Flavor.DOUBLE64)
+                Flavor.EXTENDED80 -> ofCFloat128(a.q!! * b.q!!, Flavor.EXTENDED80)
+                Flavor.IEEE128 -> ofCFloat128(roundToIeee128(a.q!! * b.q!!), Flavor.IEEE128)
+                else -> error("unreachable")
+            }
         }
-    }
 
     /**
      * Division operator.
@@ -262,98 +267,107 @@ class CLongDouble private constructor(
      * @param other Divisor
      * @return A new CLongDouble representing the quotient
      */
-    operator fun div(other: CLongDouble): CLongDouble = operate(other) { a, b ->
-        when (flavorResolved()) {
-            Flavor.DOUBLE64 -> ofDouble(a.d!!.toDouble() / b.d!!.toDouble(), Flavor.DOUBLE64)
-            Flavor.EXTENDED80 -> ofCFloat128(a.q!! / b.q!!, Flavor.EXTENDED80)
-            Flavor.IEEE128 -> ofCFloat128(roundToIeee128(a.q!! / b.q!!), Flavor.IEEE128)
-            else -> error("unreachable")
+    operator fun div(other: CLongDouble): CLongDouble =
+        operate(other) { a, b ->
+            when (flavorResolved()) {
+                Flavor.DOUBLE64 -> ofDouble(a.d!!.toDouble() / b.d!!.toDouble(), Flavor.DOUBLE64)
+                Flavor.EXTENDED80 -> ofCFloat128(a.q!! / b.q!!, Flavor.EXTENDED80)
+                Flavor.IEEE128 -> ofCFloat128(roundToIeee128(a.q!! / b.q!!), Flavor.IEEE128)
+                else -> error("unreachable")
+            }
         }
-    }
 
     // ===== Basic math: sqrt, rounding modes, FP utilities =====
 
     /** IEEE-754 square root, dispatched by flavor. */
-    fun sqrt(): CLongDouble = when (flavorResolved()) {
-        Flavor.DOUBLE64 -> ofDouble(d!!.sqrt().toDouble(), Flavor.DOUBLE64)
-        Flavor.EXTENDED80 -> ofCFloat128(q!!.sqrt(), Flavor.EXTENDED80)
-        Flavor.IEEE128 -> ofCFloat128(roundToIeee128(q!!.sqrt()), Flavor.IEEE128)
-        else -> error("unreachable")
-    }
+    fun sqrt(): CLongDouble =
+        when (flavorResolved()) {
+            Flavor.DOUBLE64 -> ofDouble(d!!.sqrt().toDouble(), Flavor.DOUBLE64)
+            Flavor.EXTENDED80 -> ofCFloat128(q!!.sqrt(), Flavor.EXTENDED80)
+            Flavor.IEEE128 -> ofCFloat128(roundToIeee128(q!!.sqrt()), Flavor.IEEE128)
+            else -> error("unreachable")
+        }
 
     /** Round toward -∞. */
-    fun floor(): CLongDouble = when (flavorResolved()) {
-        Flavor.DOUBLE64 -> ofDouble(d!!.floor().toDouble(), Flavor.DOUBLE64)
-        Flavor.EXTENDED80 -> ofCFloat128(q!!.floor(), Flavor.EXTENDED80)
-        Flavor.IEEE128 -> ofCFloat128(roundToIeee128(q!!.floor()), Flavor.IEEE128)
-        else -> error("unreachable")
-    }
+    fun floor(): CLongDouble =
+        when (flavorResolved()) {
+            Flavor.DOUBLE64 -> ofDouble(d!!.floor().toDouble(), Flavor.DOUBLE64)
+            Flavor.EXTENDED80 -> ofCFloat128(q!!.floor(), Flavor.EXTENDED80)
+            Flavor.IEEE128 -> ofCFloat128(roundToIeee128(q!!.floor()), Flavor.IEEE128)
+            else -> error("unreachable")
+        }
 
     /** Round toward +∞. */
-    fun ceil(): CLongDouble = when (flavorResolved()) {
-        Flavor.DOUBLE64 -> ofDouble(d!!.ceil().toDouble(), Flavor.DOUBLE64)
-        Flavor.EXTENDED80 -> ofCFloat128(q!!.ceil(), Flavor.EXTENDED80)
-        Flavor.IEEE128 -> ofCFloat128(roundToIeee128(q!!.ceil()), Flavor.IEEE128)
-        else -> error("unreachable")
-    }
+    fun ceil(): CLongDouble =
+        when (flavorResolved()) {
+            Flavor.DOUBLE64 -> ofDouble(d!!.ceil().toDouble(), Flavor.DOUBLE64)
+            Flavor.EXTENDED80 -> ofCFloat128(q!!.ceil(), Flavor.EXTENDED80)
+            Flavor.IEEE128 -> ofCFloat128(roundToIeee128(q!!.ceil()), Flavor.IEEE128)
+            else -> error("unreachable")
+        }
 
     /** Round toward zero. */
-    fun trunc(): CLongDouble = when (flavorResolved()) {
-        Flavor.DOUBLE64 -> ofDouble(d!!.trunc().toDouble(), Flavor.DOUBLE64)
-        Flavor.EXTENDED80 -> ofCFloat128(q!!.trunc(), Flavor.EXTENDED80)
-        Flavor.IEEE128 -> ofCFloat128(roundToIeee128(q!!.trunc()), Flavor.IEEE128)
-        else -> error("unreachable")
-    }
+    fun trunc(): CLongDouble =
+        when (flavorResolved()) {
+            Flavor.DOUBLE64 -> ofDouble(d!!.trunc().toDouble(), Flavor.DOUBLE64)
+            Flavor.EXTENDED80 -> ofCFloat128(q!!.trunc(), Flavor.EXTENDED80)
+            Flavor.IEEE128 -> ofCFloat128(roundToIeee128(q!!.trunc()), Flavor.IEEE128)
+            else -> error("unreachable")
+        }
 
     /** Round half away from zero. */
-    fun round(): CLongDouble = when (flavorResolved()) {
-        Flavor.DOUBLE64 -> ofDouble(d!!.round().toDouble(), Flavor.DOUBLE64)
-        Flavor.EXTENDED80 -> ofCFloat128(q!!.round(), Flavor.EXTENDED80)
-        Flavor.IEEE128 -> ofCFloat128(roundToIeee128(q!!.round()), Flavor.IEEE128)
-        else -> error("unreachable")
-    }
+    fun round(): CLongDouble =
+        when (flavorResolved()) {
+            Flavor.DOUBLE64 -> ofDouble(d!!.round().toDouble(), Flavor.DOUBLE64)
+            Flavor.EXTENDED80 -> ofCFloat128(q!!.round(), Flavor.EXTENDED80)
+            Flavor.IEEE128 -> ofCFloat128(roundToIeee128(q!!.round()), Flavor.IEEE128)
+            else -> error("unreachable")
+        }
 
     /** Decompose into (mantissa in [0.5,1.0), exponent). */
-    fun frexp(): Pair<CLongDouble, Int> = when (flavorResolved()) {
-        Flavor.DOUBLE64 -> {
-            val (m, e) = d!!.frexp()
-            ofDouble(m.toDouble(), Flavor.DOUBLE64) to e
+    fun frexp(): Pair<CLongDouble, Int> =
+        when (flavorResolved()) {
+            Flavor.DOUBLE64 -> {
+                val (m, e) = d!!.frexp()
+                ofDouble(m.toDouble(), Flavor.DOUBLE64) to e
+            }
+            Flavor.EXTENDED80 -> {
+                val (m, e) = q!!.frexp()
+                ofCFloat128(m, Flavor.EXTENDED80) to e
+            }
+            Flavor.IEEE128 -> {
+                val (m, e) = q!!.frexp()
+                ofCFloat128(m, Flavor.IEEE128) to e
+            }
+            else -> error("unreachable")
         }
-        Flavor.EXTENDED80 -> {
-            val (m, e) = q!!.frexp()
-            ofCFloat128(m, Flavor.EXTENDED80) to e
-        }
-        Flavor.IEEE128 -> {
-            val (m, e) = q!!.frexp()
-            ofCFloat128(m, Flavor.IEEE128) to e
-        }
-        else -> error("unreachable")
-    }
 
     /** Compute `this * 2^exp`. */
-    fun ldexp(exp: Int): CLongDouble = when (flavorResolved()) {
-        Flavor.DOUBLE64 -> ofDouble(d!!.ldexp(exp).toDouble(), Flavor.DOUBLE64)
-        Flavor.EXTENDED80 -> ofCFloat128(q!!.ldexp(exp), Flavor.EXTENDED80)
-        Flavor.IEEE128 -> ofCFloat128(q!!.ldexp(exp), Flavor.IEEE128)
-        else -> error("unreachable")
-    }
+    fun ldexp(exp: Int): CLongDouble =
+        when (flavorResolved()) {
+            Flavor.DOUBLE64 -> ofDouble(d!!.ldexp(exp).toDouble(), Flavor.DOUBLE64)
+            Flavor.EXTENDED80 -> ofCFloat128(q!!.ldexp(exp), Flavor.EXTENDED80)
+            Flavor.IEEE128 -> ofCFloat128(q!!.ldexp(exp), Flavor.IEEE128)
+            else -> error("unreachable")
+        }
 
     /** Decompose into integer and fractional parts. */
-    fun modf(): Pair<CLongDouble, CLongDouble> = when (flavorResolved()) {
-        Flavor.DOUBLE64 -> {
-            val (i, f) = d!!.modf()
-            ofDouble(i.toDouble(), Flavor.DOUBLE64) to ofDouble(f.toDouble(), Flavor.DOUBLE64)
+    fun modf(): Pair<CLongDouble, CLongDouble> =
+        when (flavorResolved()) {
+            Flavor.DOUBLE64 -> {
+                val (i, f) = d!!.modf()
+                ofDouble(i.toDouble(), Flavor.DOUBLE64) to ofDouble(f.toDouble(), Flavor.DOUBLE64)
+            }
+            Flavor.EXTENDED80 -> {
+                val (i, f) = q!!.modf()
+                ofCFloat128(i, Flavor.EXTENDED80) to ofCFloat128(f, Flavor.EXTENDED80)
+            }
+            Flavor.IEEE128 -> {
+                val (i, f) = q!!.modf()
+                ofCFloat128(i, Flavor.IEEE128) to ofCFloat128(f, Flavor.IEEE128)
+            }
+            else -> error("unreachable")
         }
-        Flavor.EXTENDED80 -> {
-            val (i, f) = q!!.modf()
-            ofCFloat128(i, Flavor.EXTENDED80) to ofCFloat128(f, Flavor.EXTENDED80)
-        }
-        Flavor.IEEE128 -> {
-            val (i, f) = q!!.modf()
-            ofCFloat128(i, Flavor.IEEE128) to ofCFloat128(f, Flavor.IEEE128)
-        }
-        else -> error("unreachable")
-    }
 
     /**
      * Helper for binary operations with automatic flavor coercion.
@@ -367,10 +381,11 @@ class CLongDouble private constructor(
     /**
      * Resolve AUTO flavor to concrete flavor using DefaultFlavorProvider.
      */
-    private fun flavorResolved(): Flavor = when (flavor) {
-        Flavor.AUTO -> DefaultFlavorProvider.default
-        else -> flavor
-    }
+    private fun flavorResolved(): Flavor =
+        when (flavor) {
+            Flavor.AUTO -> DefaultFlavorProvider.default
+            else -> flavor
+        }
 
     companion object {
         /**
@@ -468,11 +483,12 @@ class CLongDouble private constructor(
          * @param flavor Target flavor
          * @return Value converted to target flavor
          */
-        private fun coerceFlavor(v: CLongDouble, flavor: Flavor): CLongDouble = when (flavor) {
-            Flavor.DOUBLE64 -> if (v.d != null) v else ofDouble(v.toDouble(), Flavor.DOUBLE64)
-            Flavor.EXTENDED80 -> if (v.q != null) v else ofCFloat128(CFloat128.fromDouble(v.toDouble()), Flavor.EXTENDED80)
-            Flavor.IEEE128 -> if (v.q != null) v else ofCFloat128(CFloat128.fromDouble(v.toDouble()), Flavor.IEEE128)
-            Flavor.AUTO -> error("AUTO must be resolved")
-        }
+        private fun coerceFlavor(v: CLongDouble, flavor: Flavor): CLongDouble =
+            when (flavor) {
+                Flavor.DOUBLE64 -> if (v.d != null) v else ofDouble(v.toDouble(), Flavor.DOUBLE64)
+                Flavor.EXTENDED80 -> if (v.q != null) v else ofCFloat128(CFloat128.fromDouble(v.toDouble()), Flavor.EXTENDED80)
+                Flavor.IEEE128 -> if (v.q != null) v else ofCFloat128(CFloat128.fromDouble(v.toDouble()), Flavor.IEEE128)
+                Flavor.AUTO -> error("AUTO must be resolved")
+            }
     }
 }

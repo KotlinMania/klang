@@ -19,13 +19,14 @@ internal object FastStringMem {
     private const val BYTE_MASK = 0xFF
 
     private const val M1: Long = 0x0101010101010101L
+
     // 0x8080808080808080 as signed Long literal:
     private const val M2: Long = -0x7F7F7F7F7F7F7F80L
-    
+
     // Use 64-bit shifter for word operations
     private val shifter = BitShiftEngine(BitShiftMode.NATIVE, 64)
 
-    private inline fun hasZeroByte(x: Long): Boolean {
+    private fun hasZeroByte(x: Long): Boolean {
         val sub = x - M1
         val notX = shifter.bitwiseNot(x)
         val and1 = shifter.bitwiseAnd(sub, notX)
@@ -33,14 +34,13 @@ internal object FastStringMem {
         return and2 != 0L
     }
 
-    private inline fun repeatByte(b: Int): Long {
-        return shifter.repeatByteToWord(b)
-    }
+    private fun repeatByte(b: Int): Long = shifter.repeatByteToWord(b)
 
-    private inline fun loadWord(addr: Int): Long {
-        val bytes = LongArray(WORD_BYTES) { i ->
-            shifter.bitwiseAnd(GlobalHeap.lbu(addr + i).toLong(), 0xFFL)
-        }
+    private fun loadWord(addr: Int): Long {
+        val bytes =
+            LongArray(WORD_BYTES) { i ->
+                shifter.bitwiseAnd(GlobalHeap.lbu(addr + i).toLong(), 0xFFL)
+            }
         return shifter.composeBytes(bytes)
     }
 

@@ -215,7 +215,7 @@ package io.github.kotlinmania.klang.bitwise
  * val weights = floatArrayOf(1.2f, -0.8f, 0.3f, 2.1f)
  * val quantized = weights.map(::quantizeWeight)
  * val packed = PackOps.packQuads(
- *     quantized[0], quantized[1], 
+ *     quantized[0], quantized[1],
  *     quantized[2], quantized[3]
  * )
  * // packed = 0x?? contains all 4 weights in 1 byte

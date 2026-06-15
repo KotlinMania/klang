@@ -1,7 +1,7 @@
 package io.github.kotlinmania.klang.mem
 
-import io.github.kotlinmania.klang.bitwise.BitShiftEngine
 import io.github.kotlinmania.klang.bitwise.BitShiftConfig
+import io.github.kotlinmania.klang.bitwise.BitShiftEngine
 
 /**
  * Typed views over [GlobalHeap] memory with little-endian semantics.
@@ -50,7 +50,10 @@ import io.github.kotlinmania.klang.bitwise.BitShiftConfig
  * @property base The starting heap address (byte offset).
  * @property length The number of bytes in this view.
  */
-data class U8View(val base: Int, val length: Int) {
+data class U8View(
+    val base: Int,
+    val length: Int,
+) {
     /**
      * Reads an unsigned byte at index [i].
      *
@@ -58,8 +61,11 @@ data class U8View(val base: Int, val length: Int) {
      * @return The byte value (0-255).
      * @throws IllegalArgumentException if i is out of bounds.
      */
-    fun get(i: Int): Int { require(i in 0 until length); return GlobalHeap.lbu(base + i) }
-    
+    fun get(i: Int): Int {
+        require(i in 0 until length)
+        return GlobalHeap.lbu(base + i)
+    }
+
     /**
      * Writes an unsigned byte at index [i].
      *
@@ -67,26 +73,31 @@ data class U8View(val base: Int, val length: Int) {
      * @param v The byte value to write (masked to 0-255).
      * @throws IllegalArgumentException if i is out of bounds.
      */
-    fun set(i: Int, v: Int) { 
+    fun set(i: Int, v: Int) {
         require(i in 0 until length)
         GlobalHeap.sb(base + i, (v and 0xFF).toByte())
     }
-    
+
     /**
      * Fills the entire view with a constant byte value.
      *
      * @param v The byte value to fill with (masked to 0-255).
      */
-    fun fill(v: Int) { GlobalHeap.memset(base, v, length) }
-    
+    fun fill(v: Int) {
+        GlobalHeap.memset(base, v, length)
+    }
+
     /**
      * Copies all bytes from another view into this view.
      *
      * @param src The source view (must have same length).
      * @throws IllegalArgumentException if lengths don't match.
      */
-    fun copyFrom(src: U8View) { require(src.length == length); GlobalHeap.memcpy(base, src.base, length) }
-    
+    fun copyFrom(src: U8View) {
+        require(src.length == length)
+        GlobalHeap.memcpy(base, src.base, length)
+    }
+
     /**
      * Creates a sub-view (slice) of this view.
      *
@@ -95,7 +106,10 @@ data class U8View(val base: Int, val length: Int) {
      * @return A new view over the sliced region.
      * @throws IllegalArgumentException if slice parameters are invalid.
      */
-    fun slice(offset: Int, len: Int): U8View { require(offset>=0 && len>=0 && offset+len<=length); return U8View(base+offset,len) }
+    fun slice(offset: Int, len: Int): U8View {
+        require(offset >= 0 && len >= 0 && offset + len <= length)
+        return U8View(base + offset, len)
+    }
 }
 
 /**
@@ -107,7 +121,10 @@ data class U8View(val base: Int, val length: Int) {
  * @property base The starting heap address (byte offset).
  * @property limbCount The number of 16-bit limbs in this view.
  */
-data class U16View(val base: Int, val limbCount: Int) {
+data class U16View(
+    val base: Int,
+    val limbCount: Int,
+) {
     /**
      * Reads an unsigned 16-bit value at index [i] (little-endian).
      *
@@ -118,11 +135,11 @@ data class U16View(val base: Int, val limbCount: Int) {
     fun get(i: Int): Int {
         require(i in 0 until limbCount)
         val eng8 = BitShiftEngine(BitShiftConfig.defaultMode, 8)
-        val lowByte = GlobalHeap.lbu(base + i*2).toLong()
-        val highByte = GlobalHeap.lbu(base + i*2 + 1).toLong()
+        val lowByte = GlobalHeap.lbu(base + i * 2).toLong()
+        val highByte = GlobalHeap.lbu(base + i * 2 + 1).toLong()
         return ((lowByte or eng8.byteShiftLeft(highByte, 1).value).toInt() and 0xFFFF)
     }
-    
+
     /**
      * Writes an unsigned 16-bit value at index [i] (little-endian).
      *
@@ -134,16 +151,18 @@ data class U16View(val base: Int, val limbCount: Int) {
         require(i in 0 until limbCount)
         val eng8 = BitShiftEngine(BitShiftConfig.defaultMode, 8)
         val vv = v and 0xFFFF
-        GlobalHeap.sb(base+i*2, (vv and 0xFF).toByte())
+        GlobalHeap.sb(base + i * 2, (vv and 0xFF).toByte())
         val highByte = eng8.byteShiftRight(vv.toLong(), 1)
-        GlobalHeap.sb(base+i*2+1, (highByte.value.toInt() and 0xFF).toByte())
+        GlobalHeap.sb(base + i * 2 + 1, (highByte.value.toInt() and 0xFF).toByte())
     }
-    
+
     /**
      * Fills the entire view with zeros.
      */
-    fun fillZero() { GlobalHeap.memset(base, 0, limbCount*2) }
-    
+    fun fillZero() {
+        GlobalHeap.memset(base, 0, limbCount * 2)
+    }
+
     /**
      * Creates a sub-view (slice) of this view.
      *
@@ -152,7 +171,10 @@ data class U16View(val base: Int, val limbCount: Int) {
      * @return A new view over the sliced region.
      * @throws IllegalArgumentException if slice parameters are invalid.
      */
-    fun slice(offset: Int, len: Int): U16View { require(offset>=0 && len>=0 && offset+len<=limbCount); return U16View(base+offset*2, len) }
+    fun slice(offset: Int, len: Int): U16View {
+        require(offset >= 0 && len >= 0 && offset + len <= limbCount)
+        return U16View(base + offset * 2, len)
+    }
 }
 
 /**
@@ -164,7 +186,10 @@ data class U16View(val base: Int, val limbCount: Int) {
  * @property base The starting heap address (byte offset).
  * @property wordCount The number of 32-bit words in this view.
  */
-data class U32View(val base: Int, val wordCount: Int) {
+data class U32View(
+    val base: Int,
+    val wordCount: Int,
+) {
     /**
      * Reads a signed 32-bit value at index [i] (little-endian).
      *
@@ -172,8 +197,11 @@ data class U32View(val base: Int, val wordCount: Int) {
      * @return The 32-bit value (as Kotlin Int, which is signed).
      * @throws IllegalArgumentException if i is out of bounds.
      */
-    fun get(i: Int): Int { require(i in 0 until wordCount); return GlobalHeap.lw(base + i*4) }
-    
+    fun get(i: Int): Int {
+        require(i in 0 until wordCount)
+        return GlobalHeap.lw(base + i * 4)
+    }
+
     /**
      * Writes a signed 32-bit value at index [i] (little-endian).
      *
@@ -181,13 +209,18 @@ data class U32View(val base: Int, val wordCount: Int) {
      * @param v The 32-bit value to write.
      * @throws IllegalArgumentException if i is out of bounds.
      */
-    fun set(i: Int, v: Int) { require(i in 0 until wordCount); GlobalHeap.sw(base + i*4, v) }
-    
+    fun set(i: Int, v: Int) {
+        require(i in 0 until wordCount)
+        GlobalHeap.sw(base + i * 4, v)
+    }
+
     /**
      * Fills the entire view with zeros.
      */
-    fun fillZero() { GlobalHeap.memset(base, 0, wordCount*4) }
-    
+    fun fillZero() {
+        GlobalHeap.memset(base, 0, wordCount * 4)
+    }
+
     /**
      * Creates a sub-view (slice) of this view.
      *
@@ -196,6 +229,8 @@ data class U32View(val base: Int, val wordCount: Int) {
      * @return A new view over the sliced region.
      * @throws IllegalArgumentException if slice parameters are invalid.
      */
-    fun slice(offset: Int, len: Int): U32View { require(offset>=0 && len>=0 && offset+len<=wordCount); return U32View(base+offset*4, len) }
+    fun slice(offset: Int, len: Int): U32View {
+        require(offset >= 0 && len >= 0 && offset + len <= wordCount)
+        return U32View(base + offset * 4, len)
+    }
 }
-

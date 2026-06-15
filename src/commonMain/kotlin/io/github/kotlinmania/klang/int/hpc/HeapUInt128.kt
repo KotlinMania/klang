@@ -200,9 +200,10 @@ import io.github.kotlinmania.klang.mem.KMalloc
  * @see GlobalHeap For byte-level memory access
  * @since 0.1.0
  */
-class HeapUInt128 private constructor(val addr: Int) : Comparable<HeapUInt128> {
-    
-    /** 
+class HeapUInt128 private constructor(
+    val addr: Int,
+) : Comparable<HeapUInt128> {
+    /**
      * Convert to IntArray for compatibility with SwAR128 array-based operations.
      *
      * **Warning**: This creates a copy and defeats zero-copy benefits.
@@ -211,7 +212,7 @@ class HeapUInt128 private constructor(val addr: Int) : Comparable<HeapUInt128> {
      * @return 8-element IntArray containing the limbs
      */
     fun toIntArray(): IntArray = readLimbs(addr)
-    
+
     /**
      * Convert to hexadecimal string representation.
      *
@@ -226,7 +227,7 @@ class HeapUInt128 private constructor(val addr: Int) : Comparable<HeapUInt128> {
      * ```
      */
     fun toHexString(): String = SwAR128.toBigEndianHexHeap(addr)
-    
+
     /**
      * String representation (delegates to [toHexString]).
      *
@@ -390,7 +391,7 @@ class HeapUInt128 private constructor(val addr: Int) : Comparable<HeapUInt128> {
     companion object {
         /** BitShiftEngine for 8-bit byte operations (reading limbs from heap). */
         private val byteShifter = BitShiftEngine(BitShiftMode.NATIVE, 8)
-        
+
         /**
          * Allocate a new uninitialized HeapUInt128.
          *
@@ -403,7 +404,7 @@ class HeapUInt128 private constructor(val addr: Int) : Comparable<HeapUInt128> {
          * Typically used internally. Users should prefer [zero], [one], or [fromULong].
          */
         fun alloc(): HeapUInt128 = HeapUInt128(KMalloc.malloc(SwAR128.LIMB_COUNT * 2))
-        
+
         /**
          * Create a zero-initialized 128-bit integer.
          *
@@ -416,7 +417,7 @@ class HeapUInt128 private constructor(val addr: Int) : Comparable<HeapUInt128> {
          * ```
          */
         fun zero(): HeapUInt128 = alloc().also { SwAR128.zeroHeap(it.addr) }
-        
+
         /**
          * Create a 128-bit integer with value 1.
          *
@@ -428,10 +429,11 @@ class HeapUInt128 private constructor(val addr: Int) : Comparable<HeapUInt128> {
          * println(one.toHexString())  // "0x00000000000000000000000000000001"
          * ```
          */
-        fun one(): HeapUInt128 = alloc().also {
-            SwAR128.zeroHeap(it.addr)
-            GlobalHeap.sb(it.addr, 1)
-        }
+        fun one(): HeapUInt128 =
+            alloc().also {
+                SwAR128.zeroHeap(it.addr)
+                GlobalHeap.sb(it.addr, 1)
+            }
 
         /**
          * Create from IntArray (copies data to heap).
@@ -469,9 +471,10 @@ class HeapUInt128 private constructor(val addr: Int) : Comparable<HeapUInt128> {
          * println(x.toHexString())  // "0x00000000000000000000AB54A98CEB1F0AD2"
          * ```
          */
-        fun fromULong(value: ULong): HeapUInt128 = alloc().also {
-            SwAR128.writeULongToHeap(it.addr, value)
-        }
+        fun fromULong(value: ULong): HeapUInt128 =
+            alloc().also {
+                SwAR128.writeULongToHeap(it.addr, value)
+            }
 
         /**
          * Internal compatibility helper for code migrated from LimbUInt128.
@@ -494,11 +497,12 @@ private val byteShifter = BitShiftEngine(BitShiftMode.NATIVE, 8)
  * @param addr Heap address of limb array
  * @return 8-element IntArray containing the limbs
  */
-private fun readLimbs(addr: Int): IntArray = IntArray(SwAR128.LIMB_COUNT) { i ->
-    val lowByte = GlobalHeap.lbu(addr + i * 2).toLong()
-    val highByte = GlobalHeap.lbu(addr + i * 2 + 1).toLong()
-    byteShifter.composeBytes(lowByte, highByte).toInt()
-}
+private fun readLimbs(addr: Int): IntArray =
+    IntArray(SwAR128.LIMB_COUNT) { i ->
+        val lowByte = GlobalHeap.lbu(addr + i * 2).toLong()
+        val highByte = GlobalHeap.lbu(addr + i * 2 + 1).toLong()
+        byteShifter.composeBytes(lowByte, highByte).toInt()
+    }
 
 /**
  * Write 8 limbs from IntArray to heap.

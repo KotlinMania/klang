@@ -18,8 +18,9 @@ import io.github.kotlinmania.klang.mem.KMalloc
  *
  * @property addr Heap address of the 4-byte value
  */
-class C_Int32 private constructor(val addr: Int) : Comparable<C_Int32> {
-
+class C_Int32 private constructor(
+    val addr: Int,
+) : Comparable<C_Int32> {
     /** Load the value as unsigned Long (zero-extended from 32 bits). */
     private fun toUnsignedLong(): Long = engine.bitwiseAnd(GlobalHeap.lw(addr).toLong(), MASK_32)
 
@@ -98,15 +99,17 @@ class C_Int32 private constructor(val addr: Int) : Comparable<C_Int32> {
         if (bits == 0) return copy()
         val unsignedValue = this.toUnsignedLong()
         val shifted = engine.unsignedRightShift(unsignedValue, bits).value
-        val result = if (isNegative()) {
-            val signMask = engine.bitwiseAnd(
-                engine.leftShift(engine.getMask(bits), 32 - bits).value,
-                MASK_32,
-            )
-            engine.bitwiseOr(shifted, signMask)
-        } else {
-            shifted
-        }
+        val result =
+            if (isNegative()) {
+                val signMask =
+                    engine.bitwiseAnd(
+                        engine.leftShift(engine.getMask(bits), 32 - bits).value,
+                        MASK_32,
+                    )
+                engine.bitwiseOr(shifted, signMask)
+            } else {
+                shifted
+            }
         return store(result)
     }
 
@@ -136,9 +139,13 @@ class C_Int32 private constructor(val addr: Int) : Comparable<C_Int32> {
         private val MASK_32: Long = engine.getMask(32)
 
         fun alloc(): C_Int32 = C_Int32(KMalloc.malloc(BYTES))
+
         fun zero(): C_Int32 = alloc().also { GlobalHeap.sw(it.addr, 0) }
+
         fun one(): C_Int32 = alloc().also { GlobalHeap.sw(it.addr, 1) }
+
         fun minValue(): C_Int32 = alloc().also { GlobalHeap.sw(it.addr, Int.MIN_VALUE) }
+
         fun maxValue(): C_Int32 = alloc().also { GlobalHeap.sw(it.addr, Int.MAX_VALUE) }
 
         fun fromInt(value: Int): C_Int32 =

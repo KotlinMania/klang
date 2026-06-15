@@ -10,9 +10,10 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class C_Int16Test {
-
     @BeforeTest
-    fun setup() { KMalloc.init(64 * 1024) }
+    fun setup() {
+        KMalloc.init(64 * 1024)
+    }
 
     @Test
     fun zeroOneMinMax() {
@@ -97,7 +98,14 @@ class C_Int16Test {
         assertEquals(0x0FF0, (a xor b).toInt() and 0xFFFF)
         // inv of all-zero = all-one = -1; double-inv is identity
         assertEquals(-1, C_Int16.zero().inv().toInt())
-        assertEquals(C_Int16.fromInt(0x1234).toInt(), C_Int16.fromInt(0x1234).inv().inv().toInt())
+        assertEquals(
+            C_Int16.fromInt(0x1234).toInt(),
+            C_Int16
+                .fromInt(0x1234)
+                .inv()
+                .inv()
+                .toInt(),
+        )
     }
 
     @Test

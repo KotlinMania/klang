@@ -418,14 +418,43 @@ Then stop. A human will pick it up.
    env block for the macOS build.
 
 3. **`KotlinStdlib.kt` unchecked-cast bridge** (the big one). When a
-   public Kotlin API exposes `kotlin.Result<T>` or `kotlin.Throwable`
-   across the Swift boundary, the Kotlin plugin generates
+   declaration that reaches the Swift boundary exposes
+   `kotlin.Result<T>` or `kotlin.Throwable` / `kotlin.Exception`, the
+   Kotlin plugin generates
    `build/SwiftExport/<target>/<config>/files/KotlinStdlib/KotlinStdlib.kt`
    containing `Any?` → `Array<Any?>` unchecked casts. Under the
    workspace-canonical `allWarningsAsErrors.set(true)` these become
-   compile errors. **Per-repo workaround**: replace `kotlin.Result<T>`
-   in the public API with a repo-local concrete result type using the
-   flat-class pattern below. See
+   compile errors.
+
+   **First-choice fix:** keep the Apple-facing public API usable. Replace
+   `kotlin.Result<T>` / `Throwable` surfaces with Swift-exportable outcome
+   and error types, or keep the Swift-hostile implementation internal and
+   expose a concrete facade.
+
+   ```kotlin
+   package io.github.kotlinmania.example
+
+   public sealed class ParseOutcome {
+       public data class Ok(public val value: Value) : ParseOutcome()
+       public data class Err(public val error: ParseError) : ParseOutcome()
+   }
+
+   public data class ParseError(public val message: String)
+
+   public class Parser {
+       public fun tryParse(input: String): ParseOutcome =
+           when (val parsed = parseValue(input)) {
+               is InternalParseResult.Ok -> ParseOutcome.Ok(parsed.value)
+               is InternalParseResult.Err -> ParseOutcome.Err(ParseError(parsed.message))
+           }
+   }
+   ```
+
+   `@HiddenFromObjC` is not a fix. It only removes the declaration from
+   the Objective-C / Swift framework surface; Kotlin callers still see it,
+   but Apple consumers do not. Repair the public API by renaming colliding
+   declarations and replacing Swift-hostile shapes with strongly-typed,
+   bridgeable Kotlin declarations. See
    [`triage-kotlin-stdlib-in-public-api.md`](./triage-kotlin-stdlib-in-public-api.md)
    for the workspace-wide hit list.
 
@@ -491,7 +520,7 @@ Then stop. A human will pick it up.
    > `Target: arm64-apple-macosx26.0` and `Xcode 26.4.1` straight from
    > the image default. Keep `runs-on: macos-26`; omit the pin step.
 
-All seven are filable upstream against the Kotlin Multiplatform plugin
+These first seven gaps are filable upstream against the Kotlin Multiplatform plugin
 (or, for #7, against the Kotlin/Native distribution's platform-cache
 build pipeline). When they're fixed, the workarounds in this recipe
 become deletable.
@@ -598,6 +627,20 @@ become deletable.
    erasure problem in the bridge). If the function-type value is
    internal-only, marking the field `internal` is also valid.
 
+   **Primary solution when Kotlin compatibility must stay public.** Keep
+   the public Kotlin API source-compatible by changing the surface to
+   bridgeable nominal types, not by hiding declarations. For trigger 8a,
+   public factories keep their Kotlin generic parameters but return
+   stdlib interfaces (`Iterator<T>`, `Sequence<T>`, `Iterable<T>`,
+   `List<T>`, etc.) while the concrete implementation class becomes
+   internal. For trigger 8b, replace public function-type positions with
+   named `fun interface` SAMs so existing lambda call sites still compile
+   and Swift Export sees a stable type name. For Swift and Java emitted
+   name collisions, rename the Kotlin declaration or file itself and
+   migrate callers; do not preserve the old colliding spelling with a
+   typealias or platform naming annotation. The compatibility path is a
+   real bridgeable API, not an annotation tag.
+
    **DO NOT** scope `allWarningsAsErrors=false` to the
    `compileSwiftExportMain*` task family for either trigger. That was
    tried first (itertools-kotlin PR #22 for trigger 8a) and is symptom
@@ -615,7 +658,10 @@ become deletable.
    bridged to Swift. itertools-kotlin commit `40513a5` is the canonical
    reference for trigger 8a; tree-sitter-language-kotlin (the
    `LanguageFn` / `LanguageProvider` rewrite) is the canonical reference
-   for trigger 8b.
+   for trigger 8b. tree-sitter-kotlin's batch SAM-ification of seven
+   public function-type surfaces (preemptive, not reactive — done from
+   the bridge-clean source before CI surfaced the warnings) is the
+   canonical reference for the audit-and-sweep pattern below.
 
    *Audit grep (run once per repo after a fresh `embedSwiftExportForXcode`):*
 
@@ -631,6 +677,117 @@ become deletable.
    (unconstrained generic). Both are fixable per-repo via the
    recipes below. If grep returns no results, gap #8 doesn't apply to
    this repo and no API change is needed.
+
+9. **Exporting `kotlinx.coroutines.Flow` (or suspend functions) needs a
+   four-part setup that the base rollout does NOT cover.** First repo to
+   hit this end-to-end: `crossterm-kotlin` (public `Flow<InternalEvent>`
+   event stream). The failures cascade one after another; all four fixes
+   are required together. Symptom that starts it: the generated
+   `OrgJetbrainsKotlinxKotlinxCoroutinesCore.swift` references a
+   `KotlinCoroutineSupport` module that is neither imported nor emitted
+   (`cannot find type 'KotlinCoroutineSupport' in scope`).
+
+   **9a — Turn on coroutine support in the `swiftExport {}` block.** KGP
+   defaults it OFF (`SwiftExportAction.kt`:
+   `userDefinedSettings.getOrElse("enableCoroutinesSupport") { "false" }`),
+   so `Flow` gets half-exported with references to a `KotlinCoroutineSupport`
+   module the build never generates. Turn it on (the DSL method is
+   `@ExperimentalSwiftExportDsl`, so opt in on the call expression):
+
+   ```kotlin
+   swiftExport {
+       moduleName = frameworkName
+       flattenPackage = projectNamespace
+       @OptIn(org.jetbrains.kotlin.gradle.swiftexport.ExperimentalSwiftExportDsl::class)
+       configure {
+           settings.put("enableCoroutinesSupport", "true")
+       }
+   }
+   ```
+
+   **9b — Relax `allWarningsAsErrors` for the `compileSwiftExport*` task
+   family — and ONLY for the coroutine-runtime case.** Once 9a is on, the
+   plugin emits a generated `build/SwiftExport/<t>/<c>/KotlinCoroutineSupport/
+   KotlinCoroutineSupport.kt` runtime module that is itself not
+   warning-clean (kotlinx.coroutines inheritance opt-in, useless-elvis,
+   unchecked `SwiftFlowIterator` casts). That is **plugin-generated
+   runtime we do not author and cannot edit** (it is regenerated every
+   build), so there is no source fix.
+
+   ```kotlin
+   tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
+       if (name.startsWith("compileSwiftExport")) {
+           compilerOptions.allWarningsAsErrors.set(false)
+       }
+   }
+   ```
+
+   > **This is NOT the gap-#8 anti-pattern.** Gap #8 forbids this exact
+   > block when it is used to silence unchecked-cast warnings in the
+   > bridge for *your own* public API — because there you fix the source
+   > (rename it, make it `internal`, or use a named `fun interface`). The
+   > distinction is *whose code emits the warning*: gap #8 = your bridge
+   > (fix source, never relax); gap #9 = the generated
+   > `KotlinCoroutineSupport.kt` coroutine runtime (no source exists,
+   > relax is the only option). Before relying on 9b, confirm with the
+   > gap-#8 audit grep that your own bridge files have zero unchecked
+   > casts; if they do, fix those at the source first. Do NOT delete this
+   > block as "the forbidden gap-#8 block" — it is load-bearing for any
+   > Flow-exporting repo.
+
+   **9c — Disable the Kotlin/Native incremental cache.** Linking the
+   Swift Export binary builds a K/N cache for `…_swiftExportMain.klib`,
+   and the generated `SwiftFlowIterator` (a `NativePtr` continuation)
+   hits an internal compiler error in C-bridge lowering
+   (`doesn't correspond to any C type: kotlin.native.internal.NativePtr`,
+   in `CBridgeGen.convertBlockPtrToKotlinFunction`). The compiler's own
+   message recommends the workaround; set it in `gradle.properties`:
+
+   ```properties
+   kotlin.incremental.native=false
+   ```
+
+   Correctness-neutral (cache only). Revisit when the K/N
+   Swift-Export-plus-coroutines cache path is fixed upstream.
+
+   **9d — Inject a `platforms` declaration into the generated SPM
+   `Package.swift`.** The Kotlin-generated `Package.swift` omits a
+   `platforms:` clause, so a standalone `swift test` builds it below
+   macOS 10.15 and every Swift Concurrency symbol in the coroutine
+   bridge (`Task`, `AsyncSequence`, `withUnsafeThrowingContinuation`, …)
+   fails with *"is only available in macOS 10.15 or newer."* Setting
+   `MACOSX_DEPLOYMENT_TARGET` in the embed env (gap-#7 / the workflow)
+   does NOT propagate into the generated manifest. Patch it in the
+   `swiftExportSmokeTest` task, between `embedSwiftExportForXcode` and
+   `swift test` (`name:` must precede `platforms:` in the initializer):
+
+   ```kotlin
+   val generatedPackageSwift =
+       layout.buildDirectory.file("SPMPackage/macosArm64/Debug/Package.swift").get().asFile
+   if (generatedPackageSwift.exists()) {
+       val text = generatedPackageSwift.readText()
+       if (!text.contains("platforms:")) {
+           generatedPackageSwift.writeText(
+               text.replaceFirst(
+                   Regex("(name:\\s*\"[^\"]*\",)"),
+                   "$1\n    platforms: [.macOS(.v14)],",
+               ),
+           )
+       }
+   }
+   ```
+
+   Also give `swift-test-harness/Package.swift` the same
+   `platforms: [.macOS(.v14)]`. If a prior failed run cached a bad
+   manifest, clear `swift-test-harness/.build` once.
+
+   **Where Flow-exporting symbols live in the generated package.** With
+   9a on, the SPM package gains `KotlinCoroutineSupport` and
+   `OrgJetbrainsKotlinxKotlinxCoroutinesCore` targets and
+   `CrosstermLibrary` lists both — confirmed working end-to-end on
+   `crossterm-kotlin` (`swift test` → 1 test, 0 failures). Canonical
+   reference: `crossterm-kotlin/build.gradle.kts` (the four fixes) +
+   `swift-test-harness/Package.swift`.
 
 ## Recipe for replacing `kotlin.Result<T>` in a public API
 
@@ -935,6 +1092,64 @@ The bridge file's exported function now references `LanguageProvider`
 (a nominal symbol Swift Export emits a binding for) instead of the
 erased `Function0<Long>`. No `Any` cast.
 
+### After (migration variant: name the SAM method `invoke`)
+
+The recipe above uses `fun call()` as the SAM method, which is right
+for new APIs. For repos *migrating* from a public typealias whose
+call sites already use call-syntax (`callback(arg)` instead of
+`callback.call(arg)`), name the SAM method `operator fun invoke(...)`
+so Kotlin's invoke-operator convention keeps every existing call site
+working without an edit:
+
+```kotlin
+// Before (typealias):
+typealias ParseProgressCallback = (currentByteOffset: UInt, hasError: Boolean) -> Boolean
+
+// After (fun interface with invoke):
+fun interface ParseProgressCallback {
+    operator fun invoke(currentByteOffset: UInt, hasError: Boolean): Boolean
+}
+```
+
+Every prior caller of `callback(byte, hasError)` continues to compile
+unchanged — `callback(...)` is now `callback.invoke(...)` via the
+operator convention. `StableRef<ParseProgressCallback>` references in
+nativeMain actuals also compile unchanged because the type name is
+the same; only its kind changed (typealias → fun interface). Evidence:
+tree-sitter-kotlin batch SAM-ification of seven public typealiases
+and inline callback parameters, where this naming choice meant the
+`jvmMain`, `androidMain`, and `nativeMain` actuals needed zero edits.
+
+### Kotlin compatibility through named SAMs
+
+The `fun interface` rewrite preserves the normal Kotlin call shape:
+callers that pass lambdas keep writing the same lambda expression.
+Callers that wrote out `(UInt, Boolean) -> Boolean` as an explicit type
+must move to the named SAM type. That is the intended compatibility
+boundary because the published API is now a bridgeable nominal type
+instead of an erased `FunctionN`.
+
+```kotlin
+package io.github.kotlinmania.treesitter
+
+fun interface ParseProgressCallback {
+    fun invoke(
+        byteOffset: UInt,
+        hasError: Boolean,
+    ): Boolean
+}
+
+public class Parser {
+    public fun parseWithProgress(callback: ParseProgressCallback): Tree =
+        parseInternal { offset, hasError -> callback.invoke(offset, hasError) }
+}
+```
+
+When most or all of a subpackage is implementation runtime code that
+should never reach Swift or Java consumers, make it `internal` and keep
+public entry points in a small strongly-typed API layer. Do not ship a
+public API and then hide it from one platform.
+
 ### Tests
 
 SAM-convertible interfaces work the same as function types in tests
@@ -997,17 +1212,264 @@ grep -nE "as kotlin\\.Function[0-9]+<" \
 ```
 
 Every match is a candidate for the `fun interface` treatment. As a
-source-side audit, also grep for public function-type signatures:
+source-side audit (preferred — it also catches surfaces the bridge
+hasn't been generated for yet, e.g. new ports or new public
+typealiases added to existing ports), grep for public function-type
+signatures:
 
 ```sh
 grep -nE "^(public |internal |private )?(class |object |val |var |fun )[^=]*: \\(.*\\) -> " \
     src/commonMain/kotlin/**/*.kt
 grep -nE "^(public |internal |private )?(class |object |val |var |fun )[^=]*\\(.* \\(.*\\) -> " \
     src/commonMain/kotlin/**/*.kt
+grep -rnE "^typealias [A-Z][A-Za-z0-9_]+ = \\(.*\\) -> " \
+    src/commonMain/kotlin/
 ```
 
-If both grep passes return no results, trigger 8b doesn't apply and
+If all three passes return no results, trigger 8b doesn't apply and
 no API change is needed.
+
+### Preemptive sweep (run on every fresh port)
+
+A new repo's public function-type surfaces should be SAM-ified
+**before** Swift Export ever runs against them, not after CI surfaces
+the warning. The audit greps above are cheap to run from a clean
+checkout. The pattern from tree-sitter-kotlin (seven SAMs landed in
+a single PR ahead of CI evidence):
+
+1. Run the three source-side greps. Catalog every public
+   function-type surface.
+2. For each surface, decide:
+   - **typealias whose call sites use `callback(arg)` syntax** →
+     replace with `fun interface X { operator fun invoke(...) }`
+     so call sites compile unchanged.
+   - **new SAM, no existing call-syntax constraint** → name the SAM
+     method semantically (`fun call()`, `fun read(byte: UInt)`, etc.).
+   - **inline `((State) -> Boolean)?` parameter on a builder class**
+     → introduce a co-located named SAM and replace the parameter
+     type.
+   - **subpackage that is internal-by-convention runtime port** →
+     make it `internal` and expose only the strongly-typed public entry
+     points that Swift and Java consumers should actually use.
+3. Compile the three highest-coverage targets (`macosArm64`, `jvm`,
+   `androidMain`) locally to confirm the SAM conversion didn't break
+   any call site. Lambda call sites at invocation positions
+   SAM-convert automatically; `StableRef<TypeName>` references stay
+   the same because the type name didn't change, only its kind.
+
+---
+
+## Gaps discovered during the crossterm-kotlin port (2026-05-26)
+
+Three previously undocumented issues surfaced during the crossterm-kotlin
+Swift Export rollout that are general enough to hit other repos. All
+three produced hard link failures (`ld: symbol(s) not found for
+architecture arm64`) rather than compiler warnings, making them
+impossible to miss — but also impossible to diagnose from the Swift
+side alone.
+
+### 9. Public `internal expect fun` symbols leak into the Swift Export bridge
+
+**Symptom.** `swift test` link fails with `Undefined symbols for
+architecture arm64: _io_github_kotlinmania_<pkg>_<symbol>` for a
+function that *is* declared `internal` in commonMain but is also the
+`actual` implementation of an `expect fun` that was itself `internal`.
+
+**Root cause.** When commonMain declares `internal expect fun foo()` and
+a platform source set provides `internal actual fun foo()`, the Kotlin
+Swift Export plugin may still generate an `@ExportedBridge` entry for
+the symbol because the `expect`/`actual` mechanism creates a public
+entry point during metadata compilation even though the original
+declaration is `internal`. The macOS native binary then doesn't export
+the symbol (it's truly internal), and the bridge reference dangles.
+
+**Fix.** Make the function truly invisible to the bridge by ensuring it
+doesn't participate in the exported surface. For utility functions that
+only exist as internal implementation details (like `getTtyFd()` which
+returns a raw fd for termios calls), the fix was to remove `expect`
+entirely and make the function a plain `internal fun` in the platform
+source set that needs it. The function was never part of the public API
+— it was only `expect` so that multiple platform source sets could share
+the signature, but since each platform that calls it already has its
+own copy, the `expect` was unnecessary overhead that leaked into the
+bridge.
+
+```kotlin
+// BEFORE (leaks into bridge):
+// commonMain:
+internal expect fun getTtyFd(): Int
+
+// posixMain:
+internal actual fun getTtyFd(): Int { ... }
+
+// AFTER (no bridge leak, no expect needed):
+// posixMain only (no commonMain declaration):
+internal fun getTtyFd(): Int { ... }
+```
+
+**When to use this fix.** Only for `internal expect fun` declarations
+where every platform actual is already in a source set that's a
+dependency of the Apple target. If the `expect` exists so that
+`otherMain` / `jvmMain` / `wasmJsMain` can provide a no-op or
+JVM-specific actual, you still need the `expect`/`actual` pair. For
+Apple export, keep it `internal` and expose the public operation through
+a strongly-typed bridgeable declaration.
+
+### 10. JVM class name clashes between commonMain and platform source sets
+
+**Symptom.** `compileAndroidMain` (or `jvmMainClasses`) fails with:
+
+```
+Duplicate JVM class name 'io/github/kotlinmania/<pkg>/FooKt'
+generated from: FooKt, FooKt
+```
+
+**Root cause.** Kotlin compiles each source set's top-level functions
+into a class named after the source file (`Foo.kt` → `FooKt`). When
+`commonMain/src/Foo.kt` defines `expect fun bar()` and
+`jvmMain/src/Foo.kt` defines `actual fun bar()`, both compile to
+`FooKt.class` on JVM targets. The JVM class loader can't resolve which
+one to use.
+
+This is a JVM-only issue — Kotlin/Native and Kotlin/JS don't have this
+problem because they don't use the same class-file naming scheme. But
+androidMain, jvmMain, and any JVM-based source set all hit it.
+
+**Fix.** Rename the Kotlin file or declaration that emits the duplicate
+JVM class. The actual-implementation file gets a descriptive name that
+reflects what it contains, not the same name as the commonMain expect
+file:
+
+```kotlin
+// commonMain/src/AnsiSupport.kt -> defines expect fun enableVtProcessing()
+// jvmMain/src/VtProcessing.kt   -> defines actual fun enableVtProcessing()
+// androidMain/src/VtProcessing.kt -> defines actual fun enableVtProcessing()
+```
+
+The JVM class names become `AnsiSupportKt` (commonMain) and
+`VtProcessingKt` (jvmMain + androidMain) — no clash.
+
+Do not use `@file:JvmName` or `@file:JvmMultifileClass` to paper over
+the collision. Those annotations change the Java interop surface and
+keep the underlying naming mistake in place. The project rule for Java
+matches the Swift rule: rename the Kotlin source element that emits the
+bad name.
+
+**Prevention.** After porting `expect`/`actual` declarations, check
+for JVM class name clashes by compiling `compileAndroidMain` or
+`jvmMainClasses` before declaring victory.
+
+### 11. Display name constants (`internal const val`) referenced as
+     function calls in test files
+
+**Symptom.** `compileTestKotlin<Platform>` fails with `Unresolved
+reference 'keyCodeBackspaceDisplayName'` (or similar).
+
+**Root cause.** When `expect fun keyCodeBackspaceDisplayName(): String`
+ declarations across all platform source sets are consolidated into
+ `internal const val KEY_CODE_BACKSPACE_DISPLAY_NAME: String = "Backspace"`
+ in commonMain (part of reducing the expect surface), the test files
+ still reference them as function calls: `keyCodeBackspaceDisplayName()`.
+ The `const val` form is not callable — it's a value, not a function.
+
+**Fix.** Update test files to reference the constant directly:
+
+```kotlin
+// BEFORE (function call syntax from the expect fun era):
+assertEquals(keyCodeBackspaceDisplayName(), KeyCode.Backspace.toString())
+
+// AFTER (constant reference):
+assertEquals(KEY_CODE_BACKSPACE_DISPLAY_NAME, KeyCode.Backspace.toString())
+```
+
+Since these are `internal` constants in the same module, `commonTest`
+can access them. The naming convention stays SCREAMING_SNAKE_CASE for
+constants per Kotlin convention.
+
+## Gaps discovered during the build-gate / test-wiring pass (2026-05-30)
+
+Two general defects in how `build`, `check`, and the per-platform CI
+workflows wire test *execution* vs. *compilation*. Neither is a Swift
+Export bridge bug — they decide whether each platform's `actual`s ever
+actually run, including the Swift smoke test.
+
+### 12. The build gate must BUILD every target but must not single out one platform's tests to RUN
+
+**Symptom.** `fullTargetBuildTaskNames` (the all-target build gate) lists
+`testAndroidHostTest` — an actual test *run* — alongside the compile/link
+tasks, while every other target contributes only `*MainClasses` /
+`*TestClasses` / `${target}Binaries` / `${target}TestBinaries` (compile
+and link, no execution). So `./gradlew build` *runs* the Android unit
+tests but for every other target merely links the `test.kexe` without
+ever executing it. The gate looks symmetric but silently tests exactly
+one platform.
+
+**Root cause.** A "build must compile every target" contract and "run the
+tests" are two different jobs. The build gate is about *compilation
+coverage*; test *execution* is host-dependent (you can't run a Linux or
+mingw test on a macOS runner, and device / Android-Native targets have no
+host-runnable test task at all). Burying one runnable test in the build
+set conflates the two.
+
+**Fix.** Keep `fullTargetBuildTaskNames` pure-build (compile + link every
+target, including each target's test binary — that proves the test code
+*compiles*). Move test *execution* to `check`, where KMP's `allTests`
+already runs every host-runnable test (`jvmTest`, `macosArm64Test`, the
+Apple simulator tests, `jsNodeTest`, `wasmJsNodeTest`, ...). Add the
+Android host test and the Swift smoke test there too:
+
+```kotlin
+tasks.named("check") {
+    dependsOn(tasks.withType<io.gitlab.arturbosch.detekt.Detekt>())
+    dependsOn("ktlintCheck")
+    dependsOn("testAndroidHostTest")     // not in the build set
+    dependsOn("swiftExportSmokeTest")
+}
+```
+
+Do **not** try to make tests depend on the `build` lifecycle task to
+force this ordering: `build → check → allTests` already exists, so
+`anyTest.dependsOn("build")` forms the cycle
+`build → check → allTests → build` and Gradle rejects it at
+configuration time. Depend on the underlying compile/link tasks (or just
+let `check` own execution) instead.
+
+### 13. Every per-platform CI workflow must RUN its platform's test, not just compile it
+
+**Symptom.** A platform's reusable workflow compiles and assembles but
+never invokes a test-*run* task, so that platform's `actual`s are never
+exercised in CI. Observed: `android.yml` ran
+`compileAndroidMain assembleUnitTest assembleAndroidTest` with **no**
+`testAndroidHostTest` — Android built green forever while its tests
+never ran. (`watchos.yml` separately still listed the retired
+`compileKotlinWatchosArm32`, which fails "task not found" once the target
+is scrubbed — audit for retired targets in the same pass.)
+
+**Fix.** Each `<platform>.yml` runs the test task that executes on its
+runner: `macosArm64Test`, `linuxX64Test`, `mingwX64Test`,
+`iosSimulatorArm64Test`, `tvosSimulatorArm64Test`,
+`watchosSimulatorArm64Test`, `jsNodeTest`/`jsBrowserTest`,
+`wasmJsNodeTest`/`wasmJsBrowserTest`/`wasmWasiNodeTest`,
+`testAndroidHostTest`, and `swift test` (swift.yml). Audit rule: a
+workflow whose Gradle task list contains only `compile*` / `assemble*`
+and no `*Test` run is a platform building-but-not-testing.
+
+**Honest limits (compile-only, by physics — not laziness).**
+`androidNative*` (ELF for Android ABIs, needs an emulator per ABI),
+`linuxArm64` on an x64 runner, and the device Apple slices (`iosArm64`,
+`tvosArm64`, `watchosArm64`, `watchosDeviceArm64`, which have no
+host-runnable test task) can only be compiled/linked. Their `actual`s
+share the `appleMain`/`iosMain`/etc. source sets that the corresponding
+**simulator** test exercises, so the same code is covered — state this
+in the workflow rather than implying the binary was tested.
+
+The local `swiftExportSmokeTest` (kasuari-kotlin is the reference shape)
+runs `swift test` against the `embedSwiftExportForXcode` output and must
+be wired into `check` so Swift Export breakage surfaces on
+`./gradlew check` locally, not only in `swift.yml`. When aligning a repo,
+confirm `project.frameworkName` (→ `swiftExport.moduleName`) matches the
+harness's `import <Module>` — a mismatched module name fails `swift test`
+with "no such module" even though the bridge compiled cleanly.
 
 ---
 
@@ -1029,3 +1491,278 @@ Two reasons:
    what was tried and why.
 
 — Sydney Renee, KotlinMania
+
+---
+
+## Additional Workspace Guidelines and Hazard Classes
+
+### The mandatory infrastructure pins
+
+- **`swift.yml` runs on `runs-on: macos-26`** — not `macos-latest`. The Kotlin/Native 2.3.x SDK cache requires it.
+- **Never add `maxim-lobanov/setup-xcode@v1`** or any other third-party Xcode setup action. Third-party actions cause `startup_failure` on the KotlinMania allowlist.
+- **`swift test` is wired into the Kotlin `test` task.** A Swift Export failure must surface on `./gradlew test` locally. Do not push and let remote CI find it — by that point you've burned a CI run.
+- **iOS Simulator XCFramework fat-stage rule.** Both `iosSimulatorArm64` AND `iosX64` must be `isStatic = true`. Mixing one static / one dynamic fails `assembleDebugIosSimulatorFatFramework<Name>` with:
+  ```
+  Cannot create a fat framework from:
+    <Name> - arm64 - static
+    <Name> - x64 - dynamic
+    All input frameworks must be either static or dynamic
+  ```
+  This is **gap #7** in the rollout. Earlier rollouts flipped only `iosSimulatorArm64`; if a repo still has the asymmetric shape, fix `iosX64` too in the same commit.
+
+### The four hazard classes (what makes Swift Export fail under `-Werror`)
+
+Swift Export's generated bridge fails `allWarningsAsErrors=true` in four distinct ways. **Do not scope `allWarningsAsErrors=false` to `compileSwiftExportMain*` to silence them — that's symptom suppression and a forbidden fix.** Apply the structural remedy below.
+
+**Class A — Unchecked cast `Any?` → `Foo<T>`.** Public generic types with unconstrained type parameters force the bridge to erase to `Any?` and cast back. Fix: wrap the generic with an `internal` implementation + a non-generic façade for Swift, or use a stdlib type the bridge already handles.
+
+**Class B — `Cannot infer T`.** Public generic functions Swift can't project a single Swift type for. Fix: `internal` factory that fixes the type parameter at the boundary; the public Kotlin function stays generic for Kotlin callers.
+
+**Class C — `Array`/`List`/`Iterator` mismatch.** Public collection surfaces that Swift would bridge to non-equivalent types. Fix: non-generic collection at the boundary, or wrap in a thin Swift-friendly type.
+
+**Class Stdlib (the fourth class) — warnings in *auto-generated* `KotlinStdlib.kt`.** Public `kotlin.Result<X>`, classes extending `RuntimeException` / `Exception` / any `Throwable` subclass, public `MutableList<X>`, public `MutableMap<K, V>` each drag the `Throwable.getStackTrace()` → `Array` bridge or the `MutableList`/`MutableMap` bridge into the generated `KotlinStdlib.kt`, which then fails Unchecked-cast under `-Werror`. Fixes:
+
+- **Public `kotlin.Result<T>`** → sealed `Outcome.Ok(value: T) | Outcome.Err(error: SomeError)`, where `SomeError` does NOT extend `Throwable`.
+- **`class FooError : RuntimeException(...)`** (or `Exception`) → data class / sealed class that does NOT extend any `Throwable`. Kotlin callers that need to throw it wrap in their own throw site.
+- **Public `MutableList<X>` / `MutableMap<K, V>`** → internal-backed `List<X>` / a custom read-only Map wrapper; internal helpers do copy-and-replace to keep the read-only public surface.
+- **Public `Pair<A, B>`** → named record class.
+- **Public `() -> X` / `(A) -> B`** function types → `fun interface` SAM type. Swift Export can't bridge raw Kotlin function types.
+
+### Annotation hiding is not an API repair
+
+`@HiddenFromObjC` hides a declaration from Objective-C / Swift export.
+That is not a repair for a published Apple framework. If a declaration
+should not be exported, make it `internal`. If a declaration is part of
+the public API, make it bridgeable by construction.
+
+For Swift name collisions, the fix is to rename the Kotlin type itself.
+Do not hide the declaration, do not rely on `@ObjCName`, and do not keep a
+backward-compatible `typealias` with the old colliding name. Swift Export
+emits the Kotlin declaration surface, including typealiases, so the old
+name keeps colliding.
+
+The concrete reference is `syn-kotlin`: commit `e34775e` renamed
+`Type` / `Error` / `Result` to `SynType` / `SynError` / `SynResult`, and
+commit `afbebfe` removed the aliases after CI showed
+`typealias Type = SynType` was still exported and rejected by Swift.
+
+```kotlin
+// Before: collides with Swift's `foo.Type` metatype expression.
+public sealed class Type
+
+// Correct: rename the Kotlin API and migrate callers.
+public sealed class SynType
+
+public data class BareFnArg(
+    public val ty: SynType,
+)
+
+// Wrong: aliases are exported too, so this keeps the Swift collision.
+public typealias Type = SynType
+```
+
+The reviewed API-hiding failure case is `lru-kotlin` PR #18. The PR
+annotated the main cache type:
+
+```kotlin
+class LruCache<K : Any, V : Any> private constructor(...)
+```
+
+The generated framework could still import, but Swift / Objective-C
+consumers could not construct or use the cache. The correct direction is
+one of:
+
+- keep `LruCache` exported and make its public surface bridgeable;
+- when the failure is a Swift name collision, rename the Kotlin type to a
+  Swift-safe name and update Kotlin callers to that name;
+- when the failure is generic bridge shape, keep a generic implementation
+  internal and provide exported concrete types with Swift-safe names;
+- make unsupported iterator/view/helper types `internal` while the
+  primary cache API remains exported and usable.
+
+Do not accept an import-only smoke test as proof that Swift Export is
+healthy. The Swift harness must instantiate at least one primary exported
+type and call a representative method.
+
+**Fallback** (when faithfulness isn't a constraint): mark `internal` + expose a factory returning the public stdlib interface.
+
+### Project goal: strongly-typed public APIs — generics only where design requires
+
+After a Swift Export compatibility pass lands and a repo's gate is green,
+the **follow-up pass is to de-generify**. The project goal across the
+workspace is **strongly-typed public APIs**: no unconstrained generics, no
+`<T : Any>` exposed to Swift, no `<T, E>` Result-style wrappers — unless
+the design genuinely requires the type parameter (parser combinators,
+typed builders, container types where the element type carries real
+meaning).
+
+Why this is a real rule and not a style preference:
+- Annotation hiding only removes the Swift bridge problem from view. The Swift side sees no API for that surface at all, which is worse than a non-generic Swift API. Swift callers either cannot use the type or have to drop into Objective-C interop.
+- The Class A "unchecked cast `Any?` → `Foo<T>`" failure is generated by the same erased-bridge code path no matter what you do; hiding it means the next type the bridge tries to express through that path hits the same wall.
+- Strongly-typed public APIs survive Kotlin/Native compiler upgrades. The generic-bridge handling in Swift Export is the most volatile surface of the K/N toolchain and keeps changing between 2.3.x patches; non-generic APIs don't care.
+
+**The strong-typing checklist:**
+1. Is the generic parameter actually doing structural work for callers?
+   If **no**, replace it with the concrete type or a small set of
+   concrete named subtypes (`IntFoo`, `StringFoo`, `DoubleFoo`).
+2. If the parameter is doing structural work but public use only
+   instantiates one or two concrete types, hoist those instantiations
+   into named non-generic subclasses (`class IntCell : Cell<Int>()`),
+   expose those publicly, and make the generic base `internal`.
+3. If the parameter is genuinely required by design (for example, a
+   typed builder DSL or a generic container callers instantiate at
+   arbitrary types), leave the generic and document why in a one-line
+   `// generic by design:` comment so the next sweep does not mistake it
+   for unfinished work.
+4. `Pair<A, B>` -> named record class. Always. There is no design
+   justification for leaking `kotlin.Pair` into a public API.
+5. `Result<T, E>` / generic Outcome wrappers -> per-error-domain sealed
+   classes. `AddConstraintOutcome` not `Outcome<Unit, AddConstraintError>`.
+6. Function-type surfaces (`(A) -> B`) -> `fun interface` SAM with a
+   meaningful name.
+
+**Forbidden phrasing** in commits and PR descriptions:
+- "Hide `Foo` from Swift" as the *only* change for that API. → Not acceptable when `Foo` is the only useful Apple-facing API; provide an exported facade or redesign the surface.
+- "Generic API kept for flexibility." → Specify *which caller* needs the flexibility, or de-generify.
+
+Memory hook: `feedback_swift_export_three_patterns.md`,
+`feedback_swift_export_throwable_result_array.md`, and
+`feedback_swift_export_gap8_internal_generics.md` predate the stricter
+public-API rule. Treat them as bridge-failure diagnostics, not as
+permission to hide the only Swift-facing API.
+
+### The 5-class sweep (per-repo, run before every Swift release)
+
+Inspect commonMain for **all** of these, not just whatever last tripped CI:
+1. `runs-on:` on `swift.yml` is `macos-26`; no `setup-xcode` action.
+2. Public mutable collection surfaces (`MutableList`, `MutableMap`, `MutableSet`) → read-only Kotlin types + internal copy-and-replace helpers.
+3. Public generic types / SAMs / function-type surfaces -> **first choice: de-generify** (concrete named subtypes, `fun interface` SAM with a real name, internal generic base). See "Project goal: strongly-typed public APIs" above.
+4. Public `kotlin.Result<X>` / `Throwable` subclasses → sealed Outcome types + non-Throwable error classes.
+5. Public `Pair<A, B>` helpers → named record class.
+
+Run the gate after every repair, not just at the end:
+```bash
+./gradlew embedSwiftExportForXcode --no-daemon
+./gradlew test --no-daemon          # must include swift test
+```
+
+### 12. Kotlin names that conflict with Swift or Java emitted names
+
+**Symptom.** `compileSwiftExportMainKotlinMacosArm64` or the
+`xcodebuild` step inside `macosArm64DebugBuildSPMPackage` fails with:
+
+```
+error: type member must not be named 'Type', since it would conflict with the 'foo.Type' expression
+error: type member must not be named 'Error'
+error: type member must not be named 'Result'
+```
+
+**Root cause.** Swift Export emits Kotlin declaration names into the
+generated Swift module, and JVM compilation emits Kotlin files and
+declarations as Java-visible class and method names. If a Kotlin public
+type or typealias is named like a Swift keyword, metatype expression,
+protocol, or built-in type (`Type`, `Error`, `Result`, etc.), the Swift
+compiler rejects the module. If common/platform Kotlin files or
+declarations emit the same JVM class or method signature, Java/JVM
+compilation fails.
+
+`@HiddenFromObjC` only removes the API from Apple consumers. `@ObjCName`,
+`@JvmName`, and `@JvmMultifileClass` are not fixes. A Kotlin `typealias`
+does not preserve compatibility either because Swift Export emits aliases
+too: `typealias Type = SynType` still exports `Type` and still collides.
+
+**Fix.** Rename the Kotlin declaration or file itself to an emitted-safe
+name and migrate every Kotlin caller to that new name. Remove any
+compatibility typealias or platform naming annotation that preserves the
+old colliding name. If downstream `*-kotlin` repos use the old name,
+update them in the same compatibility pass; there is no bridge that
+preserves the old source spelling without reintroducing the collision.
+
+Concrete pattern from `syn-kotlin`:
+
+```kotlin
+// Before
+public sealed class Type {
+    public data class Tuple(
+        val elems: Punctuated<Type, Comma>,
+    ) : Type()
+}
+
+// After
+public sealed class SynType {
+    public data class Tuple(
+        val elems: Punctuated<SynType, Comma>,
+    ) : SynType()
+}
+
+public data class BareFnArg(
+    public val ty: SynType,
+)
+
+// Forbidden: this is exported and collides in Swift.
+public typealias Type = SynType
+```
+
+**Evidence.** `syn-kotlin` commit `e34775e` renamed
+`Type` / `Error` / `Result` to `SynType` / `SynError` / `SynResult`.
+Commit `afbebfe` then removed `typealias Type = SynType`,
+`typealias Error = SynError`, and `typealias Result<T> = SynResult<T>`
+after CI confirmed the aliases were exported and rejected by Swift.
+
+### 13. `NoClassDefFoundError: kotlinx/coroutines/internal/intellij/IntellijCoroutines` during Swift Export
+
+**Symptom.** The `macosArm64DebugSwiftExport` Gradle task logs an
+`ERROR: Worker exited due to exception` with
+`NoClassDefFoundError: kotlinx/coroutines/internal/intellij/IntellijCoroutines`.
+GitHub Actions annotates the step with a red `##[error]` marker.
+
+**Root cause.** The Kotlin compiler embeds parts of the IntelliJ platform
+for its worker processes. The embedded platform expects
+`kotlinx.coroutines.internal.intellij.IntellijCoroutines` on the worker
+classpath, but the Swift Export task's worker process doesn't include
+the `kotlinx-coroutines-core` JAR.
+
+**Impact.** The error is **non-fatal** — the Swift Export and SPM
+package generation continue past it. The actual build failure (if any)
+comes from downstream compilation errors, not from this worker exception.
+If the only `##[error]` annotations in the Swift CI job are
+`IntellijCoroutines`-related, the Swift Export itself may have succeeded.
+
+**Current workaround.** Adding `kotlinx-coroutines-core` to the
+`buildscript` classpath does **not** fix it — the worker process has its
+own classpath that doesn't inherit the buildscript classpath. There is
+no known per-repo fix at this time; the error is filed upstream against
+the Kotlin Gradle plugin.
+
+### 14. Custom sealed generic result types in public API cause argument type mismatch in Swift Export bridge
+
+**Symptom.** `compileSwiftExportMainKotlinMacosArm64` fails with:
+
+```
+Argument type mismatch: actual type is '(ParseNestedMeta) -> SynResult<Any?>',
+  but '(ParseNestedMeta) -> SynResult<Unit>' was expected.
+Cannot infer type for type parameter 'R'. Specify it explicitly.
+```
+
+**Root cause.** Swift Export generates bridge code for public API
+declarations. When a function takes or returns a custom generic sealed
+class (e.g. `SynResult<T>`), the bridge erases the type parameter to
+`Any?` because it doesn't understand the sealed-class type hierarchy.
+This produces Kotlin-level argument type mismatches in the generated
+bridge file that fail compilation.
+
+**Fix.** If these are Kotlin-internal parser APIs that Swift consumers do
+not need, make them `internal`. If they are public API, replace the
+custom generic sealed result with a Swift-exportable concrete outcome
+type.
+
+The flat-class pattern from [§ Recipe for replacing `kotlin.Result<T>`
+in a public API](#recipe-for-replacing-kotlinresultt-in-a-public-api) is
+the correct shape for exported result APIs. The flat class with
+`value`/`error` nullable fields and `isSuccess()`/`isFailure()`
+predicates bridges cleanly.
+
+**Evidence.** syn-kotlin's durable fix was the type-rename pass:
+`Type` / `Error` / `Result` became `SynType` / `SynError` / `SynResult`,
+and the compatibility aliases were removed after CI proved aliases are
+exported too.

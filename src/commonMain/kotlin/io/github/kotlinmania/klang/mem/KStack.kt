@@ -217,16 +217,16 @@ package io.github.kotlinmania.klang.mem
 object KStack {
     /** Base address of allocated stack region (from KMalloc). */
     private var allocBase: Int = 0
-    
+
     /** Aligned start of stack region (grows down from here). */
     private var base: Int = 0
-    
+
     /** Total size of stack region in bytes. */
     private var size: Int = 0
-    
+
     /** Stack pointer offset from base (counts down from size to 0). */
     private var sp: Int = 0
-    
+
     /** Initialization flag. */
     private var initialized: Boolean = false
 
@@ -272,7 +272,11 @@ object KStack {
         if (initialized) {
             KMalloc.free(allocBase)
         }
-        allocBase = 0; base = 0; size = 0; sp = 0; initialized = false
+        allocBase = 0
+        base = 0
+        size = 0
+        sp = 0
+        initialized = false
     }
 
     /**
@@ -286,7 +290,10 @@ object KStack {
      * KStack.reset()  // Clear all frames
      * ```
      */
-    fun reset() { ensureInit(); sp = size }
+    fun reset() {
+        ensureInit()
+        sp = size
+    }
 
     /**
      * Push a new stack frame.
@@ -309,7 +316,8 @@ object KStack {
      * ```
      */
     fun pushFrame(align: Int = 16): Int {
-        ensureInit(); checkAlign(align)
+        ensureInit()
+        checkAlign(align)
         sp = alignDown(sp, align)
         return sp // marker
     }
@@ -360,7 +368,9 @@ object KStack {
      * O(1) - bump allocator
      */
     fun alloca(bytes: Int, align: Int = 16): Int {
-        ensureInit(); check(bytes >= 0) { "bytes must be >= 0" }; checkAlign(align)
+        ensureInit()
+        check(bytes >= 0) { "bytes must be >= 0" }
+        checkAlign(align)
         val newSp = alignDown(sp - bytes, align)
         check(newSp >= 0) { "Stack overflow: need=$bytes, sp=$sp, size=$size" }
         sp = newSp
@@ -388,7 +398,11 @@ object KStack {
      */
     inline fun <T> withFrame(align: Int = 16, block: () -> T): T {
         val mark = pushFrame(align)
-        return try { block() } finally { popFrame(mark) }
+        return try {
+            block()
+        } finally {
+            popFrame(mark)
+        }
     }
 
     /**
@@ -396,15 +410,18 @@ object KStack {
      *
      * @return Current SP as heap address
      */
-    fun currentSp(): Int { ensureInit(); return base + sp }
-    
+    fun currentSp(): Int {
+        ensureInit()
+        return base + sp
+    }
+
     /**
      * Get total stack capacity.
      *
      * @return Stack size in bytes
      */
     fun capacityBytes(): Int = size
-    
+
     /**
      * Get currently used stack space.
      *
@@ -413,7 +430,9 @@ object KStack {
     fun usedBytes(): Int = size - sp
 
     /** Ensure KStack is initialized, throw otherwise. */
-    private fun ensureInit() { check(initialized) { "KStack not initialized" } }
+    private fun ensureInit() {
+        check(initialized) { "KStack not initialized" }
+    }
 
     /** Validate alignment is a power of two. */
     private fun checkAlign(align: Int) {
@@ -422,7 +441,7 @@ object KStack {
 
     /** Align value down to nearest multiple of align. */
     private fun alignDown(x: Int, align: Int): Int = x and (align - 1).inv()
-    
+
     /** Align value up to nearest multiple of align. */
     private fun alignUp(x: Int, align: Int): Int = (x + (align - 1)) and (align - 1).inv()
 }

@@ -1,12 +1,11 @@
 package io.github.kotlinmania.klang.math
 
+import kotlin.math.pow
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlin.math.pow
 
 class BasicMathTest {
-
     @Test
     fun sqrtBasics() {
         assertEquals(0.0, BasicMath.sqrt(0.0))
@@ -47,8 +46,10 @@ class BasicMathTest {
         val testValues = doubleArrayOf(1.0, 2.0, 0.5, 3.14159, 1e100, 1e-100, -2.5, 65536.0)
         for (x in testValues) {
             val (m, e) = BasicMath.frexp(x)
-            assertTrue(kotlin.math.abs(m) >= 0.5 && kotlin.math.abs(m) < 1.0,
-                "frexp($x): mantissa $m not in [0.5, 1)")
+            assertTrue(
+                kotlin.math.abs(m) >= 0.5 && kotlin.math.abs(m) < 1.0,
+                "frexp($x): mantissa $m not in [0.5, 1)",
+            )
             // Reconstruct: m * 2^e should equal x
             val reconstructed = BasicMath.ldexp(m, e)
             assertEquals(x, reconstructed, "frexp/ldexp round-trip failed for $x")
@@ -83,7 +84,7 @@ class BasicMathTest {
     fun modfBasics() {
         val (i1, f1) = BasicMath.modf(3.75)
         assertEquals(3.0, i1)
-        assertEquals(0.75, f1)  // exact
+        assertEquals(0.75, f1) // exact
 
         val (i2, f2) = BasicMath.modf(-3.75)
         assertEquals(-3.0, i2)

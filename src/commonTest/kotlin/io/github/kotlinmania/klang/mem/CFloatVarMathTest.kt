@@ -19,7 +19,6 @@ import kotlin.test.assertTrue
  * allocating forms claim a fresh heap cell per call.
  */
 class CFloatVarMathTest {
-
     @BeforeTest
     fun setup() {
         KMalloc.init(64 * 1024)
@@ -290,20 +289,49 @@ class CFloatVarMathTest {
         KStack.withFrame {
             val a = CAutos.double(2.0)
             val viaExt = a.sqrt().value
-            val viaFn = io.github.kotlinmania.klang.math.sqrt(a).value
+            val viaFn =
+                io.github.kotlinmania.klang.math
+                    .sqrt(a)
+                    .value
             assertEquals(viaExt, viaFn, 0.0)
 
             val b = CAutos.double(-1.5)
-            assertEquals(b.floor().value, io.github.kotlinmania.klang.math.floor(b).value, 0.0)
-            assertEquals(b.ceil().value, io.github.kotlinmania.klang.math.ceil(b).value, 0.0)
-            assertEquals(b.abs().value, io.github.kotlinmania.klang.math.abs(b).value, 0.0)
+            assertEquals(
+                b.floor().value,
+                io.github.kotlinmania.klang.math
+                    .floor(b)
+                    .value,
+                0.0,
+            )
+            assertEquals(
+                b.ceil().value,
+                io.github.kotlinmania.klang.math
+                    .ceil(b)
+                    .value,
+                0.0,
+            )
+            assertEquals(
+                b.abs().value,
+                io.github.kotlinmania.klang.math
+                    .abs(b)
+                    .value,
+                0.0,
+            )
 
             val twelve = CAutos.double(12.0)
-            val (_, e) = io.github.kotlinmania.klang.math.frexp(twelve)
+            val (_, e) =
+                io.github.kotlinmania.klang.math
+                    .frexp(twelve)
             assertEquals(4, e)
 
             val onePointFive = CAutos.double(1.5)
-            assertEquals(12.0, io.github.kotlinmania.klang.math.ldexp(onePointFive, 3).value, 0.0)
+            assertEquals(
+                12.0,
+                io.github.kotlinmania.klang.math
+                    .ldexp(onePointFive, 3)
+                    .value,
+                0.0,
+            )
         }
     }
 }

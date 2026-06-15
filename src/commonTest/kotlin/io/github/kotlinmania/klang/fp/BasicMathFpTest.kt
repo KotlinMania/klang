@@ -10,7 +10,6 @@ import kotlin.test.assertTrue
  * across CFloat64, CFloat128, CFloat32, CFloat16, CBF16, CLongDouble.
  */
 class BasicMathFpTest {
-
     // ---- CFloat64 ----
 
     @Test
@@ -18,7 +17,13 @@ class BasicMathFpTest {
         assertEquals(2.0, CFloat64.fromDouble(4.0).sqrt().toDouble())
         assertEquals(3.0, CFloat64.fromDouble(9.0).sqrt().toDouble())
         assertEquals(0.0, CFloat64.fromDouble(0.0).sqrt().toDouble())
-        assertTrue(CFloat64.fromDouble(-1.0).sqrt().toDouble().isNaN())
+        assertTrue(
+            CFloat64
+                .fromDouble(-1.0)
+                .sqrt()
+                .toDouble()
+                .isNaN(),
+        )
     }
 
     @Test
@@ -56,11 +61,19 @@ class BasicMathFpTest {
         val s2 = CFloat128.fromDouble(2.0).sqrt()
         val s2sq = s2 * s2
         val err = (s2sq - CFloat128.fromDouble(2.0)).toDouble()
-        assertTrue(kotlin.math.abs(err) < 1e-28,
-            "sqrt(2)^2 - 2 too large: $err (expected < 1e-28)")
+        assertTrue(
+            kotlin.math.abs(err) < 1e-28,
+            "sqrt(2)^2 - 2 too large: $err (expected < 1e-28)",
+        )
 
         // Negative → NaN
-        assertTrue(CFloat128.fromDouble(-1.0).sqrt().hi.isNaN())
+        assertTrue(
+            CFloat128
+                .fromDouble(-1.0)
+                .sqrt()
+                .hi
+                .isNaN(),
+        )
 
         // Zero
         assertEquals(0.0, CFloat128.ZERO.sqrt().toDouble())
@@ -72,8 +85,10 @@ class BasicMathFpTest {
         val third = CFloat128.ONE / CFloat128.fromDouble(3.0)
         val reconstructed = third * CFloat128.fromDouble(3.0)
         val err = (reconstructed - CFloat128.ONE).toDouble()
-        assertTrue(kotlin.math.abs(err) < 1e-28,
-            "(1/3)*3 deviation too large: $err")
+        assertTrue(
+            kotlin.math.abs(err) < 1e-28,
+            "(1/3)*3 deviation too large: $err",
+        )
 
         // Division by zero
         val infResult = CFloat128.fromDouble(1.0) / CFloat128.ZERO

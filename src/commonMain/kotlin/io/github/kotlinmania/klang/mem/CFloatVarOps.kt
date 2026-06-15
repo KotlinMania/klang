@@ -1,12 +1,5 @@
 package io.github.kotlinmania.klang.mem
 
-import io.github.kotlinmania.klang.fp.CBF16
-import io.github.kotlinmania.klang.fp.CFloat128
-import io.github.kotlinmania.klang.fp.CFloat16
-import io.github.kotlinmania.klang.fp.CFloat32
-import io.github.kotlinmania.klang.fp.CFloat64
-import io.github.kotlinmania.klang.fp.CLongDouble
-
 /**
  * Heap-backed floating-point arithmetic operators.
  *
@@ -41,12 +34,15 @@ import io.github.kotlinmania.klang.fp.CLongDouble
 operator fun CFloat64Var.plusAssign(other: CFloat64Var) {
     cfloat64 = cfloat64 + other.cfloat64
 }
+
 operator fun CFloat64Var.minusAssign(other: CFloat64Var) {
     cfloat64 = cfloat64 - other.cfloat64
 }
+
 operator fun CFloat64Var.timesAssign(other: CFloat64Var) {
     cfloat64 = cfloat64 * other.cfloat64
 }
+
 operator fun CFloat64Var.divAssign(other: CFloat64Var) {
     cfloat64 = cfloat64 / other.cfloat64
 }
@@ -56,16 +52,19 @@ operator fun CFloat64Var.plus(other: CFloat64Var): CFloat64Var {
     r.cfloat64 = this.cfloat64 + other.cfloat64
     return r
 }
+
 operator fun CFloat64Var.minus(other: CFloat64Var): CFloat64Var {
     val r = CAutos.double()
     r.cfloat64 = this.cfloat64 - other.cfloat64
     return r
 }
+
 operator fun CFloat64Var.times(other: CFloat64Var): CFloat64Var {
     val r = CAutos.double()
     r.cfloat64 = this.cfloat64 * other.cfloat64
     return r
 }
+
 operator fun CFloat64Var.div(other: CFloat64Var): CFloat64Var {
     val r = CAutos.double()
     r.cfloat64 = this.cfloat64 / other.cfloat64
@@ -85,12 +84,15 @@ operator fun CFloat64Var.unaryMinus(): CFloat64Var {
 operator fun CFloat128Var.plusAssign(other: CFloat128Var) {
     value = value + other.value
 }
+
 operator fun CFloat128Var.minusAssign(other: CFloat128Var) {
     value = value - other.value
 }
+
 operator fun CFloat128Var.timesAssign(other: CFloat128Var) {
     value = value * other.value
 }
+
 operator fun CFloat128Var.divAssign(other: CFloat128Var) {
     value = value / other.value
 }
@@ -100,16 +102,19 @@ operator fun CFloat128Var.plus(other: CFloat128Var): CFloat128Var {
     r.value = this.value + other.value
     return r
 }
+
 operator fun CFloat128Var.minus(other: CFloat128Var): CFloat128Var {
     val r = CAutos.float128()
     r.value = this.value - other.value
     return r
 }
+
 operator fun CFloat128Var.times(other: CFloat128Var): CFloat128Var {
     val r = CAutos.float128()
     r.value = this.value * other.value
     return r
 }
+
 operator fun CFloat128Var.div(other: CFloat128Var): CFloat128Var {
     val r = CAutos.float128()
     r.value = this.value / other.value
@@ -129,12 +134,15 @@ operator fun CFloat128Var.unaryMinus(): CFloat128Var {
 operator fun CFloat32Var.plusAssign(other: CFloat32Var) {
     value = value + other.value
 }
+
 operator fun CFloat32Var.minusAssign(other: CFloat32Var) {
     value = value - other.value
 }
+
 operator fun CFloat32Var.timesAssign(other: CFloat32Var) {
     value = value * other.value
 }
+
 operator fun CFloat32Var.divAssign(other: CFloat32Var) {
     value = value / other.value
 }
@@ -144,16 +152,19 @@ operator fun CFloat32Var.plus(other: CFloat32Var): CFloat32Var {
     r.value = this.value + other.value
     return r
 }
+
 operator fun CFloat32Var.minus(other: CFloat32Var): CFloat32Var {
     val r = CAutos.float32()
     r.value = this.value - other.value
     return r
 }
+
 operator fun CFloat32Var.times(other: CFloat32Var): CFloat32Var {
     val r = CAutos.float32()
     r.value = this.value * other.value
     return r
 }
+
 operator fun CFloat32Var.div(other: CFloat32Var): CFloat32Var {
     val r = CAutos.float32()
     r.value = this.value / other.value
@@ -167,12 +178,15 @@ operator fun CFloat32Var.div(other: CFloat32Var): CFloat32Var {
 operator fun CFloat16Var.plusAssign(other: CFloat16Var) {
     value = value + other.value
 }
+
 operator fun CFloat16Var.minusAssign(other: CFloat16Var) {
     value = value - other.value
 }
+
 operator fun CFloat16Var.timesAssign(other: CFloat16Var) {
     value = value * other.value
 }
+
 operator fun CFloat16Var.divAssign(other: CFloat16Var) {
     value = value / other.value
 }
@@ -182,16 +196,19 @@ operator fun CFloat16Var.plus(other: CFloat16Var): CFloat16Var {
     r.value = this.value + other.value
     return r
 }
+
 operator fun CFloat16Var.minus(other: CFloat16Var): CFloat16Var {
     val r = CAutos.float16()
     r.value = this.value - other.value
     return r
 }
+
 operator fun CFloat16Var.times(other: CFloat16Var): CFloat16Var {
     val r = CAutos.float16()
     r.value = this.value * other.value
     return r
 }
+
 operator fun CFloat16Var.div(other: CFloat16Var): CFloat16Var {
     val r = CAutos.float16()
     r.value = this.value / other.value
@@ -205,12 +222,15 @@ operator fun CFloat16Var.div(other: CFloat16Var): CFloat16Var {
 operator fun CBF16Var.plusAssign(other: CBF16Var) {
     value = value + other.value
 }
+
 operator fun CBF16Var.minusAssign(other: CBF16Var) {
     value = value - other.value
 }
+
 operator fun CBF16Var.timesAssign(other: CBF16Var) {
     value = value * other.value
 }
+
 operator fun CBF16Var.divAssign(other: CBF16Var) {
     value = value / other.value
 }
@@ -220,16 +240,19 @@ operator fun CBF16Var.plus(other: CBF16Var): CBF16Var {
     r.value = this.value + other.value
     return r
 }
+
 operator fun CBF16Var.minus(other: CBF16Var): CBF16Var {
     val r = CAutos.bfloat16()
     r.value = this.value - other.value
     return r
 }
+
 operator fun CBF16Var.times(other: CBF16Var): CBF16Var {
     val r = CAutos.bfloat16()
     r.value = this.value * other.value
     return r
 }
+
 operator fun CBF16Var.div(other: CBF16Var): CBF16Var {
     val r = CAutos.bfloat16()
     r.value = this.value / other.value
@@ -243,12 +266,15 @@ operator fun CBF16Var.div(other: CBF16Var): CBF16Var {
 operator fun CLongDoubleVar.plusAssign(other: CLongDoubleVar) {
     value = value + other.value
 }
+
 operator fun CLongDoubleVar.minusAssign(other: CLongDoubleVar) {
     value = value - other.value
 }
+
 operator fun CLongDoubleVar.timesAssign(other: CLongDoubleVar) {
     value = value * other.value
 }
+
 operator fun CLongDoubleVar.divAssign(other: CLongDoubleVar) {
     value = value / other.value
 }
@@ -258,16 +284,19 @@ operator fun CLongDoubleVar.plus(other: CLongDoubleVar): CLongDoubleVar {
     r.value = this.value + other.value
     return r
 }
+
 operator fun CLongDoubleVar.minus(other: CLongDoubleVar): CLongDoubleVar {
     val r = CAutos.longdouble()
     r.value = this.value - other.value
     return r
 }
+
 operator fun CLongDoubleVar.times(other: CLongDoubleVar): CLongDoubleVar {
     val r = CAutos.longdouble()
     r.value = this.value * other.value
     return r
 }
+
 operator fun CLongDoubleVar.div(other: CLongDoubleVar): CLongDoubleVar {
     val r = CAutos.longdouble()
     r.value = this.value / other.value
@@ -282,12 +311,15 @@ operator fun CLongDoubleVar.div(other: CLongDoubleVar): CLongDoubleVar {
 operator fun CFloatVar.plusAssign(other: CFloatVar) {
     value = value + other.value
 }
+
 operator fun CFloatVar.minusAssign(other: CFloatVar) {
     value = value - other.value
 }
+
 operator fun CFloatVar.timesAssign(other: CFloatVar) {
     value = value * other.value
 }
+
 operator fun CFloatVar.divAssign(other: CFloatVar) {
     value = value / other.value
 }
@@ -297,16 +329,19 @@ operator fun CFloatVar.plus(other: CFloatVar): CFloatVar {
     r.value = this.value + other.value
     return r
 }
+
 operator fun CFloatVar.minus(other: CFloatVar): CFloatVar {
     val r = CAutos.float()
     r.value = this.value - other.value
     return r
 }
+
 operator fun CFloatVar.times(other: CFloatVar): CFloatVar {
     val r = CAutos.float()
     r.value = this.value * other.value
     return r
 }
+
 operator fun CFloatVar.div(other: CFloatVar): CFloatVar {
     val r = CAutos.float()
     r.value = this.value / other.value

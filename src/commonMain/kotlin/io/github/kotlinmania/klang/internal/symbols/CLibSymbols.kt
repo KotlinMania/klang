@@ -38,7 +38,9 @@ import io.github.kotlinmania.klang.internal.runtime.CPointer
  * @param s Pointer to the null-terminated string.
  * @return The number of bytes before the null terminator.
  */
-fun strlen(s: BytePointer): Int = io.github.kotlinmania.klang.mem.CLib.strlen(s.ptr)
+fun strlen(s: BytePointer): Int =
+    io.github.kotlinmania.klang.mem.CLib
+        .strlen(s.ptr)
 
 /**
  * Calculates the length of a C string, up to a maximum.
@@ -47,7 +49,9 @@ fun strlen(s: BytePointer): Int = io.github.kotlinmania.klang.mem.CLib.strlen(s.
  * @param n Maximum number of bytes to examine.
  * @return The number of bytes before null or n, whichever is smaller.
  */
-fun strnlen(s: BytePointer, n: Int): Int = io.github.kotlinmania.klang.mem.CLib.strnlen(s.ptr, n)
+fun strnlen(s: BytePointer, n: Int): Int =
+    io.github.kotlinmania.klang.mem.CLib
+        .strnlen(s.ptr, n)
 
 /**
  * Compares two null-terminated C strings lexicographically.
@@ -56,7 +60,9 @@ fun strnlen(s: BytePointer, n: Int): Int = io.github.kotlinmania.klang.mem.CLib.
  * @param b Second string pointer.
  * @return Negative if a < b, 0 if equal, positive if a > b.
  */
-fun strcmp(a: BytePointer, b: BytePointer): Int = io.github.kotlinmania.klang.mem.CLib.strcmp(a.ptr, b.ptr)
+fun strcmp(a: BytePointer, b: BytePointer): Int =
+    io.github.kotlinmania.klang.mem.CLib
+        .strcmp(a.ptr, b.ptr)
 
 /**
  * Compares up to n bytes of two C strings lexicographically.
@@ -66,7 +72,9 @@ fun strcmp(a: BytePointer, b: BytePointer): Int = io.github.kotlinmania.klang.me
  * @param n Maximum number of bytes to compare.
  * @return Negative if a < b, 0 if equal, positive if a > b.
  */
-fun strncmp(a: BytePointer, b: BytePointer, n: Int): Int = io.github.kotlinmania.klang.mem.CLib.strncmp(a.ptr, b.ptr, n)
+fun strncmp(a: BytePointer, b: BytePointer, n: Int): Int =
+    io.github.kotlinmania.klang.mem.CLib
+        .strncmp(a.ptr, b.ptr, n)
 
 /**
  * Copies a null-terminated string from source to destination.
@@ -75,7 +83,11 @@ fun strncmp(a: BytePointer, b: BytePointer, n: Int): Int = io.github.kotlinmania
  * @param src Source string pointer.
  * @return The destination pointer.
  */
-fun strcpy(dst: BytePointer, src: BytePointer): BytePointer = BytePointer(io.github.kotlinmania.klang.mem.CLib.strcpy(dst.ptr, src.ptr))
+fun strcpy(dst: BytePointer, src: BytePointer): BytePointer =
+    BytePointer(
+        io.github.kotlinmania.klang.mem.CLib
+            .strcpy(dst.ptr, src.ptr),
+    )
 
 /**
  * Copies up to n bytes from source to destination.
@@ -85,7 +97,11 @@ fun strcpy(dst: BytePointer, src: BytePointer): BytePointer = BytePointer(io.git
  * @param n Maximum number of bytes to copy.
  * @return The destination pointer.
  */
-fun strncpy(dst: BytePointer, src: BytePointer, n: Int): BytePointer = BytePointer(io.github.kotlinmania.klang.mem.CLib.strncpy(dst.ptr, src.ptr, n))
+fun strncpy(dst: BytePointer, src: BytePointer, n: Int): BytePointer =
+    BytePointer(
+        io.github.kotlinmania.klang.mem.CLib
+            .strncpy(dst.ptr, src.ptr, n),
+    )
 
 /**
  * Searches for the first occurrence of a byte in a memory region.
@@ -95,7 +111,11 @@ fun strncpy(dst: BytePointer, src: BytePointer, n: Int): BytePointer = BytePoint
  * @param n Number of bytes to search.
  * @return Pointer to the found byte, or null pointer if not found.
  */
-fun memchr(addr: BytePointer, c: Int, n: Int): BytePointer = BytePointer(io.github.kotlinmania.klang.mem.CLib.memchr(addr.ptr, c, n))
+fun memchr(addr: BytePointer, c: Int, n: Int): BytePointer =
+    BytePointer(
+        io.github.kotlinmania.klang.mem.CLib
+            .memchr(addr.ptr, c, n),
+    )
 
 /**
  * Searches for the first occurrence of a character in a C string.
@@ -104,7 +124,11 @@ fun memchr(addr: BytePointer, c: Int, n: Int): BytePointer = BytePointer(io.gith
  * @param c Character code to find.
  * @return Pointer to the found character, or null pointer if not found.
  */
-fun strchr(addr: BytePointer, c: Int): BytePointer = BytePointer(io.github.kotlinmania.klang.mem.CLib.strchr(addr.ptr, c))
+fun strchr(addr: BytePointer, c: Int): BytePointer =
+    BytePointer(
+        io.github.kotlinmania.klang.mem.CLib
+            .strchr(addr.ptr, c),
+    )
 
 /**
  * Compares two memory regions byte-by-byte.
@@ -114,7 +138,9 @@ fun strchr(addr: BytePointer, c: Int): BytePointer = BytePointer(io.github.kotli
  * @param n Number of bytes to compare.
  * @return Negative if a < b, 0 if equal, positive if a > b.
  */
-fun memcmp(a: BytePointer, b: BytePointer, n: Int): Int = io.github.kotlinmania.klang.mem.CLib.memcmp(a.ptr, b.ptr, n)
+fun memcmp(a: BytePointer, b: BytePointer, n: Int): Int =
+    io.github.kotlinmania.klang.mem.CLib
+        .memcmp(a.ptr, b.ptr, n)
 
 /**
  * Copies n bytes from source to destination (regions must not overlap).
@@ -125,9 +151,11 @@ fun memcmp(a: BytePointer, b: BytePointer, n: Int): Int = io.github.kotlinmania.
  * @return The destination pointer.
  */
 fun memcpy(dst: BytePointer, src: BytePointer, n: Int): BytePointer {
-    io.github.kotlinmania.klang.mem.GlobalHeap.memcpy(dst.ptr, src.ptr, n)
+    io.github.kotlinmania.klang.mem.GlobalHeap
+        .memcpy(dst.ptr, src.ptr, n)
     return dst
 }
+
 /**
  * Copies n bytes from source to destination, handling overlapping regions.
  *
@@ -137,9 +165,11 @@ fun memcpy(dst: BytePointer, src: BytePointer, n: Int): BytePointer {
  * @return The destination pointer.
  */
 fun memmove(dst: BytePointer, src: BytePointer, n: Int): BytePointer {
-    io.github.kotlinmania.klang.mem.GlobalHeap.memmove(dst.ptr, src.ptr, n)
+    io.github.kotlinmania.klang.mem.GlobalHeap
+        .memmove(dst.ptr, src.ptr, n)
     return dst
 }
+
 /**
  * Fills n bytes of memory with a constant byte value.
  *
@@ -149,6 +179,7 @@ fun memmove(dst: BytePointer, src: BytePointer, n: Int): BytePointer {
  * @return The destination pointer.
  */
 fun memset(dst: BytePointer, c: Int, n: Int): BytePointer {
-    io.github.kotlinmania.klang.mem.GlobalHeap.memset(dst.ptr, c, n)
+    io.github.kotlinmania.klang.mem.GlobalHeap
+        .memset(dst.ptr, c, n)
     return dst
 }

@@ -2,7 +2,6 @@ package io.github.kotlinmania.klang.mem
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class KMallocTest {
     @Test
@@ -41,4 +40,3 @@ class KMallocTest {
         KMalloc.free(q)
     }
 }
-

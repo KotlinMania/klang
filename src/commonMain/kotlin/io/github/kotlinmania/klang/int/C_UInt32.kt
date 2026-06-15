@@ -19,8 +19,9 @@ import io.github.kotlinmania.klang.mem.KMalloc
  *
  * @property addr Heap address of the 4-byte value
  */
-class C_UInt32 private constructor(val addr: Int) : Comparable<C_UInt32> {
-
+class C_UInt32 private constructor(
+    val addr: Int,
+) : Comparable<C_UInt32> {
     /** Load the stored value as a Long (zero-extended). */
     private fun toLong(): Long = engine.bitwiseAnd(GlobalHeap.lw(addr).toLong(), MASK_32)
 
@@ -112,8 +113,11 @@ class C_UInt32 private constructor(val addr: Int) : Comparable<C_UInt32> {
         private val MASK_32: Long = engine.getMask(32)
 
         fun alloc(): C_UInt32 = C_UInt32(KMalloc.malloc(BYTES))
+
         fun zero(): C_UInt32 = alloc().also { GlobalHeap.sw(it.addr, 0) }
+
         fun one(): C_UInt32 = alloc().also { GlobalHeap.sw(it.addr, 1) }
+
         fun maxValue(): C_UInt32 = alloc().also { GlobalHeap.sw(it.addr, MASK_32.toInt()) }
 
         fun fromUInt(value: UInt): C_UInt32 =

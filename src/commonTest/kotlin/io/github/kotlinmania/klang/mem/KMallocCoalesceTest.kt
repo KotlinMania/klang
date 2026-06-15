@@ -1,7 +1,6 @@
 package io.github.kotlinmania.klang.mem
 
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 class KMallocCoalesceTest {
     @Test

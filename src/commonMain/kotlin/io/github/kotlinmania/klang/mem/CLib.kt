@@ -130,7 +130,7 @@ import io.github.kotlinmania.klang.bitwise.BitShiftMode
 object CLib {
     // Use 8-bit shifter for byte operations
     private val shifter = BitShiftEngine(BitShiftMode.NATIVE, 8)
-    
+
     /**
      * Calculate length of null-terminated string.
      *
@@ -155,7 +155,7 @@ object CLib {
      * O(n) where n is the string length
      */
     fun strlen(s: Int): Int = FastStringMem.strlen(s)
-    
+
     /**
      * Calculate length of string with maximum limit.
      *
@@ -292,7 +292,10 @@ object CLib {
             i++
             if (b == 0) {
                 // pad the rest with NULs
-                while (i < n) { GlobalHeap.sb(dst + i, 0); i++ }
+                while (i < n) {
+                    GlobalHeap.sb(dst + i, 0)
+                    i++
+                }
                 break
             }
         }

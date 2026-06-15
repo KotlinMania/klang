@@ -110,7 +110,7 @@ package io.github.kotlinmania.klang.bitwise
  *     val scale = ShiftTables16.POW2[shiftBits]
  *     val complement = ShiftTables16.SHIFT_IN[shiftBits]
  *     val lowerMask = ShiftTables16.LOW_MASK[shiftBits]
- *     
+ *
  *     var carry = 0
  *     for (i in limbs.indices) {
  *         val shifted = (limbs[i] * scale) and ShiftTables16.MASK16
@@ -126,10 +126,10 @@ package io.github.kotlinmania.klang.bitwise
  * ```kotlin
  * val value = 0xABCD
  * val shiftAmount = 8
- * 
+ *
  * // Extract lower 8 bits
  * val lower = value and ShiftTables16.LOW_MASK[shiftAmount]  // 0xCD
- * 
+ *
  * // Extract upper 8 bits
  * val upper = value shr shiftAmount  // 0xAB
  * ```
@@ -312,4 +312,3 @@ internal object ShiftTables16 {
         }
     }
 }
-

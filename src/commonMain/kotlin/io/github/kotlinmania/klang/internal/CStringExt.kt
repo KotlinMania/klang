@@ -15,14 +15,18 @@ import io.github.kotlinmania.klang.internal.runtime.CPointer
  *
  * @return The number of bytes before the null terminator.
  */
-fun BytePointer.strlenz(): Int = io.github.kotlinmania.klang.mem.CString.strlenz(this.ptr)
+fun BytePointer.strlenz(): Int =
+    io.github.kotlinmania.klang.mem.CString
+        .strlenz(this.ptr)
 
 /**
  * Reads a C string from memory and converts it to a Kotlin [String].
  *
  * @return The decoded string up to the null terminator.
  */
-fun BytePointer.readCString(): String = io.github.kotlinmania.klang.mem.CString.read(this.ptr)
+fun BytePointer.readCString(): String =
+    io.github.kotlinmania.klang.mem.CString
+        .read(this.ptr)
 
 /**
  * Writes a Kotlin [String] to memory as a null-terminated C string.
@@ -30,7 +34,9 @@ fun BytePointer.readCString(): String = io.github.kotlinmania.klang.mem.CString.
  * @param s The string to write.
  * @return The number of bytes written (excluding the null terminator).
  */
-fun BytePointer.writeCString(s: String): Int = io.github.kotlinmania.klang.mem.CString.write(this.ptr, s)
+fun BytePointer.writeCString(s: String): Int =
+    io.github.kotlinmania.klang.mem.CString
+        .write(this.ptr, s)
 
 /**
  * Duplicates a string by allocating new memory and copying the content.
@@ -38,7 +44,11 @@ fun BytePointer.writeCString(s: String): Int = io.github.kotlinmania.klang.mem.C
  * @param s The string to duplicate.
  * @return A new [CPointer] to the allocated memory containing the string copy.
  */
-fun strdupCString(s: String): BytePointer = BytePointer(io.github.kotlinmania.klang.mem.CString.strdup(s))
+fun strdupCString(s: String): BytePointer =
+    BytePointer(
+        io.github.kotlinmania.klang.mem.CString
+            .strdup(s),
+    )
 
 /**
  * Copies a C string from source to destination.
@@ -46,8 +56,11 @@ fun strdupCString(s: String): BytePointer = BytePointer(io.github.kotlinmania.kl
  * @param src The source string pointer.
  * @return The destination pointer (this).
  */
-fun BytePointer.strcpy(src: BytePointer): BytePointer = 
-    BytePointer(io.github.kotlinmania.klang.mem.CLib.strcpy(this.ptr, src.ptr))
+fun BytePointer.strcpy(src: BytePointer): BytePointer =
+    BytePointer(
+        io.github.kotlinmania.klang.mem.CLib
+            .strcpy(this.ptr, src.ptr),
+    )
 
 /**
  * Copies at most [n] bytes from source to destination.
@@ -56,8 +69,11 @@ fun BytePointer.strcpy(src: BytePointer): BytePointer =
  * @param n The maximum number of bytes to copy.
  * @return The destination pointer (this).
  */
-fun BytePointer.strncpy(src: BytePointer, n: Int): BytePointer = 
-    BytePointer(io.github.kotlinmania.klang.mem.CLib.strncpy(this.ptr, src.ptr, n))
+fun BytePointer.strncpy(src: BytePointer, n: Int): BytePointer =
+    BytePointer(
+        io.github.kotlinmania.klang.mem.CLib
+            .strncpy(this.ptr, src.ptr, n),
+    )
 
 /**
  * Compares two C strings lexicographically.
@@ -65,8 +81,9 @@ fun BytePointer.strncpy(src: BytePointer, n: Int): BytePointer =
  * @param other The string to compare against.
  * @return Negative if this < other, 0 if equal, positive if this > other.
  */
-fun BytePointer.strcmp(other: BytePointer): Int = 
-    io.github.kotlinmania.klang.mem.CLib.strcmp(this.ptr, other.ptr)
+fun BytePointer.strcmp(other: BytePointer): Int =
+    io.github.kotlinmania.klang.mem.CLib
+        .strcmp(this.ptr, other.ptr)
 
 /**
  * Finds the first occurrence of a character in a C string.
@@ -74,8 +91,11 @@ fun BytePointer.strcmp(other: BytePointer): Int =
  * @param c The character code to search for.
  * @return Pointer to the found character, or null pointer if not found.
  */
-fun BytePointer.strchr(c: Int): BytePointer = 
-    BytePointer(io.github.kotlinmania.klang.mem.CLib.strchr(this.ptr, c))
+fun BytePointer.strchr(c: Int): BytePointer =
+    BytePointer(
+        io.github.kotlinmania.klang.mem.CLib
+            .strchr(this.ptr, c),
+    )
 
 /**
  * Finds the first occurrence of a byte in a memory region.
@@ -84,8 +104,11 @@ fun BytePointer.strchr(c: Int): BytePointer =
  * @param n The number of bytes to search.
  * @return Pointer to the found byte, or null pointer if not found.
  */
-fun BytePointer.memchr(c: Int, n: Int): BytePointer = 
-    BytePointer(io.github.kotlinmania.klang.mem.CLib.memchr(this.ptr, c, n))
+fun BytePointer.memchr(c: Int, n: Int): BytePointer =
+    BytePointer(
+        io.github.kotlinmania.klang.mem.CLib
+            .memchr(this.ptr, c, n),
+    )
 
 /**
  * Compares two memory regions byte-by-byte.
@@ -94,5 +117,6 @@ fun BytePointer.memchr(c: Int, n: Int): BytePointer =
  * @param n The number of bytes to compare.
  * @return Negative if this < other, 0 if equal, positive if this > other.
  */
-fun BytePointer.memcmp(other: BytePointer, n: Int): Int = 
-    io.github.kotlinmania.klang.mem.CLib.memcmp(this.ptr, other.ptr, n)
+fun BytePointer.memcmp(other: BytePointer, n: Int): Int =
+    io.github.kotlinmania.klang.mem.CLib
+        .memcmp(this.ptr, other.ptr, n)

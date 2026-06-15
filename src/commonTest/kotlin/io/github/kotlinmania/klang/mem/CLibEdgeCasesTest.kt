@@ -20,7 +20,8 @@ class CLibEdgeCasesTest {
         assertEquals('a'.code, GlobalHeap.lbu(dst + 0))
         assertEquals('b'.code, GlobalHeap.lbu(dst + 1))
         assertEquals('c'.code, GlobalHeap.lbu(dst + 2))
-        KMalloc.free(p); KMalloc.free(dst); KMalloc.free(src)
+        KMalloc.free(p)
+        KMalloc.free(dst)
+        KMalloc.free(src)
     }
 }
-

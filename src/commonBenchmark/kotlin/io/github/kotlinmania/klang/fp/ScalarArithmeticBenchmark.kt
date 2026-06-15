@@ -28,7 +28,6 @@ import kotlinx.benchmark.State
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(BenchmarkTimeUnit.NANOSECONDS)
 class ScalarArithmeticBenchmark {
-
     // ---- Float32 sample inputs ----
     private val a: Float = 1.5f
     private val b: Float = 2.7f
@@ -47,8 +46,8 @@ class ScalarArithmeticBenchmark {
 
     @Setup
     fun setup() {
-        GlobalHeap.init(1 shl 20)   // 1 MB
-        KMalloc.init(1 shl 18)      // 256 KB
+        GlobalHeap.init(1 shl 20) // 1 MB
+        KMalloc.init(1 shl 18) // 256 KB
     }
 
     // ===== Float32 multiply =====

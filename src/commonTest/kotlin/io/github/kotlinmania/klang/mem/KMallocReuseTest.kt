@@ -12,7 +12,7 @@ class KMallocReuseTest {
         KMalloc.free(b)
         val c = KMalloc.malloc(128)
         assertEquals(b, c, "allocator should reuse recently freed chunk of same size class")
-        KMalloc.free(a); KMalloc.free(c)
+        KMalloc.free(a)
+        KMalloc.free(c)
     }
 }
-

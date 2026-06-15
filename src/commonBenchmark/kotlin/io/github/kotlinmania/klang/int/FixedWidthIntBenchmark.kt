@@ -1,6 +1,5 @@
 package io.github.kotlinmania.klang.int
 
-import io.github.kotlinmania.klang.mem.GlobalHeap
 import io.github.kotlinmania.klang.mem.KMalloc
 import kotlinx.benchmark.Benchmark
 import kotlinx.benchmark.BenchmarkMode
@@ -35,7 +34,6 @@ import kotlinx.benchmark.State
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(BenchmarkTimeUnit.NANOSECONDS)
 class FixedWidthIntBenchmark {
-
     // -- C_UInt8 -------------------------------------------------------------
     private lateinit var cU8a: C_UInt8
     private lateinit var cU8b: C_UInt8
@@ -113,67 +111,107 @@ class FixedWidthIntBenchmark {
     // 8-bit
     // ====================================================================
     @Benchmark fun nativeU8Add(): UByte = (nativeU8a + nativeU8b).toUByte()
+
     @Benchmark fun cU8Add(): C_UInt8 = cU8a + cU8b
+
     @Benchmark fun nativeU8And(): UByte = nativeU8a and nativeU8b
+
     @Benchmark fun cU8And(): C_UInt8 = cU8a and cU8b
+
     @Benchmark fun nativeU8ShiftLeft(): UInt = nativeU8a.toUInt() shl 1
+
     @Benchmark fun cU8ShiftLeft(): C_UInt8 = cU8a.shiftLeft(1)
+
     @Benchmark fun nativeU8ShiftRight(): UInt = nativeU8a.toUInt() shr 1
+
     @Benchmark fun cU8ShiftRight(): C_UInt8 = cU8a.shiftRight(1)
 
     @Benchmark fun nativeI8Add(): Byte = (nativeI8a + nativeI8b).toByte()
+
     @Benchmark fun cI8Add(): C_Int8 = cI8a + cI8b
+
     @Benchmark fun nativeI8ShiftRightArithmetic(): Int = nativeI8a.toInt() shr 1
+
     @Benchmark fun cI8ShiftRightArithmetic(): C_Int8 = cI8a.shiftRight(1)
 
     // ====================================================================
     // 16-bit
     // ====================================================================
     @Benchmark fun nativeU16Add(): UShort = (nativeU16a + nativeU16b).toUShort()
+
     @Benchmark fun cU16Add(): C_UInt16 = cU16a + cU16b
+
     @Benchmark fun nativeU16And(): UShort = nativeU16a and nativeU16b
+
     @Benchmark fun cU16And(): C_UInt16 = cU16a and cU16b
+
     @Benchmark fun nativeU16ShiftLeft(): UInt = nativeU16a.toUInt() shl 1
+
     @Benchmark fun cU16ShiftLeft(): C_UInt16 = cU16a.shiftLeft(1)
 
     @Benchmark fun nativeI16Add(): Short = (nativeI16a + nativeI16b).toShort()
+
     @Benchmark fun cI16Add(): C_Int16 = cI16a + cI16b
+
     @Benchmark fun nativeI16ShiftRightArithmetic(): Int = nativeI16a.toInt() shr 1
+
     @Benchmark fun cI16ShiftRightArithmetic(): C_Int16 = cI16a.shiftRight(1)
 
     // ====================================================================
     // 32-bit
     // ====================================================================
     @Benchmark fun nativeU32Add(): UInt = nativeU32a + nativeU32b
+
     @Benchmark fun cU32Add(): C_UInt32 = cU32a + cU32b
+
     @Benchmark fun nativeU32And(): UInt = nativeU32a and nativeU32b
+
     @Benchmark fun cU32And(): C_UInt32 = cU32a and cU32b
+
     @Benchmark fun nativeU32ShiftLeft(): UInt = nativeU32a shl 1
+
     @Benchmark fun cU32ShiftLeft(): C_UInt32 = cU32a.shiftLeft(1)
+
     @Benchmark fun nativeU32ShiftRight(): UInt = nativeU32a shr 1
+
     @Benchmark fun cU32ShiftRight(): C_UInt32 = cU32a.shiftRight(1)
 
     @Benchmark fun nativeI32Add(): Int = nativeI32a + nativeI32b
+
     @Benchmark fun cI32Add(): C_Int32 = cI32a + cI32b
+
     @Benchmark fun nativeI32ShiftRightArithmetic(): Int = nativeI32a shr 1
+
     @Benchmark fun cI32ShiftRightArithmetic(): C_Int32 = cI32a.shiftRight(1)
+
     @Benchmark fun nativeI32Mul(): Int = nativeI32a * nativeI32b
+
     @Benchmark fun cI32Mul(): C_Int32 = cI32a * cI32b
 
     // ====================================================================
     // 64-bit
     // ====================================================================
     @Benchmark fun nativeU64Add(): ULong = nativeU64a + nativeU64b
+
     @Benchmark fun cU64Add(): C_UInt64 = cU64a + cU64b
+
     @Benchmark fun nativeU64And(): ULong = nativeU64a and nativeU64b
+
     @Benchmark fun cU64And(): C_UInt64 = cU64a and cU64b
+
     @Benchmark fun nativeU64ShiftLeft(): ULong = nativeU64a shl 1
+
     @Benchmark fun cU64ShiftLeft(): C_UInt64 = cU64a.shiftLeft(1)
 
     @Benchmark fun nativeI64Add(): Long = nativeI64a + nativeI64b
+
     @Benchmark fun cI64Add(): C_Int64 = cI64a + cI64b
+
     @Benchmark fun nativeI64ShiftRightArithmetic(): Long = nativeI64a shr 1
+
     @Benchmark fun cI64ShiftRightArithmetic(): C_Int64 = cI64a.shiftRight(1)
+
     @Benchmark fun nativeI64Mul(): Long = nativeI64a * nativeI64b
+
     @Benchmark fun cI64Mul(): C_Int64 = cI64a * cI64b
 }

@@ -1,8 +1,7 @@
 package io.github.kotlinmania.klang.stringshift
 
-import io.github.kotlinmania.klang.bitwise.BitShiftEngine
 import io.github.kotlinmania.klang.bitwise.BitShiftConfig
-import kotlin.math.min
+import io.github.kotlinmania.klang.bitwise.BitShiftEngine
 
 /**
  * HexShift: Bit-level manipulation of arbitrary-precision integers via hexadecimal strings.
@@ -38,7 +37,10 @@ import kotlin.math.min
  * @property out The output hex character after shifting.
  * @property carry The carry bits to propagate to the next nibble.
  */
-private data class NibbleShift(val out: Char, val carry: Int)
+private data class NibbleShift(
+    val out: Char,
+    val carry: Int,
+)
 
 /**
  * Builds a lookup table for left-shifting hex nibbles by [r] bits (1-3).
@@ -85,8 +87,12 @@ private fun buildRightNibbleTable(r: Int): Array<NibbleShift> {
     val leftBits = 4 - r
     for (carry in 0..carryMask) {
         for (n in 0..15) {
-            val outNibble = ((engine.unsignedRightShift(n.toLong(), r).value.toInt() or 
-                            ((engine.leftShift(carry.toLong(), leftBits).value.toInt() and 0xF))) and 0xF)
+            val outNibble = (
+                (
+                    engine.unsignedRightShift(n.toLong(), r).value.toInt() or
+                        ((engine.leftShift(carry.toLong(), leftBits).value.toInt() and 0xF))
+                ) and 0xF
+            )
             val newCarry = n and carryMask // pass low r bits to next nibble (to the right)
             table[carry * 16 + n] = NibbleShift(outNibble.toString(16)[0], newCarry)
         }
@@ -231,4 +237,3 @@ fun rightShiftHexString(hexIn: String, s: Int): String {
     }
     return trimLeadingZeros(sb.toString())
 }
-

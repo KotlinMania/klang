@@ -2,11 +2,7 @@ package io.github.kotlinmania.klang.mem
 
 import io.github.kotlinmania.klang.fp.CBF16
 import io.github.kotlinmania.klang.fp.CFloat128
-import io.github.kotlinmania.klang.fp.CFloat16
-import io.github.kotlinmania.klang.fp.CFloat32
-import io.github.kotlinmania.klang.fp.CFloat64
 import io.github.kotlinmania.klang.fp.CLongDouble
-import io.github.kotlinmania.klang.math.BasicMath
 import io.github.kotlinmania.klang.math.F16Math
 import io.github.kotlinmania.klang.math.F32Math
 import io.github.kotlinmania.klang.math.F64Math
@@ -47,49 +43,70 @@ import io.github.kotlinmania.klang.math.F64Math
 // CFloat64Var — backend: F64Math (heap-native, all 10 ops)
 // ============================================================================
 
-fun CFloat64Var.sqrtAssign() { F64Math.sqrt(addr, addr) }
+fun CFloat64Var.sqrtAssign() {
+    F64Math.sqrt(addr, addr)
+}
+
 fun CFloat64Var.sqrt(): CFloat64Var {
     val r = CAutos.double()
     F64Math.sqrt(r.addr, addr)
     return r
 }
 
-fun CFloat64Var.floorAssign() { F64Math.floor(addr, addr) }
+fun CFloat64Var.floorAssign() {
+    F64Math.floor(addr, addr)
+}
+
 fun CFloat64Var.floor(): CFloat64Var {
     val r = CAutos.double()
     F64Math.floor(r.addr, addr)
     return r
 }
 
-fun CFloat64Var.ceilAssign() { F64Math.ceil(addr, addr) }
+fun CFloat64Var.ceilAssign() {
+    F64Math.ceil(addr, addr)
+}
+
 fun CFloat64Var.ceil(): CFloat64Var {
     val r = CAutos.double()
     F64Math.ceil(r.addr, addr)
     return r
 }
 
-fun CFloat64Var.truncAssign() { F64Math.trunc(addr, addr) }
+fun CFloat64Var.truncAssign() {
+    F64Math.trunc(addr, addr)
+}
+
 fun CFloat64Var.trunc(): CFloat64Var {
     val r = CAutos.double()
     F64Math.trunc(r.addr, addr)
     return r
 }
 
-fun CFloat64Var.roundAssign() { F64Math.round(addr, addr) }
+fun CFloat64Var.roundAssign() {
+    F64Math.round(addr, addr)
+}
+
 fun CFloat64Var.round(): CFloat64Var {
     val r = CAutos.double()
     F64Math.round(r.addr, addr)
     return r
 }
 
-fun CFloat64Var.absAssign() { F64Math.abs(addr, addr) }
+fun CFloat64Var.absAssign() {
+    F64Math.abs(addr, addr)
+}
+
 fun CFloat64Var.abs(): CFloat64Var {
     val r = CAutos.double()
     F64Math.abs(r.addr, addr)
     return r
 }
 
-fun CFloat64Var.copysignAssign(sign: CFloat64Var) { F64Math.copysign(addr, addr, sign.addr) }
+fun CFloat64Var.copysignAssign(sign: CFloat64Var) {
+    F64Math.copysign(addr, addr, sign.addr)
+}
+
 fun CFloat64Var.copysign(sign: CFloat64Var): CFloat64Var {
     val r = CAutos.double()
     F64Math.copysign(r.addr, addr, sign.addr)
@@ -107,7 +124,10 @@ fun CFloat64Var.frexp(): Pair<CFloat64Var, Int> {
     return r to e
 }
 
-fun CFloat64Var.ldexpAssign(exp: Int) { F64Math.ldexp(addr, addr, exp) }
+fun CFloat64Var.ldexpAssign(exp: Int) {
+    F64Math.ldexp(addr, addr, exp)
+}
+
 fun CFloat64Var.ldexp(exp: Int): CFloat64Var {
     val r = CAutos.double()
     F64Math.ldexp(r.addr, addr, exp)
@@ -126,35 +146,50 @@ fun CFloat64Var.modf(): Pair<CFloat64Var, CFloat64Var> {
 // CFloat128Var — wrapper-routed (load .value → compute → store .value)
 // ============================================================================
 
-fun CFloat128Var.sqrtAssign() { value = value.sqrt() }
+fun CFloat128Var.sqrtAssign() {
+    value = value.sqrt()
+}
+
 fun CFloat128Var.sqrt(): CFloat128Var {
     val r = CAutos.float128()
     r.value = this.value.sqrt()
     return r
 }
 
-fun CFloat128Var.floorAssign() { value = value.floor() }
+fun CFloat128Var.floorAssign() {
+    value = value.floor()
+}
+
 fun CFloat128Var.floor(): CFloat128Var {
     val r = CAutos.float128()
     r.value = this.value.floor()
     return r
 }
 
-fun CFloat128Var.ceilAssign() { value = value.ceil() }
+fun CFloat128Var.ceilAssign() {
+    value = value.ceil()
+}
+
 fun CFloat128Var.ceil(): CFloat128Var {
     val r = CAutos.float128()
     r.value = this.value.ceil()
     return r
 }
 
-fun CFloat128Var.truncAssign() { value = value.trunc() }
+fun CFloat128Var.truncAssign() {
+    value = value.trunc()
+}
+
 fun CFloat128Var.trunc(): CFloat128Var {
     val r = CAutos.float128()
     r.value = this.value.trunc()
     return r
 }
 
-fun CFloat128Var.roundAssign() { value = value.round() }
+fun CFloat128Var.roundAssign() {
+    value = value.round()
+}
+
 fun CFloat128Var.round(): CFloat128Var {
     val r = CAutos.float128()
     r.value = this.value.round()
@@ -165,6 +200,7 @@ fun CFloat128Var.absAssign() {
     val v = value
     value = if (v.hi < 0.0) CFloat128(-v.hi, -v.lo) else v
 }
+
 fun CFloat128Var.abs(): CFloat128Var {
     val r = CAutos.float128()
     val v = this.value
@@ -178,6 +214,7 @@ fun CFloat128Var.copysignAssign(sign: CFloat128Var) {
     val mag = if (v.hi < 0.0) CFloat128(-v.hi, -v.lo) else v
     value = if (s.hi < 0.0) CFloat128(-mag.hi, -mag.lo) else mag
 }
+
 fun CFloat128Var.copysign(sign: CFloat128Var): CFloat128Var {
     val r = CAutos.float128()
     val v = this.value
@@ -194,7 +231,10 @@ fun CFloat128Var.frexp(): Pair<CFloat128Var, Int> {
     return r to e
 }
 
-fun CFloat128Var.ldexpAssign(exp: Int) { value = value.ldexp(exp) }
+fun CFloat128Var.ldexpAssign(exp: Int) {
+    value = value.ldexp(exp)
+}
+
 fun CFloat128Var.ldexp(exp: Int): CFloat128Var {
     val r = CAutos.float128()
     r.value = this.value.ldexp(exp)
@@ -215,49 +255,70 @@ fun CFloat128Var.modf(): Pair<CFloat128Var, CFloat128Var> {
 // wrapper-routed for frexp/ldexp/modf.
 // ============================================================================
 
-fun CFloat32Var.sqrtAssign() { F32Math.sqrt(addr, addr) }
+fun CFloat32Var.sqrtAssign() {
+    F32Math.sqrt(addr, addr)
+}
+
 fun CFloat32Var.sqrt(): CFloat32Var {
     val r = CAutos.float32()
     F32Math.sqrt(r.addr, addr)
     return r
 }
 
-fun CFloat32Var.floorAssign() { F32Math.floor(addr, addr) }
+fun CFloat32Var.floorAssign() {
+    F32Math.floor(addr, addr)
+}
+
 fun CFloat32Var.floor(): CFloat32Var {
     val r = CAutos.float32()
     F32Math.floor(r.addr, addr)
     return r
 }
 
-fun CFloat32Var.ceilAssign() { F32Math.ceil(addr, addr) }
+fun CFloat32Var.ceilAssign() {
+    F32Math.ceil(addr, addr)
+}
+
 fun CFloat32Var.ceil(): CFloat32Var {
     val r = CAutos.float32()
     F32Math.ceil(r.addr, addr)
     return r
 }
 
-fun CFloat32Var.truncAssign() { F32Math.trunc(addr, addr) }
+fun CFloat32Var.truncAssign() {
+    F32Math.trunc(addr, addr)
+}
+
 fun CFloat32Var.trunc(): CFloat32Var {
     val r = CAutos.float32()
     F32Math.trunc(r.addr, addr)
     return r
 }
 
-fun CFloat32Var.roundAssign() { F32Math.round(addr, addr) }
+fun CFloat32Var.roundAssign() {
+    F32Math.round(addr, addr)
+}
+
 fun CFloat32Var.round(): CFloat32Var {
     val r = CAutos.float32()
     F32Math.round(r.addr, addr)
     return r
 }
 
-fun CFloat32Var.absAssign() { F32Math.abs(addr, addr) }
+fun CFloat32Var.absAssign() {
+    F32Math.abs(addr, addr)
+}
+
 fun CFloat32Var.abs(): CFloat32Var {
     val r = CAutos.float32()
     F32Math.abs(r.addr, addr)
     return r
 }
 
-fun CFloat32Var.copysignAssign(sign: CFloat32Var) { F32Math.copysign(addr, addr, sign.addr) }
+fun CFloat32Var.copysignAssign(sign: CFloat32Var) {
+    F32Math.copysign(addr, addr, sign.addr)
+}
+
 fun CFloat32Var.copysign(sign: CFloat32Var): CFloat32Var {
     val r = CAutos.float32()
     F32Math.copysign(r.addr, addr, sign.addr)
@@ -271,7 +332,10 @@ fun CFloat32Var.frexp(): Pair<CFloat32Var, Int> {
     return r to e
 }
 
-fun CFloat32Var.ldexpAssign(exp: Int) { value = value.ldexp(exp) }
+fun CFloat32Var.ldexpAssign(exp: Int) {
+    value = value.ldexp(exp)
+}
+
 fun CFloat32Var.ldexp(exp: Int): CFloat32Var {
     val r = CAutos.float32()
     r.value = this.value.ldexp(exp)
@@ -291,49 +355,70 @@ fun CFloat32Var.modf(): Pair<CFloat32Var, CFloat32Var> {
 // CFloat16Var — backend: F16Math (subset); wrapper-routed otherwise.
 // ============================================================================
 
-fun CFloat16Var.sqrtAssign() { F16Math.sqrt(addr, addr) }
+fun CFloat16Var.sqrtAssign() {
+    F16Math.sqrt(addr, addr)
+}
+
 fun CFloat16Var.sqrt(): CFloat16Var {
     val r = CAutos.float16()
     F16Math.sqrt(r.addr, addr)
     return r
 }
 
-fun CFloat16Var.floorAssign() { F16Math.floor(addr, addr) }
+fun CFloat16Var.floorAssign() {
+    F16Math.floor(addr, addr)
+}
+
 fun CFloat16Var.floor(): CFloat16Var {
     val r = CAutos.float16()
     F16Math.floor(r.addr, addr)
     return r
 }
 
-fun CFloat16Var.ceilAssign() { F16Math.ceil(addr, addr) }
+fun CFloat16Var.ceilAssign() {
+    F16Math.ceil(addr, addr)
+}
+
 fun CFloat16Var.ceil(): CFloat16Var {
     val r = CAutos.float16()
     F16Math.ceil(r.addr, addr)
     return r
 }
 
-fun CFloat16Var.truncAssign() { F16Math.trunc(addr, addr) }
+fun CFloat16Var.truncAssign() {
+    F16Math.trunc(addr, addr)
+}
+
 fun CFloat16Var.trunc(): CFloat16Var {
     val r = CAutos.float16()
     F16Math.trunc(r.addr, addr)
     return r
 }
 
-fun CFloat16Var.roundAssign() { F16Math.round(addr, addr) }
+fun CFloat16Var.roundAssign() {
+    F16Math.round(addr, addr)
+}
+
 fun CFloat16Var.round(): CFloat16Var {
     val r = CAutos.float16()
     F16Math.round(r.addr, addr)
     return r
 }
 
-fun CFloat16Var.absAssign() { F16Math.abs(addr, addr) }
+fun CFloat16Var.absAssign() {
+    F16Math.abs(addr, addr)
+}
+
 fun CFloat16Var.abs(): CFloat16Var {
     val r = CAutos.float16()
     F16Math.abs(r.addr, addr)
     return r
 }
 
-fun CFloat16Var.copysignAssign(sign: CFloat16Var) { F16Math.copysign(addr, addr, sign.addr) }
+fun CFloat16Var.copysignAssign(sign: CFloat16Var) {
+    F16Math.copysign(addr, addr, sign.addr)
+}
+
 fun CFloat16Var.copysign(sign: CFloat16Var): CFloat16Var {
     val r = CAutos.float16()
     F16Math.copysign(r.addr, addr, sign.addr)
@@ -347,7 +432,10 @@ fun CFloat16Var.frexp(): Pair<CFloat16Var, Int> {
     return r to e
 }
 
-fun CFloat16Var.ldexpAssign(exp: Int) { value = value.ldexp(exp) }
+fun CFloat16Var.ldexpAssign(exp: Int) {
+    value = value.ldexp(exp)
+}
+
 fun CFloat16Var.ldexp(exp: Int): CFloat16Var {
     val r = CAutos.float16()
     r.value = this.value.ldexp(exp)
@@ -367,35 +455,50 @@ fun CFloat16Var.modf(): Pair<CFloat16Var, CFloat16Var> {
 // CBF16Var — wrapper-routed (no heap-native math object today).
 // ============================================================================
 
-fun CBF16Var.sqrtAssign() { value = value.sqrt() }
+fun CBF16Var.sqrtAssign() {
+    value = value.sqrt()
+}
+
 fun CBF16Var.sqrt(): CBF16Var {
     val r = CAutos.bfloat16()
     r.value = this.value.sqrt()
     return r
 }
 
-fun CBF16Var.floorAssign() { value = value.floor() }
+fun CBF16Var.floorAssign() {
+    value = value.floor()
+}
+
 fun CBF16Var.floor(): CBF16Var {
     val r = CAutos.bfloat16()
     r.value = this.value.floor()
     return r
 }
 
-fun CBF16Var.ceilAssign() { value = value.ceil() }
+fun CBF16Var.ceilAssign() {
+    value = value.ceil()
+}
+
 fun CBF16Var.ceil(): CBF16Var {
     val r = CAutos.bfloat16()
     r.value = this.value.ceil()
     return r
 }
 
-fun CBF16Var.truncAssign() { value = value.trunc() }
+fun CBF16Var.truncAssign() {
+    value = value.trunc()
+}
+
 fun CBF16Var.trunc(): CBF16Var {
     val r = CAutos.bfloat16()
     r.value = this.value.trunc()
     return r
 }
 
-fun CBF16Var.roundAssign() { value = value.round() }
+fun CBF16Var.roundAssign() {
+    value = value.round()
+}
+
 fun CBF16Var.round(): CBF16Var {
     val r = CAutos.bfloat16()
     r.value = this.value.round()
@@ -406,6 +509,7 @@ fun CBF16Var.absAssign() {
     val f = value.toFloat()
     value = CBF16.fromFloat(if (f < 0f) -f else f)
 }
+
 fun CBF16Var.abs(): CBF16Var {
     val r = CAutos.bfloat16()
     val f = this.value.toFloat()
@@ -418,6 +522,7 @@ fun CBF16Var.copysignAssign(sign: CBF16Var) {
     val signed = if (sign.value.toFloat() < 0f) -mag else mag
     value = CBF16.fromFloat(signed)
 }
+
 fun CBF16Var.copysign(sign: CBF16Var): CBF16Var {
     val r = CAutos.bfloat16()
     val mag = kotlin.math.abs(this.value.toFloat())
@@ -433,7 +538,10 @@ fun CBF16Var.frexp(): Pair<CBF16Var, Int> {
     return r to e
 }
 
-fun CBF16Var.ldexpAssign(exp: Int) { value = value.ldexp(exp) }
+fun CBF16Var.ldexpAssign(exp: Int) {
+    value = value.ldexp(exp)
+}
+
 fun CBF16Var.ldexp(exp: Int): CBF16Var {
     val r = CAutos.bfloat16()
     r.value = this.value.ldexp(exp)
@@ -455,35 +563,50 @@ fun CBF16Var.modf(): Pair<CBF16Var, CBF16Var> {
 // rely on the same EXTENDED80 convention.
 // ============================================================================
 
-fun CLongDoubleVar.sqrtAssign() { value = value.sqrt() }
+fun CLongDoubleVar.sqrtAssign() {
+    value = value.sqrt()
+}
+
 fun CLongDoubleVar.sqrt(): CLongDoubleVar {
     val r = CAutos.longdouble()
     r.value = this.value.sqrt()
     return r
 }
 
-fun CLongDoubleVar.floorAssign() { value = value.floor() }
+fun CLongDoubleVar.floorAssign() {
+    value = value.floor()
+}
+
 fun CLongDoubleVar.floor(): CLongDoubleVar {
     val r = CAutos.longdouble()
     r.value = this.value.floor()
     return r
 }
 
-fun CLongDoubleVar.ceilAssign() { value = value.ceil() }
+fun CLongDoubleVar.ceilAssign() {
+    value = value.ceil()
+}
+
 fun CLongDoubleVar.ceil(): CLongDoubleVar {
     val r = CAutos.longdouble()
     r.value = this.value.ceil()
     return r
 }
 
-fun CLongDoubleVar.truncAssign() { value = value.trunc() }
+fun CLongDoubleVar.truncAssign() {
+    value = value.trunc()
+}
+
 fun CLongDoubleVar.trunc(): CLongDoubleVar {
     val r = CAutos.longdouble()
     r.value = this.value.trunc()
     return r
 }
 
-fun CLongDoubleVar.roundAssign() { value = value.round() }
+fun CLongDoubleVar.roundAssign() {
+    value = value.round()
+}
+
 fun CLongDoubleVar.round(): CLongDoubleVar {
     val r = CAutos.longdouble()
     r.value = this.value.round()
@@ -494,6 +617,7 @@ fun CLongDoubleVar.absAssign() {
     val v = value
     value = if (v.toDouble() < 0.0) CLongDouble.ofDouble(-v.toDouble()) else v
 }
+
 fun CLongDoubleVar.abs(): CLongDoubleVar {
     val r = CAutos.longdouble()
     val v = this.value
@@ -506,6 +630,7 @@ fun CLongDoubleVar.copysignAssign(sign: CLongDoubleVar) {
     val signed = if (sign.value.toDouble() < 0.0) -mag else mag
     value = CLongDouble.ofDouble(signed)
 }
+
 fun CLongDoubleVar.copysign(sign: CLongDoubleVar): CLongDoubleVar {
     val r = CAutos.longdouble()
     val mag = kotlin.math.abs(this.value.toDouble())
@@ -521,7 +646,10 @@ fun CLongDoubleVar.frexp(): Pair<CLongDoubleVar, Int> {
     return r to e
 }
 
-fun CLongDoubleVar.ldexpAssign(exp: Int) { value = value.ldexp(exp) }
+fun CLongDoubleVar.ldexpAssign(exp: Int) {
+    value = value.ldexp(exp)
+}
+
 fun CLongDoubleVar.ldexp(exp: Int): CLongDoubleVar {
     val r = CAutos.longdouble()
     r.value = this.value.ldexp(exp)
@@ -545,35 +673,50 @@ fun CLongDoubleVar.modf(): Pair<CLongDoubleVar, CLongDoubleVar> {
 private fun applyF32(v: Float, op: (Int) -> Int): Float =
     Float.fromBits(op(v.toRawBits()))
 
-fun CFloatVar.sqrtAssign() { value = applyF32(value, io.github.kotlinmania.klang.fp.Float32Math::sqrtBits) }
+fun CFloatVar.sqrtAssign() {
+    value = applyF32(value, io.github.kotlinmania.klang.fp.Float32Math::sqrtBits)
+}
+
 fun CFloatVar.sqrt(): CFloatVar {
     val r = CAutos.float()
     r.value = applyF32(this.value, io.github.kotlinmania.klang.fp.Float32Math::sqrtBits)
     return r
 }
 
-fun CFloatVar.floorAssign() { value = applyF32(value, io.github.kotlinmania.klang.fp.Float32Math::floorBits) }
+fun CFloatVar.floorAssign() {
+    value = applyF32(value, io.github.kotlinmania.klang.fp.Float32Math::floorBits)
+}
+
 fun CFloatVar.floor(): CFloatVar {
     val r = CAutos.float()
     r.value = applyF32(this.value, io.github.kotlinmania.klang.fp.Float32Math::floorBits)
     return r
 }
 
-fun CFloatVar.ceilAssign() { value = applyF32(value, io.github.kotlinmania.klang.fp.Float32Math::ceilBits) }
+fun CFloatVar.ceilAssign() {
+    value = applyF32(value, io.github.kotlinmania.klang.fp.Float32Math::ceilBits)
+}
+
 fun CFloatVar.ceil(): CFloatVar {
     val r = CAutos.float()
     r.value = applyF32(this.value, io.github.kotlinmania.klang.fp.Float32Math::ceilBits)
     return r
 }
 
-fun CFloatVar.truncAssign() { value = applyF32(value, io.github.kotlinmania.klang.fp.Float32Math::truncBits) }
+fun CFloatVar.truncAssign() {
+    value = applyF32(value, io.github.kotlinmania.klang.fp.Float32Math::truncBits)
+}
+
 fun CFloatVar.trunc(): CFloatVar {
     val r = CAutos.float()
     r.value = applyF32(this.value, io.github.kotlinmania.klang.fp.Float32Math::truncBits)
     return r
 }
 
-fun CFloatVar.roundAssign() { value = applyF32(value, io.github.kotlinmania.klang.fp.Float32Math::roundBits) }
+fun CFloatVar.roundAssign() {
+    value = applyF32(value, io.github.kotlinmania.klang.fp.Float32Math::roundBits)
+}
+
 fun CFloatVar.round(): CFloatVar {
     val r = CAutos.float()
     r.value = applyF32(this.value, io.github.kotlinmania.klang.fp.Float32Math::roundBits)
@@ -586,6 +729,7 @@ fun CFloatVar.absAssign() {
     val bits = value.toRawBits() and 0x7FFFFFFF
     value = Float.fromBits(bits)
 }
+
 fun CFloatVar.abs(): CFloatVar {
     val r = CAutos.float()
     r.value = Float.fromBits(this.value.toRawBits() and 0x7FFFFFFF)
@@ -597,6 +741,7 @@ fun CFloatVar.copysignAssign(sign: CFloatVar) {
     val s = sign.value.toRawBits() and 0x80000000.toInt()
     value = Float.fromBits(mag or s)
 }
+
 fun CFloatVar.copysign(sign: CFloatVar): CFloatVar {
     val r = CAutos.float()
     val mag = this.value.toRawBits() and 0x7FFFFFFF
@@ -607,24 +752,37 @@ fun CFloatVar.copysign(sign: CFloatVar): CFloatVar {
 
 fun CFloatVar.frexp(): Pair<CFloatVar, Int> {
     val r = CAutos.float()
-    val (mBits, e) = io.github.kotlinmania.klang.fp.Float32Math.frexpBits(this.value.toRawBits())
+    val (mBits, e) =
+        io.github.kotlinmania.klang.fp.Float32Math
+            .frexpBits(this.value.toRawBits())
     r.value = Float.fromBits(mBits)
     return r to e
 }
 
 fun CFloatVar.ldexpAssign(exp: Int) {
-    value = Float.fromBits(io.github.kotlinmania.klang.fp.Float32Math.ldexpBits(value.toRawBits(), exp))
+    value =
+        Float.fromBits(
+            io.github.kotlinmania.klang.fp.Float32Math
+                .ldexpBits(value.toRawBits(), exp),
+        )
 }
+
 fun CFloatVar.ldexp(exp: Int): CFloatVar {
     val r = CAutos.float()
-    r.value = Float.fromBits(io.github.kotlinmania.klang.fp.Float32Math.ldexpBits(this.value.toRawBits(), exp))
+    r.value =
+        Float.fromBits(
+            io.github.kotlinmania.klang.fp.Float32Math
+                .ldexpBits(this.value.toRawBits(), exp),
+        )
     return r
 }
 
 fun CFloatVar.modf(): Pair<CFloatVar, CFloatVar> {
     val i = CAutos.float()
     val f = CAutos.float()
-    val (iBits, fBits) = io.github.kotlinmania.klang.fp.Float32Math.modfBits(this.value.toRawBits())
+    val (iBits, fBits) =
+        io.github.kotlinmania.klang.fp.Float32Math
+            .modfBits(this.value.toRawBits())
     i.value = Float.fromBits(iBits)
     f.value = Float.fromBits(fBits)
     return i to f
