@@ -1,6 +1,6 @@
-# Detekt configuration for vendored antlr4-runtime port.
+# Detekt configuration for KotlinMania ports.
 # Relaxed from template defaults because this is a line-by-line port of
-# upstream Java code; many structural/style rules that make sense for
+# upstream source code; many structural/style rules that make sense for
 # idiomatic Kotlin would create false positives here.
 
 build:
@@ -102,4 +102,3 @@ exceptions:
 
 coroutines:
   active: false
-
