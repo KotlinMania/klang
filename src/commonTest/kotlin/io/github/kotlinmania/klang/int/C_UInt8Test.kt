@@ -16,9 +16,10 @@ import kotlin.test.assertTrue
  * bitwise truth tables, and shifts spanning the full 0..7 range.
  */
 class C_UInt8Test {
-
     @BeforeTest
-    fun setup() { KMalloc.init(64 * 1024) }
+    fun setup() {
+        KMalloc.init(64 * 1024)
+    }
 
     // -- Construction ---------------------------------------------------------
 
@@ -148,7 +149,14 @@ class C_UInt8Test {
         assertEquals(0u, C_UInt8.maxValue().inv().toUInt())
         assertEquals(0x55u, C_UInt8.fromUInt(0xAAu).inv().toUInt())
         // Double-inv is identity
-        assertEquals(0xCDu, C_UInt8.fromUInt(0xCDu).inv().inv().toUInt())
+        assertEquals(
+            0xCDu,
+            C_UInt8
+                .fromUInt(0xCDu)
+                .inv()
+                .inv()
+                .toUInt(),
+        )
     }
 
     // -- Shifts --------------------------------------------------------------

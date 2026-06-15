@@ -19,8 +19,9 @@ import io.github.kotlinmania.klang.bitwise.CUE4M3Math
  * Storage uses [Int] for overflow headroom during intermediate calculations
  * (matching the [CFloat16] convention); only the low 8 bits are meaningful.
  */
-class CUE4M3 private constructor(private val bits: Int) {
-
+class CUE4M3 private constructor(
+    private val bits: Int,
+) {
     /** Raw 8-bit storage as an Int (low 8 bits used). */
     fun toBits(): Int = bits and 0xFF
 
@@ -36,6 +37,7 @@ class CUE4M3 private constructor(private val bits: Int) {
     override fun toString(): String = "CUE4M3(0x${toBits().toString(16).padStart(2, '0')}, ${toFloat()})"
 
     override fun equals(other: Any?): Boolean = other is CUE4M3 && other.toBits() == toBits()
+
     override fun hashCode(): Int = toBits()
 
     companion object {

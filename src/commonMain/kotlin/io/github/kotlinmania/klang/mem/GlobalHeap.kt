@@ -61,7 +61,9 @@ object GlobalHeap {
     }
 
     /** Reset heap pointer to 0, effectively freeing all allocations. */
-    fun reset() { hp = 0 }
+    fun reset() {
+        hp = 0
+    }
 
     /** Dispose of the heap, releasing the backing memory. */
     fun dispose() {
@@ -95,7 +97,7 @@ object GlobalHeap {
         if (minSize <= buffer.capacity) return
         var newSize = buffer.capacity.coerceAtLeast(1024)
         while (newSize < minSize) {
-            newSize = newSize + (newSize ushr 1)  // 1.5x growth
+            newSize = newSize + (newSize ushr 1) // 1.5x growth
         }
         val newBuffer = PackedBuffer(newSize)
         for (i in 0 until (buffer.capacity ushr 3)) {

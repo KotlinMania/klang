@@ -17,26 +17,26 @@ import kotlin.test.assertEquals
  * - All-zero and all-one inputs.
  */
 class ArithmeticBitwiseOps64Test {
-
     private val ops = ArithmeticBitwiseOps64
 
     // A representative spread of Long values that exercises the sign bit,
     // mid-range, low/high halves, and all-ones / all-zeros.
-    private val samples: List<Long> = listOf(
-        0L,
-        1L,
-        2L,
-        0xFFL,
-        0xFFFFL,
-        0xFFFFFFFFL,
-        0x123456789ABCDEF0L,
-        0x0FEDCBA987654321L,
-        Long.MAX_VALUE,           // 0x7FFF_FFFF_FFFF_FFFF
-        Long.MIN_VALUE,           // 0x8000_0000_0000_0000 (only sign bit set)
-        -1L,                      // 0xFFFF_FFFF_FFFF_FFFF (all ones)
-        -2L,
-        -0x123456789ABCDEF0L,
-    )
+    private val samples: List<Long> =
+        listOf(
+            0L,
+            1L,
+            2L,
+            0xFFL,
+            0xFFFFL,
+            0xFFFFFFFFL,
+            0x123456789ABCDEF0L,
+            0x0FEDCBA987654321L,
+            Long.MAX_VALUE, // 0x7FFF_FFFF_FFFF_FFFF
+            Long.MIN_VALUE, // 0x8000_0000_0000_0000 (only sign bit set)
+            -1L, // 0xFFFF_FFFF_FFFF_FFFF (all ones)
+            -2L,
+            -0x123456789ABCDEF0L,
+        )
 
     // ----- normalize -----
 
@@ -123,22 +123,28 @@ class ArithmeticBitwiseOps64Test {
 
     @Test
     fun orMatchesNativeForSamplePairs() {
-        for (a in samples) for (b in samples) {
-            assertEquals(a or b, ops.or(a, b), "or($a, $b)")
+        for (a in samples) {
+            for (b in samples) {
+                assertEquals(a or b, ops.or(a, b), "or($a, $b)")
+            }
         }
     }
 
     @Test
     fun andMatchesNativeForSamplePairs() {
-        for (a in samples) for (b in samples) {
-            assertEquals(a and b, ops.and(a, b), "and($a, $b)")
+        for (a in samples) {
+            for (b in samples) {
+                assertEquals(a and b, ops.and(a, b), "and($a, $b)")
+            }
         }
     }
 
     @Test
     fun xorMatchesNativeForSamplePairs() {
-        for (a in samples) for (b in samples) {
-            assertEquals(a xor b, ops.xor(a, b), "xor($a, $b)")
+        for (a in samples) {
+            for (b in samples) {
+                assertEquals(a xor b, ops.xor(a, b), "xor($a, $b)")
+            }
         }
     }
 
@@ -147,7 +153,7 @@ class ArithmeticBitwiseOps64Test {
     @Test
     fun maskZeroExtendByteAndShort() {
         // What `lbu` / `lhu` need: zero-extend a byte/short value into a Long.
-        val byteVal: Long = (-1).toByte().toLong()  // -1L (sign-extended)
+        val byteVal: Long = (-1).toByte().toLong() // -1L (sign-extended)
         // Mask with 0xFF (8-bit zero-extend) ↔ ops.and(byteVal, 0xFFL)
         assertEquals(0xFFL, ops.and(byteVal, 0xFFL))
 

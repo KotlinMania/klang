@@ -156,7 +156,10 @@ package io.github.kotlinmania.klang.bitwise
  * @constructor Creates a DoubleDouble from hi and lo components
  * @since 0.1.0
  */
-data class DoubleDouble(val hi: Double, val lo: Double) {
+data class DoubleDouble(
+    val hi: Double,
+    val lo: Double,
+) {
     /**
      * Add another DoubleDouble with full error compensation.
      *

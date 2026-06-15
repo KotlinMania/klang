@@ -17,12 +17,15 @@ import io.github.kotlinmania.klang.mem.KMalloc
  * all targets. Shifts are routed through BitShiftEngine for cross-platform
  * determinism.
  */
-class C_Int16 private constructor(val addr: Int) : Comparable<C_Int16> {
-
+class C_Int16 private constructor(
+    val addr: Int,
+) : Comparable<C_Int16> {
     private fun toUnsignedLong(): Long = engine.bitwiseAnd(GlobalHeap.lh(addr).toLong(), MASK_16)
+
     private fun toSignedLong(): Long = signExtender.signExtend(toUnsignedLong(), 16)
 
     fun toShort(): Short = toSignedLong().toShort()
+
     fun toInt(): Int = toSignedLong().toInt()
 
     fun isNegative(): Boolean = engine.isBitSet(toUnsignedLong(), 15)
@@ -90,15 +93,17 @@ class C_Int16 private constructor(val addr: Int) : Comparable<C_Int16> {
         require(bits in 0..15) { "C_Int16 shift amount out of range: $bits" }
         if (bits == 0) return copy()
         val shifted = engine.unsignedRightShift(this.toUnsignedLong(), bits).value
-        val result = if (isNegative()) {
-            val signMask = engine.bitwiseAnd(
-                engine.leftShift(engine.getMask(bits), 16 - bits).value,
-                MASK_16,
-            )
-            engine.bitwiseOr(shifted, signMask)
-        } else {
-            shifted
-        }
+        val result =
+            if (isNegative()) {
+                val signMask =
+                    engine.bitwiseAnd(
+                        engine.leftShift(engine.getMask(bits), 16 - bits).value,
+                        MASK_16,
+                    )
+                engine.bitwiseOr(shifted, signMask)
+            } else {
+                shifted
+            }
         return store(result)
     }
 
@@ -129,9 +134,13 @@ class C_Int16 private constructor(val addr: Int) : Comparable<C_Int16> {
         private val MASK_16: Long = engine.getMask(16)
 
         fun alloc(): C_Int16 = C_Int16(KMalloc.malloc(BYTES))
+
         fun zero(): C_Int16 = alloc().also { GlobalHeap.sh(it.addr, 0) }
+
         fun one(): C_Int16 = alloc().also { GlobalHeap.sh(it.addr, 1) }
+
         fun minValue(): C_Int16 = alloc().also { GlobalHeap.sh(it.addr, MIN_VALUE) }
+
         fun maxValue(): C_Int16 = alloc().also { GlobalHeap.sh(it.addr, MAX_VALUE) }
 
         fun fromShort(value: Short): C_Int16 =

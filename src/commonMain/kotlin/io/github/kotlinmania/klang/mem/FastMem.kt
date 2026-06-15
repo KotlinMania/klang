@@ -45,7 +45,7 @@ import io.github.kotlinmania.klang.bitwise.BitShiftMode
 internal object FastMem {
     private const val WORD_BYTES = 8
     private const val WORD_MASK = WORD_BYTES - 1
-    
+
     // Use 64-bit shifter for word operations
     private val shifter = BitShiftEngine(BitShiftMode.NATIVE, 64)
 
@@ -53,9 +53,7 @@ internal object FastMem {
      * Replicate a byte value across all 8 bytes of a word.
      * Uses BitShiftEngine for proper bit manipulation.
      */
-    private fun repeatByte(b: Int): Long {
-        return shifter.repeatByteToWord(b)
-    }
+    private fun repeatByte(b: Int): Long = shifter.repeatByteToWord(b)
 
     /**
      * Store a 64-bit word as 8 bytes in memory (little-endian).
@@ -73,9 +71,10 @@ internal object FastMem {
      * Uses BitShiftEngine for byte composition.
      */
     private fun loadWord(addr: Int): Long {
-        val bytes = LongArray(WORD_BYTES) { i ->
-            shifter.bitwiseAnd(GlobalHeap.lbu(addr + i).toLong(), 0xFFL)
-        }
+        val bytes =
+            LongArray(WORD_BYTES) { i ->
+                shifter.bitwiseAnd(GlobalHeap.lbu(addr + i).toLong(), 0xFFL)
+            }
         return shifter.composeBytes(bytes)
     }
 
@@ -84,7 +83,7 @@ internal object FastMem {
         var p = addr
         var n = bytes
         val byteVal = shifter.bitwiseAnd(value.toLong(), 0xFFL).toInt()
-        
+
         // Align to word
         while (n > 0 && shifter.bitwiseAnd(p.toLong(), WORD_MASK.toLong()) != 0L) {
             GlobalHeap.sb(p++, byteVal.toByte())
@@ -160,4 +159,3 @@ internal object FastMem {
         }
     }
 }
-

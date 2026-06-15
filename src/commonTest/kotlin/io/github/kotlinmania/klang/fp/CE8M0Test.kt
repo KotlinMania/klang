@@ -24,7 +24,6 @@ import kotlin.test.assertTrue
  * other narrow-FP types (CFloat16, CBF16) — see [MLTypesTest] for the convention.
  */
 class CE8M0Test {
-
     @Test
     fun zeroEncodesAsTwoToMinus127() {
         // x == 0 is the special denormal case: 2^(-127), encoded as a denormal with
@@ -117,7 +116,7 @@ class CE8M0Test {
             val v = CAutos.e8m0(CE8M0.fromBits(127))
             assertEquals(1.0f, v.value.toFloat())
             v.value = CE8M0.fromBits(130)
-            assertEquals(8.0f, v.value.toFloat())  // 2^3
+            assertEquals(8.0f, v.value.toFloat()) // 2^3
             v.value = CE8M0.ZERO
             assertEquals(Float.fromBits(1 shl 22), v.value.toFloat())
         }
@@ -137,16 +136,16 @@ class CE8M0Test {
         GlobalData.init()
         val scale = CGlobals.e8m0("ce8m0_test_scale", CE8M0.fromBits(127))
         assertEquals(1.0f, scale.value.toFloat())
-        scale.value = CE8M0.fromBits(150)  // 2^23
+        scale.value = CE8M0.fromBits(150) // 2^23
         assertEquals(Float.fromBits(150 shl 23), scale.value.toFloat())
     }
 
     @Test
     fun heapStorageRoundTrip() {
-        val v = CHeapVars.e8m0(CE8M0.fromBits(140))  // 2^13 = 8192.0
+        val v = CHeapVars.e8m0(CE8M0.fromBits(140)) // 2^13 = 8192.0
         try {
             assertEquals(8192.0f, v.value.toFloat())
-            v.value = CE8M0.fromBits(124)  // 2^(-3) = 0.125
+            v.value = CE8M0.fromBits(124) // 2^(-3) = 0.125
             assertEquals(0.125f, v.value.toFloat())
         } finally {
             CHeapVars.free(v)

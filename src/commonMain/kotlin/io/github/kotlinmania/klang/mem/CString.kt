@@ -6,7 +6,7 @@ import io.github.kotlinmania.klang.bitwise.BitShiftMode
 /** CString helpers on top of GlobalHeap (addresses are Int byte offsets). */
 object CString {
     private val shifter = BitShiftEngine(BitShiftMode.NATIVE, 8)
-    
+
     fun strlenz(addr: Int): Int {
         var i = 0
         while (true) {

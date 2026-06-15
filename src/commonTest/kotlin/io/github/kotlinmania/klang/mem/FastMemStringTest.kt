@@ -16,7 +16,9 @@ class FastMemStringTest {
         GlobalHeap.memmove(p + 8, p, 32)
         // compute expected
         run {
-            val dst = 8; val src = 0; val n = 32
+            val dst = 8
+            val src = 0
+            val n = 32
             if (dst > src && dst < src + n) {
                 for (i in n - 1 downTo 0) expected[dst + i] = expected[src + i]
             } else {
@@ -27,7 +29,9 @@ class FastMemStringTest {
         // memmove left overlap: dst=0, src=16, n=16
         GlobalHeap.memmove(p, p + 16, 16)
         run {
-            val dst = 0; val src = 16; val n = 16
+            val dst = 0
+            val src = 16
+            val n = 16
             if (dst > src && dst < src + n) {
                 for (i in n - 1 downTo 0) expected[dst + i] = expected[src + i]
             } else {
@@ -48,7 +52,9 @@ class FastMemStringTest {
         val buf = KMalloc.malloc(16)
         GlobalHeap.memcpy(buf, hello, 6) // includes NUL
         assertEquals("hello", CString.read(buf))
-        KMalloc.free(hello); KMalloc.free(world); KMalloc.free(buf)
+        KMalloc.free(hello)
+        KMalloc.free(world)
+        KMalloc.free(buf)
     }
 
     @Test
@@ -62,6 +68,7 @@ class FastMemStringTest {
         val s2 = CString.strdup("abcabd")
         val cmp = CLib.memcmp(s, s2, 6)
         assertTrue(cmp < 0)
-        KMalloc.free(s); KMalloc.free(s2)
+        KMalloc.free(s)
+        KMalloc.free(s2)
     }
 }

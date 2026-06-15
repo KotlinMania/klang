@@ -9,20 +9,19 @@ import io.github.kotlinmania.klang.mem.GlobalHeap
 
 /**
  * F64Math: Heap-native math operations for 64-bit doubles.
- * 
+ *
  * All functions operate directly on heap memory addresses, enabling:
  * - Zero-copy operations
  * - Pointer arithmetic
  * - Efficient bulk processing
  * - C-compatible memory layouts
- * 
+ *
  * Functions take destination and source addresses, reading from and writing
  * to heap memory without intermediate allocations.
  */
 object F64Math {
-    
     // ==================== Basic Operations ====================
-    
+
     /**
      * Absolute value: |x|
      * @param destAddr Destination heap address
@@ -32,7 +31,7 @@ object F64Math {
         val value = GlobalHeap.ldf(srcAddr)
         GlobalHeap.sdf(destAddr, KMath.fabs(value))
     }
-    
+
     /**
      * Copy sign from y to x: |x| * sign(y)
      * @param destAddr Destination heap address
@@ -44,74 +43,60 @@ object F64Math {
         val y = GlobalHeap.ldf(yAddr)
         GlobalHeap.sdf(destAddr, KMath.copysign(x, y))
     }
-    
+
     // ==================== Classification ====================
-    
+
     /**
      * Check if value is NaN
      * @param addr Heap address to check
      * @return true if NaN
      */
-    fun isNaN(addr: Int): Boolean {
-        return Classification.isnan(GlobalHeap.ldf(addr))
-    }
-    
+    fun isNaN(addr: Int): Boolean = Classification.isnan(GlobalHeap.ldf(addr))
+
     /**
      * Check if value is infinite
      * @param addr Heap address to check
      * @return true if +Inf or -Inf
      */
-    fun isInf(addr: Int): Boolean {
-        return Classification.isinf(GlobalHeap.ldf(addr))
-    }
-    
+    fun isInf(addr: Int): Boolean = Classification.isinf(GlobalHeap.ldf(addr))
+
     /**
      * Check if value is finite (not NaN, not Inf)
      * @param addr Heap address to check
      * @return true if finite
      */
-    fun isFinite(addr: Int): Boolean {
-        return Classification.isfinite(GlobalHeap.ldf(addr))
-    }
-    
+    fun isFinite(addr: Int): Boolean = Classification.isfinite(GlobalHeap.ldf(addr))
+
     /**
      * Check if value is zero (+0.0 or -0.0)
      * @param addr Heap address to check
      * @return true if zero
      */
-    fun isZero(addr: Int): Boolean {
-        return Classification.iszero(GlobalHeap.ldf(addr))
-    }
-    
+    fun isZero(addr: Int): Boolean = Classification.iszero(GlobalHeap.ldf(addr))
+
     /**
      * Check if value is subnormal (denormalized)
      * @param addr Heap address to check
      * @return true if subnormal
      */
-    fun isSubnormal(addr: Int): Boolean {
-        return Classification.issubnormal(GlobalHeap.ldf(addr))
-    }
-    
+    fun isSubnormal(addr: Int): Boolean = Classification.issubnormal(GlobalHeap.ldf(addr))
+
     /**
      * Check if value is normal (not zero, subnormal, infinite, or NaN)
      * @param addr Heap address to check
      * @return true if normal
      */
-    fun isNormal(addr: Int): Boolean {
-        return Classification.isnormal(GlobalHeap.ldf(addr))
-    }
-    
+    fun isNormal(addr: Int): Boolean = Classification.isnormal(GlobalHeap.ldf(addr))
+
     /**
      * Extract sign bit (0 for positive/+0, 1 for negative/-0)
      * @param addr Heap address to check
      * @return 0 or 1
      */
-    fun signbit(addr: Int): Int {
-        return if (KMath.signbit(GlobalHeap.ldf(addr))) 1 else 0
-    }
-    
+    fun signbit(addr: Int): Int = if (KMath.signbit(GlobalHeap.ldf(addr))) 1 else 0
+
     // ==================== Comparison ====================
-    
+
     /**
      * Maximum of two values (NaN-aware)
      * @param destAddr Destination heap address
@@ -123,7 +108,7 @@ object F64Math {
         val b = GlobalHeap.ldf(bAddr)
         GlobalHeap.sdf(destAddr, Comparison.fmax(a, b))
     }
-    
+
     /**
      * Minimum of two values (NaN-aware)
      * @param destAddr Destination heap address
@@ -135,7 +120,7 @@ object F64Math {
         val b = GlobalHeap.ldf(bAddr)
         GlobalHeap.sdf(destAddr, Comparison.fmin(a, b))
     }
-    
+
     /**
      * Positive difference: max(x - y, 0)
      * @param destAddr Destination heap address
@@ -147,7 +132,7 @@ object F64Math {
         val y = GlobalHeap.ldf(yAddr)
         GlobalHeap.sdf(destAddr, Comparison.fdim(x, y))
     }
-    
+
     // ==================== Basic Math ====================
 
     /**
@@ -212,7 +197,7 @@ object F64Math {
     }
 
     // ==================== Vector Operations ====================
-    
+
     /**
      * Vector absolute value
      * @param destAddr Destination array start address
@@ -221,11 +206,11 @@ object F64Math {
      */
     fun abs_vec(destAddr: Int, srcAddr: Int, count: Int) {
         for (i in 0 until count) {
-            val offset = i * 8  // 8 bytes per double
+            val offset = i * 8 // 8 bytes per double
             abs(destAddr + offset, srcAddr + offset)
         }
     }
-    
+
     /**
      * Vector maximum
      * @param destAddr Destination array start address
@@ -239,7 +224,7 @@ object F64Math {
             max(destAddr + offset, aAddr + offset, bAddr + offset)
         }
     }
-    
+
     /**
      * Vector minimum
      * @param destAddr Destination array start address

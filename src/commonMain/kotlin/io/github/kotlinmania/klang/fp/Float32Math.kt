@@ -2,7 +2,6 @@ package io.github.kotlinmania.klang.fp
 
 import io.github.kotlinmania.klang.bitwise.BitShiftEngine
 import io.github.kotlinmania.klang.bitwise.BitShiftMode
-import kotlin.math.abs
 import kotlin.math.floor
 
 /**
@@ -11,9 +10,9 @@ import kotlin.math.floor
  */
 object Float32Math {
     private const val SIGN_MASK = 0x80000000.toInt()
-    private const val EXP_MASK  = 0x7F800000.toInt()
+    private const val EXP_MASK = 0x7F800000.toInt()
     private const val FRAC_MASK = 0x007FFFFF
-    private const val EXP_BIAS  = 127
+    private const val EXP_BIAS = 127
     private const val IMPLICIT_BIT = 1 shl 23
     private const val TYPE_WIDTH = 24 + 3 // 24 significand bits plus R/G/S
 
@@ -29,6 +28,7 @@ object Float32Math {
     fun fma(a: Float, b: Float, c: Float): Float = add(mul(a, b), c)
 
     fun lrint(value: Float): Long = roundToNearestEven(value.toDouble()).toLong()
+
     fun lrint(value: Double): Long = roundToNearestEven(value).toLong()
 
     fun nearbyint(value: Float): Float = roundToNearestEven(value.toDouble()).toFloat()
@@ -37,6 +37,7 @@ object Float32Math {
 
     // Integer conversions (compiler-rt style, nearest-even rounding where applicable)
     fun intToFloat(a: Int): Float = Float.fromBits(intToFloatBits(a))
+
     fun uintToFloat(a: UInt): Float = Float.fromBits(uintToFloatBits(a))
 
     // __floatsisf: 32-bit signed int -> float32
@@ -101,6 +102,7 @@ object Float32Math {
 
     // __fixsfsi: float32 -> signed int32 (round toward zero), no range checking
     fun floatToInt(a: Float): Int = floatToIntBits(a.toRawBits())
+
     fun floatToUInt(a: Float): UInt = floatToUIntBits(a.toRawBits()).toUInt()
 
     fun floatToIntBits(aBits: Int): Int {
@@ -127,6 +129,7 @@ object Float32Math {
     // ---- Float32 <-> Float64 (Double) conversions ----
     // float32 -> float64 (extendsfdf2)
     fun floatToDouble(f: Float): Double = Double.fromBits(floatToDoubleBits(f.toRawBits()))
+
     fun floatToDoubleBits(fBits: Int): Long {
         val sign = (fBits.toLong() and 0x80000000L) shl 32
         val exp = (fBits ushr 23) and 0xFF
@@ -142,7 +145,10 @@ object Float32Math {
             // subnormal: normalize mantissa
             var m = frac
             var shift = 0
-            while ((m and IMPLICIT_BIT) == 0) { m = m shl 1; shift++ }
+            while ((m and IMPLICIT_BIT) == 0) {
+                m = m shl 1
+                shift++
+            }
             m = m and FRAC_MASK
             val eUnb = -126 - shift
             val dExp = ((eUnb + 1023).toLong() and 0x7FF) shl 52
@@ -158,6 +164,7 @@ object Float32Math {
 
     // float64 -> float32 (truncdfsf2) with nearest-even rounding
     fun doubleToFloat(d: Double): Float = Float.fromBits(doubleToFloatBits(d.toRawBits()))
+
     fun doubleToFloatBits(dBits: Long): Int {
         val sign = ((dBits ushr 32) and 0x80000000L).toInt()
         val exp = ((dBits ushr 52) and 0x7FF).toInt()
@@ -243,6 +250,7 @@ object Float32Math {
         }
         return sign or frac
     }
+
     // sqrtf: IEEE‑754 sqrt for float32 using LLVM libc FPUtil algorithm
     fun sqrtBits(aBits: Int): Int {
         val sign = aBits and SIGN_MASK
@@ -421,6 +429,7 @@ object Float32Math {
         }
         return n
     }
+
     // Normalize for multiply: set implicit bit, return (newSig, scaleAdj)
     private fun normalizeForMul(sigIn: Int): Pair<Int, Int> {
         var sig = sigIn and FRAC_MASK
@@ -466,6 +475,7 @@ object Float32Math {
         if (sticky) lo = lo or 1
         return hi to lo
     }
+
     // NOTE: Minimal positive-only add for our quant accumulations.
     // Assumes a,b are finite and non-negative. Returns IEEE-754 round-to-nearest-even.
     // Positive-only fast path used in some accumulator experiments; for
@@ -501,7 +511,9 @@ object Float32Math {
 
         // Ensure |a| >= |b|
         if (bAbs > aAbs) {
-            val t = aRep; aRep = bRep; bRep = t
+            val t = aRep
+            aRep = bRep
+            bRep = t
         }
 
         var aExp = (aRep ushr 23) and 0xFF
@@ -740,6 +752,7 @@ object Float32Math {
     fun copysignBits(aBits: Int, bBits: Int): Int = (aBits and 0x7FFFFFFF.toInt()) or (bBits and SIGN_MASK)
 
     fun fmin(a: Float, b: Float): Float = Float.fromBits(fminBits(a.toRawBits(), b.toRawBits()))
+
     fun fmax(a: Float, b: Float): Float = Float.fromBits(fmaxBits(a.toRawBits(), b.toRawBits()))
 
     fun fminBits(aBits: Int, bBits: Int): Int {
@@ -771,6 +784,7 @@ object Float32Math {
         val b = Float.fromBits(bBits)
         return if (a > b) aBits else bBits
     }
+
     private fun normalizeSig(fracIn: Long): Pair<Long, Int> {
         var sig = fracIn
         if (sig == 0L) return 0L to 0
@@ -794,14 +808,19 @@ object Float32Math {
     private const val EXP_MAX_32 = 0xFF
     private const val POS_ZERO_32 = 0
     private const val NEG_ZERO_32 = SIGN_MASK
-    private const val POS_ONE_32 = 0x3F800000.toInt()  // 1.0f
+    private const val POS_ONE_32 = 0x3F800000.toInt() // 1.0f
     private const val NEG_ONE_32 = SIGN_MASK or POS_ONE_32
 
     private fun rawExp32(b: Int): Int = (b ushr MANT_BITS_32) and EXP_MAX_32
+
     private fun rawMant32(b: Int): Int = b and FRAC_MASK
+
     private fun signBit32(b: Int): Int = b and SIGN_MASK
+
     private fun isNaN32(b: Int): Boolean = rawExp32(b) == EXP_MAX_32 && rawMant32(b) != 0
+
     private fun isInf32(b: Int): Boolean = rawExp32(b) == EXP_MAX_32 && rawMant32(b) == 0
+
     private fun isZero32(b: Int): Boolean = (b and 0x7FFFFFFF.toInt()) == 0
 
     private fun addUlpAtFracBits32(truncatedBits: Int, fracBits: Int): Int {
@@ -822,8 +841,11 @@ object Float32Math {
         val mask = (1 shl fracBits) - 1
         val truncated = bits and mask.inv()
         val droppedNonZero = (bits and mask) != 0
-        return if (signBit32(bits) != 0 && droppedNonZero) addUlpAtFracBits32(truncated, fracBits)
-        else truncated
+        return if (signBit32(bits) != 0 && droppedNonZero) {
+            addUlpAtFracBits32(truncated, fracBits)
+        } else {
+            truncated
+        }
     }
 
     /** Round toward +∞ (binary32 bit kernel). */
@@ -837,8 +859,11 @@ object Float32Math {
         val mask = (1 shl fracBits) - 1
         val truncated = bits and mask.inv()
         val droppedNonZero = (bits and mask) != 0
-        return if (signBit32(bits) == 0 && droppedNonZero) addUlpAtFracBits32(truncated, fracBits)
-        else truncated
+        return if (signBit32(bits) == 0 && droppedNonZero) {
+            addUlpAtFracBits32(truncated, fracBits)
+        } else {
+            truncated
+        }
     }
 
     /** Round toward zero (binary32 bit kernel). */
@@ -878,8 +903,11 @@ object Float32Math {
         if (e < -1) return signBit32(bits)
         if (e == -1) {
             val mantNonZero = rawMant32(bits) != 0
-            return if (mantNonZero) (if (signBit32(bits) != 0) NEG_ONE_32 else POS_ONE_32)
-            else signBit32(bits)
+            return if (mantNonZero) {
+                (if (signBit32(bits) != 0) NEG_ONE_32 else POS_ONE_32)
+            } else {
+                signBit32(bits)
+            }
         }
         val fracBits = MANT_BITS_32 - e
         val mask = (1 shl fracBits) - 1
@@ -904,7 +932,10 @@ object Float32Math {
         return if (rawE == 0) {
             var m = mant
             var shift = 0
-            while ((m and IMPLICIT_BIT) == 0) { m = m shl 1; shift++ }
+            while ((m and IMPLICIT_BIT) == 0) {
+                m = m shl 1
+                shift++
+            }
             val normM = m and FRAC_MASK
             val unbiasedOriginal = 1 - EXP_BIAS - shift
             val outE = unbiasedOriginal + 1
@@ -927,7 +958,10 @@ object Float32Math {
         if (rawE == 0) {
             var m = mant
             var shift = 0
-            while ((m and IMPLICIT_BIT) == 0) { m = m shl 1; shift++ }
+            while ((m and IMPLICIT_BIT) == 0) {
+                m = m shl 1
+                shift++
+            }
             significand = m
             unbiasedE = 1 - EXP_BIAS - shift
         } else {

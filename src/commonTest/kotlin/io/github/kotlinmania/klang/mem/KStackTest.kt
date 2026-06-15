@@ -29,7 +29,8 @@ class KStackTest {
 
     @Test
     fun testNestedFrames() {
-        KMalloc.reset(); KStack.reset()
+        KMalloc.reset()
+        KStack.reset()
         val m1 = KStack.pushFrame()
         val a1 = KStack.alloca(16, 16)
         val m2 = KStack.pushFrame()
@@ -42,4 +43,3 @@ class KStackTest {
         KStack.popFrame(m1)
     }
 }
-

@@ -4,11 +4,10 @@ import io.github.kotlinmania.klang.fp.CBF16
 import io.github.kotlinmania.klang.fp.CFloat128
 import io.github.kotlinmania.klang.fp.CFloat16
 import io.github.kotlinmania.klang.fp.CFloat32
-import io.github.kotlinmania.klang.fp.CFloat64
 import io.github.kotlinmania.klang.fp.CLongDouble
 import kotlin.math.abs
-import kotlin.test.Test
 import kotlin.test.BeforeTest
+import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -20,7 +19,6 @@ import kotlin.test.assertTrue
  * are reclaimed when the frame pops.
  */
 class CFloatVarOpsTest {
-
     @BeforeTest
     fun setup() {
         // Idempotent stack/heap init so each test runs in a known state.
@@ -37,10 +35,14 @@ class CFloatVarOpsTest {
         KStack.withFrame {
             val a = CAutos.double(10.0)
             val b = CAutos.double(3.0)
-            a += b; assertEquals(13.0, a.value, 1e-12, "+= failed")
-            a -= b; assertEquals(10.0, a.value, 1e-12, "-= failed")
-            a *= b; assertEquals(30.0, a.value, 1e-12, "*= failed")
-            a /= b; assertEquals(10.0, a.value, 1e-12, "/= failed")
+            a += b
+            assertEquals(13.0, a.value, 1e-12, "+= failed")
+            a -= b
+            assertEquals(10.0, a.value, 1e-12, "-= failed")
+            a *= b
+            assertEquals(30.0, a.value, 1e-12, "*= failed")
+            a /= b
+            assertEquals(10.0, a.value, 1e-12, "/= failed")
         }
     }
 
@@ -90,10 +92,14 @@ class CFloatVarOpsTest {
             val a = CAutos.float128(CFloat128.fromDouble(100.0))
             val b = CAutos.float128(CFloat128.fromDouble(4.0))
 
-            a += b; assertEquals(104.0, a.value.toDouble(), 1e-10)
-            a -= b; assertEquals(100.0, a.value.toDouble(), 1e-10)
-            a *= b; assertEquals(400.0, a.value.toDouble(), 1e-10)
-            a /= b; assertEquals(100.0, a.value.toDouble(), 1e-10)
+            a += b
+            assertEquals(104.0, a.value.toDouble(), 1e-10)
+            a -= b
+            assertEquals(100.0, a.value.toDouble(), 1e-10)
+            a *= b
+            assertEquals(400.0, a.value.toDouble(), 1e-10)
+            a /= b
+            assertEquals(100.0, a.value.toDouble(), 1e-10)
         }
     }
 
@@ -135,8 +141,10 @@ class CFloatVarOpsTest {
             val sum = a + b
             assertEquals(10.0f, sum.value.toFloat(), "+ failed")
 
-            a += b; assertEquals(10.0f, a.value.toFloat(), "+= failed")
-            a /= b; assertEquals(5.0f, a.value.toFloat(), "/= failed")
+            a += b
+            assertEquals(10.0f, a.value.toFloat(), "+= failed")
+            a /= b
+            assertEquals(5.0f, a.value.toFloat(), "/= failed")
         }
     }
 
@@ -153,8 +161,10 @@ class CFloatVarOpsTest {
             val sum = a + b
             assertEquals(6.0f, sum.value.toFloat(), "+ failed")
 
-            a *= b; assertEquals(8.0f, a.value.toFloat(), "*= failed")
-            a -= b; assertEquals(6.0f, a.value.toFloat(), "-= failed")
+            a *= b
+            assertEquals(8.0f, a.value.toFloat(), "*= failed")
+            a -= b
+            assertEquals(6.0f, a.value.toFloat(), "-= failed")
         }
     }
 
@@ -172,7 +182,8 @@ class CFloatVarOpsTest {
             // bf16 has only ~2 decimal digits of precision; 6.0 representable exactly.
             assertEquals(6.0f, prod.value.toFloat(), 1e-2f, "* failed")
 
-            a += b; assertEquals(5.0f, a.value.toFloat(), 1e-2f, "+= failed")
+            a += b
+            assertEquals(5.0f, a.value.toFloat(), 1e-2f, "+= failed")
         }
     }
 
@@ -191,7 +202,8 @@ class CFloatVarOpsTest {
             assertEquals(12.5, sum.value.toCFloat128().toDouble(), 1e-12)
             assertEquals(7.5, diff.value.toCFloat128().toDouble(), 1e-12)
 
-            a /= b; assertEquals(4.0, a.value.toCFloat128().toDouble(), 1e-12)
+            a /= b
+            assertEquals(4.0, a.value.toCFloat128().toDouble(), 1e-12)
         }
     }
 
@@ -208,8 +220,10 @@ class CFloatVarOpsTest {
             val sum = a + b
             assertEquals(8.0f, sum.value, "+ failed")
 
-            a *= b; assertEquals(12.0f, a.value, "*= failed")
-            a /= b; assertEquals(6.0f, a.value, "/= failed")
+            a *= b
+            assertEquals(12.0f, a.value, "*= failed")
+            a /= b
+            assertEquals(6.0f, a.value, "/= failed")
         }
     }
 }

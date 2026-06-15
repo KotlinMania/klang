@@ -16,9 +16,10 @@ import kotlin.test.assertTrue
  * arithmetic vs logical right shift, MIN_VALUE edge cases, and bitwise ops.
  */
 class C_Int8Test {
-
     @BeforeTest
-    fun setup() { KMalloc.init(64 * 1024) }
+    fun setup() {
+        KMalloc.init(64 * 1024)
+    }
 
     // -- Construction --------------------------------------------------------
 

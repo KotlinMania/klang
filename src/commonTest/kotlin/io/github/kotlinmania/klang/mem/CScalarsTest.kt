@@ -33,4 +33,3 @@ class CScalarsTest {
         assertEquals(3.75, GlobalHeap.ldf(gd.addr))
     }
 }
-

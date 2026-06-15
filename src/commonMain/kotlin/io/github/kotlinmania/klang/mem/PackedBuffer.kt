@@ -54,7 +54,9 @@ package io.github.kotlinmania.klang.mem
  *
  * @param sizeBytes The size of the buffer in bytes (will be rounded up to multiple of 8)
  */
-class PackedBuffer(sizeBytes: Int) {
+class PackedBuffer(
+    sizeBytes: Int,
+) {
     /** Number of Longs needed to hold sizeBytes */
     private val longCount = (sizeBytes + 7) ushr 3
 
@@ -71,8 +73,8 @@ class PackedBuffer(sizeBytes: Int) {
      * @return Value in range 0..255
      */
     fun getByte(addr: Int): Int {
-        val idx = addr ushr 3           // addr / 8
-        val shift = (addr and 7) shl 3  // (addr % 8) * 8
+        val idx = addr ushr 3 // addr / 8
+        val shift = (addr and 7) shl 3 // (addr % 8) * 8
         return ((data[idx] ushr shift) and 0xFF).toInt()
     }
 
@@ -167,11 +169,11 @@ class PackedBuffer(sizeBytes: Int) {
             val bitsInSecond = 32 - bitsInFirst
 
             // Write to first Long
-            val mask1 = (-1L ushr bitsInFirst).inv()  // Clear upper bits
+            val mask1 = (-1L ushr bitsInFirst).inv() // Clear upper bits
             data[idx] = (data[idx] and mask1) or ((value.toLong() and 0xFFFFFFFFL) shl shift)
 
             // Write to second Long
-            val mask2 = (-1L shl bitsInSecond)  // Clear lower bits
+            val mask2 = (-1L shl bitsInSecond) // Clear lower bits
             data[idx + 1] = (data[idx + 1] and mask2) or ((value.toLong() and 0xFFFFFFFFL) ushr bitsInFirst)
         }
     }
@@ -212,11 +214,11 @@ class PackedBuffer(sizeBytes: Int) {
             val bitsInFirst = 64 - shift
 
             // Write to first Long (preserve lower bits, set upper bits)
-            val mask1 = (1L shl shift) - 1  // Lower 'shift' bits
+            val mask1 = (1L shl shift) - 1 // Lower 'shift' bits
             data[idx] = (data[idx] and mask1) or (value shl shift)
 
             // Write to second Long (set lower bits, preserve upper bits)
-            val mask2 = (-1L shl (64 - bitsInFirst))  // Upper bits
+            val mask2 = (-1L shl (64 - bitsInFirst)) // Upper bits
             data[idx + 1] = (data[idx + 1] and mask2) or (value ushr bitsInFirst)
         }
     }
@@ -224,9 +226,11 @@ class PackedBuffer(sizeBytes: Int) {
     // ========== Float/Double Operations ==========
 
     fun getFloat(addr: Int): Float = Float.fromBits(getInt(addr))
+
     fun setFloat(addr: Int, value: Float) = setInt(addr, value.toRawBits())
 
     fun getDouble(addr: Int): Double = Double.fromBits(getLong(addr))
+
     fun setDouble(addr: Int, value: Double) = setLong(addr, value.toRawBits())
 
     // ========== Bulk Operations ==========
@@ -239,7 +243,8 @@ class PackedBuffer(sizeBytes: Int) {
 
         val byteVal = value.toLong() and 0xFF
         // Replicate byte across all 8 positions in a Long
-        val wordVal = byteVal or (byteVal shl 8) or (byteVal shl 16) or (byteVal shl 24) or
+        val wordVal =
+            byteVal or (byteVal shl 8) or (byteVal shl 16) or (byteVal shl 24) or
                 (byteVal shl 32) or (byteVal shl 40) or (byteVal shl 48) or (byteVal shl 56)
 
         var pos = addr

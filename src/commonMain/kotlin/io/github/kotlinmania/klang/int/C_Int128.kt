@@ -143,8 +143,9 @@ import io.github.kotlinmania.klang.mem.KMalloc
  * @see SwAR128 Low-level arithmetic engine
  * @since 0.1.0
  */
-class C_Int128 private constructor(val addr: Int) : Comparable<C_Int128> {
-    
+class C_Int128 private constructor(
+    val addr: Int,
+) : Comparable<C_Int128> {
     /**
      * Check if value is negative (sign bit set).
      *
@@ -159,11 +160,11 @@ class C_Int128 private constructor(val addr: Int) : Comparable<C_Int128> {
      * ```
      */
     fun isNegative(): Boolean {
-        val msb = GlobalHeap.lbu(addr + 15)  // Last byte contains sign bit
+        val msb = GlobalHeap.lbu(addr + 15) // Last byte contains sign bit
         val ops = ArithmeticBitwiseOps.BITS_8
         return ops.and(msb.toLong(), 0x80L) != 0L
     }
-    
+
     /**
      * Convert to hexadecimal string (two's complement).
      *
@@ -178,7 +179,7 @@ class C_Int128 private constructor(val addr: Int) : Comparable<C_Int128> {
      * ```
      */
     fun toHexString(): String = "0x" + SwAR128.toBigEndianHexHeap(addr)
-    
+
     /**
      * String representation (delegates to [toHexString]).
      */
@@ -228,15 +229,15 @@ class C_Int128 private constructor(val addr: Int) : Comparable<C_Int128> {
     override fun compareTo(other: C_Int128): Int {
         val thisNeg = this.isNegative()
         val otherNeg = other.isNegative()
-        
+
         // Different signs: negative is always less
         if (thisNeg != otherNeg) {
             return if (thisNeg) -1 else 1
         }
-        
+
         // Same sign: compare as unsigned
         val cmp = SwAR128.compareHeap(this.addr, other.addr)
-        
+
         // If both negative, reverse the comparison
         return if (thisNeg) -cmp else cmp
     }
@@ -260,17 +261,17 @@ class C_Int128 private constructor(val addr: Int) : Comparable<C_Int128> {
     operator fun plus(other: C_Int128): C_Int128 {
         val res = alloc()
         SwAR128.addHeap(this.addr, other.addr, res.addr)
-        
+
         // Check for overflow: sign of operands same, result sign different
         val thisNeg = this.isNegative()
         val otherNeg = other.isNegative()
         val resNeg = res.isNegative()
-        
+
         if (thisNeg == otherNeg && thisNeg != resNeg) {
             KMalloc.free(res.addr)
             error("C_Int128 addition overflow")
         }
-        
+
         return res
     }
 
@@ -293,17 +294,17 @@ class C_Int128 private constructor(val addr: Int) : Comparable<C_Int128> {
     operator fun minus(other: C_Int128): C_Int128 {
         val res = alloc()
         SwAR128.subHeap(this.addr, other.addr, res.addr)
-        
+
         // Check for overflow: different signs, result has wrong sign
         val thisNeg = this.isNegative()
         val otherNeg = other.isNegative()
         val resNeg = res.isNegative()
-        
+
         if (thisNeg != otherNeg && thisNeg != resNeg) {
             KMalloc.free(res.addr)
             error("C_Int128 subtraction overflow")
         }
-        
+
         return res
     }
 
@@ -323,19 +324,19 @@ class C_Int128 private constructor(val addr: Int) : Comparable<C_Int128> {
     fun negate(): C_Int128 {
         val res = alloc()
         val ops = ArithmeticBitwiseOps.BITS_8
-        
+
         // Two's complement negation: flip all bits, then add 1
         for (i in 0 until 16) {
             val byte = GlobalHeap.lbu(addr + i)
             val inverted = ops.not(byte.toLong())
             GlobalHeap.sb(res.addr + i, inverted.toByte())
         }
-        
+
         // Add 1
         val one = C_UInt128.one()
         SwAR128.addHeap(res.addr, one.addr, res.addr)
         KMalloc.free(one.addr)
-        
+
         return res
     }
 
@@ -353,9 +354,7 @@ class C_Int128 private constructor(val addr: Int) : Comparable<C_Int128> {
      * val absX = x.abs()  // 100
      * ```
      */
-    fun abs(): C_Int128 {
-        return if (isNegative()) negate() else copy()
-    }
+    fun abs(): C_Int128 = if (isNegative()) negate() else copy()
 
     /**
      * Copy value to new heap location.
@@ -385,19 +384,19 @@ class C_Int128 private constructor(val addr: Int) : Comparable<C_Int128> {
     fun shiftRight(bits: Int): C_Int128 {
         val res = alloc()
         val negative = isNegative()
-        
+
         SwAR128.shiftRightHeap(this.addr, res.addr, bits)
-        
+
         // If negative, fill shifted-in bits with 1s (sign extension)
         if (negative && bits > 0) {
             val fullBytes = bits / 8
             val remainingBits = bits % 8
-            
+
             // Fill full bytes with 0xFF from the left
             for (i in 15 downTo 16 - fullBytes) {
                 GlobalHeap.sb(res.addr + i, 0xFF.toByte())
             }
-            
+
             // Handle remaining bits
             if (remainingBits > 0 && fullBytes < 16) {
                 val ops = ArithmeticBitwiseOps.BITS_8
@@ -409,7 +408,7 @@ class C_Int128 private constructor(val addr: Int) : Comparable<C_Int128> {
                 GlobalHeap.sb(res.addr + byteIdx, result.toByte())
             }
         }
-        
+
         return res
     }
 
@@ -438,28 +437,29 @@ class C_Int128 private constructor(val addr: Int) : Comparable<C_Int128> {
     companion object {
         /** BitShiftEngine for 8-bit byte operations (reading limbs from heap). */
         private val byteShifter = BitShiftEngine(BitShiftMode.NATIVE, 8)
-        
+
         /**
          * Allocate uninitialized C_Int128.
          */
         fun alloc(): C_Int128 = C_Int128(KMalloc.malloc(SwAR128.LIMB_COUNT * 2))
-        
+
         /**
          * Create zero-initialized value.
          *
          * @return C_Int128 with value 0
          */
         fun zero(): C_Int128 = alloc().also { SwAR128.zeroHeap(it.addr) }
-        
+
         /**
          * Create value 1.
          *
          * @return C_Int128 with value 1
          */
-        fun one(): C_Int128 = alloc().also {
-            SwAR128.zeroHeap(it.addr)
-            GlobalHeap.sb(it.addr, 1)
-        }
+        fun one(): C_Int128 =
+            alloc().also {
+                SwAR128.zeroHeap(it.addr)
+                GlobalHeap.sb(it.addr, 1)
+            }
 
         /**
          * Create from Long (sign-extended to 128 bits).
@@ -476,7 +476,7 @@ class C_Int128 private constructor(val addr: Int) : Comparable<C_Int128> {
          */
         fun fromLong(value: Long): C_Int128 {
             val res = alloc()
-            
+
             if (value >= 0) {
                 // Positive: zero-extend
                 SwAR128.writeULongToHeap(res.addr, value.toULong())
@@ -485,19 +485,19 @@ class C_Int128 private constructor(val addr: Int) : Comparable<C_Int128> {
                 val ops = ArithmeticBitwiseOps.BITS_8
                 val absValue = (-value).toULong()
                 SwAR128.writeULongToHeap(res.addr, absValue)
-                
+
                 // Two's complement: flip all bits and add 1
                 for (i in 0 until 16) {
                     val byte = GlobalHeap.lbu(res.addr + i)
                     val inverted = ops.not(byte.toLong())
                     GlobalHeap.sb(res.addr + i, inverted.toByte())
                 }
-                
+
                 val one = C_UInt128.one()
                 SwAR128.addHeap(res.addr, one.addr, res.addr)
                 KMalloc.free(one.addr)
             }
-            
+
             return res
         }
     }

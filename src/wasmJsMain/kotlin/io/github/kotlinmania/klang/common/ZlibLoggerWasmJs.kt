@@ -18,8 +18,9 @@ private fun jsConsoleLog(line: String) {
     js("if (typeof console !== 'undefined') { console.log(line); }")
 }
 
-private fun jsGetEnv(name: String): String? = js(
-    "(typeof process !== 'undefined' && process && process.env && typeof process.env[name] === 'string') ? process.env[name] : null",
-)
+private fun jsGetEnv(name: String): String? =
+    js(
+        "(typeof process !== 'undefined' && process && process.env && typeof process.env[name] === 'string') ? process.env[name] : null",
+    )
 
 private fun jsCurrentTimestamp(): String = js("new Date().toISOString()")

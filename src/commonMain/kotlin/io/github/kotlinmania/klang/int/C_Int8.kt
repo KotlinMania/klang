@@ -19,12 +19,15 @@ import io.github.kotlinmania.klang.mem.KMalloc
  * all targets. Shifts are routed through BitShiftEngine for cross-platform
  * determinism.
  */
-class C_Int8 private constructor(val addr: Int) : Comparable<C_Int8> {
-
+class C_Int8 private constructor(
+    val addr: Int,
+) : Comparable<C_Int8> {
     private fun toUnsignedLong(): Long = engine.bitwiseAnd(GlobalHeap.lb(addr).toLong(), MASK_8)
+
     private fun toSignedLong(): Long = signExtender.signExtend(toUnsignedLong(), 8)
 
     fun toByte(): Byte = toSignedLong().toByte()
+
     fun toInt(): Int = toSignedLong().toInt()
 
     fun isNegative(): Boolean = engine.isBitSet(toUnsignedLong(), 7)
@@ -92,15 +95,17 @@ class C_Int8 private constructor(val addr: Int) : Comparable<C_Int8> {
         require(bits in 0..7) { "C_Int8 shift amount out of range: $bits" }
         if (bits == 0) return copy()
         val shifted = engine.unsignedRightShift(this.toUnsignedLong(), bits).value
-        val result = if (isNegative()) {
-            val signMask = engine.bitwiseAnd(
-                engine.leftShift(engine.getMask(bits), 8 - bits).value,
-                MASK_8,
-            )
-            engine.bitwiseOr(shifted, signMask)
-        } else {
-            shifted
-        }
+        val result =
+            if (isNegative()) {
+                val signMask =
+                    engine.bitwiseAnd(
+                        engine.leftShift(engine.getMask(bits), 8 - bits).value,
+                        MASK_8,
+                    )
+                engine.bitwiseOr(shifted, signMask)
+            } else {
+                shifted
+            }
         return store(result)
     }
 
@@ -131,9 +136,13 @@ class C_Int8 private constructor(val addr: Int) : Comparable<C_Int8> {
         private val MASK_8: Long = engine.getMask(8)
 
         fun alloc(): C_Int8 = C_Int8(KMalloc.malloc(BYTES))
+
         fun zero(): C_Int8 = alloc().also { GlobalHeap.sb(it.addr, 0) }
+
         fun one(): C_Int8 = alloc().also { GlobalHeap.sb(it.addr, 1) }
+
         fun minValue(): C_Int8 = alloc().also { GlobalHeap.sb(it.addr, MIN_VALUE) }
+
         fun maxValue(): C_Int8 = alloc().also { GlobalHeap.sb(it.addr, MAX_VALUE) }
 
         fun fromByte(value: Byte): C_Int8 =

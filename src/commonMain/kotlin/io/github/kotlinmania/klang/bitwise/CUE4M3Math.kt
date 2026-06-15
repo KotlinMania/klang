@@ -33,8 +33,10 @@ object CUE4M3Math {
 
     /** All-zero encoding. */
     const val ZERO_ENCODING = 0
+
     /** Saturation encoding ((EXP_BIAS + EXP_MAX) << MAN_BITS) | (MAN_MASK − 1). */
     const val SATURATED_ENCODING = 0x7E
+
     /** Special "all ones except low bit" encoding that decodes to zero. */
     const val SPECIAL_ZERO_ENCODING = 0x7F
 
@@ -46,10 +48,10 @@ object CUE4M3Math {
     private const val FP32_EXP_BIAS = 127
 
     // ---- Float helpers ----
-    private const val SUBNORMAL_SCALE = 1.0f / 512.0f      // 2^(-9)
-    private const val MAN_DIVISOR = 8.0f                   // 2^MAN_BITS
-    private const val SUBNORMAL_ENCODE_SCALE = 512.0f      // 2^(MAN_BITS + EXP_BIAS - 1)
-    private const val MAX_RAW_VALUE = 448.0f               // saturation magnitude before doubling
+    private const val SUBNORMAL_SCALE = 1.0f / 512.0f // 2^(-9)
+    private const val MAN_DIVISOR = 8.0f // 2^MAN_BITS
+    private const val SUBNORMAL_ENCODE_SCALE = 512.0f // 2^(MAN_BITS + EXP_BIAS - 1)
+    private const val MAX_RAW_VALUE = 448.0f // saturation magnitude before doubling
     private const val BYTE_MASK = 0xFF
 
     /**
@@ -112,15 +114,17 @@ object CUE4M3Math {
      * Build a fp32 power-of-two for an unbiased exponent in the valid range.
      * For UE4M3 the unbiased exponent is in [−7, 7] so this is always exact.
      */
-    private fun twoToThe(unbiasedExp: Int): Float {
-        return if (unbiasedExp in -126..127) {
+    private fun twoToThe(unbiasedExp: Int): Float =
+        if (unbiasedExp in -126..127) {
             Float.fromBits((unbiasedExp + FP32_EXP_BIAS) shl FP32_EXP_SHIFT)
         } else {
             // Defensive fallback (never expected for valid UE4M3 inputs).
             var result = 1.0f
-            if (unbiasedExp > 0) repeat(unbiasedExp) { result *= 2.0f }
-            else repeat(-unbiasedExp) { result *= 0.5f }
+            if (unbiasedExp > 0) {
+                repeat(unbiasedExp) { result *= 2.0f }
+            } else {
+                repeat(-unbiasedExp) { result *= 0.5f }
+            }
             result
         }
-    }
 }

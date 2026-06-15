@@ -15,20 +15,28 @@ object GlobalData {
     private val bases = ArrayList<Int>()
     private var initialized = false
 
-    fun init() { initialized = true }
+    fun init() {
+        initialized = true
+    }
 
     fun dispose() {
         for (b in bases) KMalloc.free(b)
-        symbols.clear(); bases.clear(); initialized = false
+        symbols.clear()
+        bases.clear()
+        initialized = false
     }
 
-    fun get(name: String): Int = symbols[name]
-        ?: error("Global symbol not defined: $name")
+    fun get(name: String): Int =
+        symbols[name]
+            ?: error("Global symbol not defined: $name")
 
     fun isDefined(name: String): Boolean = symbols.containsKey(name)
 
     fun defineBss(name: String, size: Int, align: Int = 16): Int {
-        ensureInit(); require(name.isNotBlank()); require(size >= 0); checkAlign(align)
+        ensureInit()
+        require(name.isNotBlank())
+        require(size >= 0)
+        checkAlign(align)
         check(!symbols.containsKey(name)) { "Duplicate global: $name" }
         val (base, aligned) = allocAligned(size, align, zero = true)
         symbols[name] = aligned
@@ -37,7 +45,9 @@ object GlobalData {
     }
 
     fun defineData(name: String, initBytes: ByteArray, align: Int = 16): Int {
-        ensureInit(); require(name.isNotBlank()); checkAlign(align)
+        ensureInit()
+        require(name.isNotBlank())
+        checkAlign(align)
         check(!symbols.containsKey(name)) { "Duplicate global: $name" }
         val n = initBytes.size
         val (base, aligned) = allocAligned(n, align, zero = false)
@@ -51,17 +61,20 @@ object GlobalData {
     // Convenience constructors ------------------------------------------------
     fun defineI32(name: String, value: Int = 0, align: Int = 4): Int {
         val addr = defineBss(name, 4, align)
-        GlobalHeap.sw(addr, value); return addr
+        GlobalHeap.sw(addr, value)
+        return addr
     }
 
     fun defineI64(name: String, value: Long = 0L, align: Int = 8): Int {
         val addr = defineBss(name, 8, align)
-        GlobalHeap.sd(addr, value); return addr
+        GlobalHeap.sd(addr, value)
+        return addr
     }
 
     fun defineF64(name: String, value: Double = 0.0, align: Int = 8): Int {
         val addr = defineBss(name, 8, align)
-        GlobalHeap.sdf(addr, value); return addr
+        GlobalHeap.sdf(addr, value)
+        return addr
     }
 
     // Internals ---------------------------------------------------------------
@@ -78,7 +91,12 @@ object GlobalData {
     }
 
     private fun alignUp(x: Int, align: Int): Int = (x + (align - 1)) and (align - 1).inv()
-    private fun checkAlign(align: Int) { require(align > 0 && (align and (align - 1)) == 0) }
-    private fun ensureInit() { check(initialized) { "GlobalData not initialized" } }
-}
 
+    private fun checkAlign(align: Int) {
+        require(align > 0 && (align and (align - 1)) == 0)
+    }
+
+    private fun ensureInit() {
+        check(initialized) { "GlobalData not initialized" }
+    }
+}

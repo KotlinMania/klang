@@ -89,8 +89,10 @@ package io.github.kotlinmania.klang.fp
  * @see CLongDouble For intent-based precision selection
  * @since 0.1.0
  */
-data class CFloat128(val hi: Double, val lo: Double) {
-    
+data class CFloat128(
+    val hi: Double,
+    val lo: Double,
+) {
     /**
      * Addition of two double-double values.
      *
@@ -113,7 +115,6 @@ data class CFloat128(val hi: Double, val lo: Double) {
         return CFloat128(resHi, resLo)
     }
 
-
     /**
      * Subtraction of two double-double values.
      *
@@ -128,7 +129,6 @@ data class CFloat128(val hi: Double, val lo: Double) {
      * @return A new CFloat128 with both components negated
      */
     operator fun unaryMinus(): CFloat128 = CFloat128(-hi, -lo)
-
 
     /**
      * Multiplication of two double-double values.
@@ -180,23 +180,22 @@ data class CFloat128(val hi: Double, val lo: Double) {
         if (other.hi == 0.0 && other.lo == 0.0) {
             return CFloat128(if (hi >= 0) Double.POSITIVE_INFINITY else Double.NEGATIVE_INFINITY, 0.0)
         }
-        
+
         // Initial approximation using high parts
         val q0 = hi / other.hi
-        
+
         // Compute remainder: r = a - q0 * b (using accurate multiplication)
         val prod = CFloat128.fromDouble(q0) * other
         val r = this - prod
-        
+
         // Correction term: q1 = r / b.hi
         val q1 = r.hi / other.hi
-        
+
         // Combine q0 and q1 with error-free summation
         val (qHi, qLo) = quickTwoSum(q0, q1)
-        
+
         return CFloat128(qHi, qLo)
     }
-
 
     /**
      * Add the product of two [Double] values to this double-double.
@@ -250,7 +249,11 @@ data class CFloat128(val hi: Double, val lo: Double) {
         if (hi.isInfinite()) return CFloat128(Double.POSITIVE_INFINITY, 0.0)
 
         // Seed via the binary64 bit kernel (no kotlin.math.sqrt).
-        val q = Double.fromBits(io.github.kotlinmania.klang.math.Float64Bits.sqrtBits(hi.toRawBits()))
+        val q =
+            Double.fromBits(
+                io.github.kotlinmania.klang.math.Float64Bits
+                    .sqrtBits(hi.toRawBits()),
+            )
         // residual = this - q*q  (computed at double-double precision)
         val qSquared = CFloat128.fromDouble(q) * CFloat128.fromDouble(q)
         val residual = this - qSquared
@@ -263,10 +266,18 @@ data class CFloat128(val hi: Double, val lo: Double) {
     /** Round toward -∞, returning a CFloat128 whose value equals an integer. */
     fun floor(): CFloat128 {
         if (hi.isNaN() || hi.isInfinite()) return this
-        val fHi = Double.fromBits(io.github.kotlinmania.klang.math.Float64Bits.floorBits(hi.toRawBits()))
+        val fHi =
+            Double.fromBits(
+                io.github.kotlinmania.klang.math.Float64Bits
+                    .floorBits(hi.toRawBits()),
+            )
         return if (fHi == hi) {
             // hi is already integral; round lo
-            val fLo = Double.fromBits(io.github.kotlinmania.klang.math.Float64Bits.floorBits(lo.toRawBits()))
+            val fLo =
+                Double.fromBits(
+                    io.github.kotlinmania.klang.math.Float64Bits
+                        .floorBits(lo.toRawBits()),
+                )
             val (rHi, rLo) = quickTwoSum(fHi, fLo)
             CFloat128(rHi, rLo)
         } else {
@@ -277,9 +288,17 @@ data class CFloat128(val hi: Double, val lo: Double) {
     /** Round toward +∞. */
     fun ceil(): CFloat128 {
         if (hi.isNaN() || hi.isInfinite()) return this
-        val cHi = Double.fromBits(io.github.kotlinmania.klang.math.Float64Bits.ceilBits(hi.toRawBits()))
+        val cHi =
+            Double.fromBits(
+                io.github.kotlinmania.klang.math.Float64Bits
+                    .ceilBits(hi.toRawBits()),
+            )
         return if (cHi == hi) {
-            val cLo = Double.fromBits(io.github.kotlinmania.klang.math.Float64Bits.ceilBits(lo.toRawBits()))
+            val cLo =
+                Double.fromBits(
+                    io.github.kotlinmania.klang.math.Float64Bits
+                        .ceilBits(lo.toRawBits()),
+                )
             val (rHi, rLo) = quickTwoSum(cHi, cLo)
             CFloat128(rHi, rLo)
         } else {
@@ -304,15 +323,21 @@ data class CFloat128(val hi: Double, val lo: Double) {
      */
     fun frexp(): Pair<CFloat128, Int> {
         if (hi == 0.0 || hi.isNaN() || hi.isInfinite()) return this to 0
-        val (_, e) = io.github.kotlinmania.klang.math.BasicMath.frexp(hi)
-        val scale = io.github.kotlinmania.klang.math.BasicMath.ldexp(1.0, -e)
+        val (_, e) =
+            io.github.kotlinmania.klang.math.BasicMath
+                .frexp(hi)
+        val scale =
+            io.github.kotlinmania.klang.math.BasicMath
+                .ldexp(1.0, -e)
         return CFloat128(hi * scale, lo * scale) to e
     }
 
     /** Compute `this * 2^exp`. */
     fun ldexp(exp: Int): CFloat128 {
         if (hi == 0.0 || hi.isNaN() || hi.isInfinite() || exp == 0) return this
-        val s = io.github.kotlinmania.klang.math.BasicMath.ldexp(1.0, exp)
+        val s =
+            io.github.kotlinmania.klang.math.BasicMath
+                .ldexp(1.0, exp)
         return CFloat128(hi * s, lo * s)
     }
 
@@ -339,12 +364,12 @@ data class CFloat128(val hi: Double, val lo: Double) {
          * Double-double zero (0.0).
          */
         val ZERO = CFloat128(0.0, 0.0)
-        
+
         /**
          * Double-double one (1.0).
          */
         val ONE = CFloat128(1.0, 0.0)
-        
+
         /**
          * Create CFloat128 from a [Double].
          *
@@ -360,7 +385,7 @@ data class CFloat128(val hi: Double, val lo: Double) {
          * @return A new CFloat128 representing the value exactly
          */
         fun fromFloat(value: Float): CFloat128 = fromDouble(value.toDouble())
-        
+
         /**
          * Create CFloat128 from a [CFloat64].
          *
@@ -368,7 +393,7 @@ data class CFloat128(val hi: Double, val lo: Double) {
          * @return A new CFloat128 representing the value exactly
          */
         fun fromCDouble(value: CFloat64): CFloat128 = fromDouble(value.toDouble())
-        
+
         /**
          * Create CFloat128 from a [CFloat16].
          *

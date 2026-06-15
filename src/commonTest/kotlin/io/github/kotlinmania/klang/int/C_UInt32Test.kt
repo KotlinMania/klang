@@ -10,9 +10,10 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class C_UInt32Test {
-
     @BeforeTest
-    fun setup() { KMalloc.init(64 * 1024) }
+    fun setup() {
+        KMalloc.init(64 * 1024)
+    }
 
     @Test
     fun zeroOneMax() {
@@ -39,8 +40,10 @@ class C_UInt32Test {
     fun additionWraps() {
         assertEquals(0u, (C_UInt32.maxValue() + C_UInt32.one()).toUInt())
         assertEquals(UInt.MAX_VALUE - 1u, (C_UInt32.maxValue() + C_UInt32.maxValue()).toUInt())
-        assertEquals(UInt.MAX_VALUE,
-                     (C_UInt32.fromUInt(0xFFFFFFFFu) + C_UInt32.zero()).toUInt())
+        assertEquals(
+            UInt.MAX_VALUE,
+            (C_UInt32.fromUInt(0xFFFFFFFFu) + C_UInt32.zero()).toUInt(),
+        )
     }
 
     @Test
@@ -51,7 +54,7 @@ class C_UInt32Test {
 
     @Test
     fun multiplicationWraps() {
-        val a = C_UInt32.fromUInt(0x10000u)  // 2^16
+        val a = C_UInt32.fromUInt(0x10000u) // 2^16
         assertEquals(0u, (a * a).toUInt())
         // MAX * MAX = (2^32 - 1)^2 → low 32 bits = 1
         assertEquals(1u, (C_UInt32.maxValue() * C_UInt32.maxValue()).toUInt())

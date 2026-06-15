@@ -1,8 +1,6 @@
 package io.github.kotlinmania.klang.int
 
 import io.github.kotlinmania.klang.bitwise.ArithmeticBitwiseOps
-import io.github.kotlinmania.klang.bitwise.BitShiftEngine
-import io.github.kotlinmania.klang.bitwise.BitShiftMode
 
 /**
  * SwAR128 - arithmetic-only SIMD-Within-A-Register helpers for unsigned 128-bit integers.
@@ -29,7 +27,7 @@ object SwAR128 {
             limbs[i] = limb
         }
     }
-    
+
     /**
      * Write ULong to heap as 128-bit value (zero-extended).
      * @param addr Heap address to write to (16 bytes)
@@ -43,20 +41,19 @@ object SwAR128 {
             remainder /= LIMB_BASE_UL
         }
     }
-    
+
     /**
      * Convert heap-based 128-bit value to hexadecimal string.
      * @param addr Heap address of 8 limbs (16 bytes)
      * @return Big-endian hex string (e.g., "fedcba9876543210")
      */
-    fun toBigEndianHexHeap(addr: Int): String {
-        return buildString(LIMB_COUNT * 4) {
+    fun toBigEndianHexHeap(addr: Int): String =
+        buildString(LIMB_COUNT * 4) {
             for (i in LIMB_COUNT - 1 downTo 0) {
                 val limb = readLimb(addr + i * 2) and LIMB_MASK
                 append(limb.toString(16).padStart(4, '0'))
             }
         }.trimStart('0').ifEmpty { "0" }
-    }
 
     // -----------------------------------------------------------------------------------------
     // General IntArray helpers (for larger limb arrays)
@@ -125,19 +122,23 @@ object SwAR128 {
 
     // -----------------------------------------------------------------------------------------
     // Heap-native operations (zero-copy)
-    
+
     /**
      * Read a 16-bit limb from heap at given address.
      * Assumes little-endian storage: low byte at addr, high byte at addr+1.
      */
     private fun readLimb(addr: Int): Int {
         val ops16 = ArithmeticBitwiseOps.BITS_16
-        val lo = io.github.kotlinmania.klang.mem.GlobalHeap.lbu(addr)
-        val hi = io.github.kotlinmania.klang.mem.GlobalHeap.lbu(addr + 1)
+        val lo =
+            io.github.kotlinmania.klang.mem.GlobalHeap
+                .lbu(addr)
+        val hi =
+            io.github.kotlinmania.klang.mem.GlobalHeap
+                .lbu(addr + 1)
         val shifted = ops16.leftShift(hi.toLong(), 8)
         return ops16.or(lo.toLong(), shifted).toInt()
     }
-    
+
     /**
      * Write a 16-bit limb to heap at given address.
      * Assumes little-endian storage: low byte at addr, high byte at addr+1.
@@ -148,10 +149,12 @@ object SwAR128 {
         val normalized = ops16.and(value.toLong(), LIMB_MASK.toLong())
         val lowByte = ops8.and(normalized, 0xFFL)
         val highByte = ops8.and(ops16.rightShift(normalized, 8), 0xFFL)
-        io.github.kotlinmania.klang.mem.GlobalHeap.sb(addr, lowByte.toByte())
-        io.github.kotlinmania.klang.mem.GlobalHeap.sb(addr + 1, highByte.toByte())
+        io.github.kotlinmania.klang.mem.GlobalHeap
+            .sb(addr, lowByte.toByte())
+        io.github.kotlinmania.klang.mem.GlobalHeap
+            .sb(addr + 1, highByte.toByte())
     }
-    
+
     /**
      * Add two 128-bit integers stored in heap, write result to dest.
      * @param aAddr address of first operand (8 limbs = 16 bytes)
@@ -172,7 +175,7 @@ object SwAR128 {
         }
         return carry.toInt()
     }
-    
+
     /**
      * Subtract two 128-bit integers stored in heap, write result to dest.
      * @param aAddr address of first operand (8 limbs = 16 bytes)
@@ -198,7 +201,7 @@ object SwAR128 {
         }
         return borrow.toInt()
     }
-    
+
     /**
      * Compare two 128-bit integers stored in heap.
      * @return -1 if a < b, 0 if a == b, 1 if a > b
@@ -213,7 +216,7 @@ object SwAR128 {
         }
         return 0
     }
-    
+
     /**
      * Shift left a 128-bit integer in heap by specified bits.
      * @param srcAddr source address (8 limbs = 16 bytes)
@@ -223,25 +226,27 @@ object SwAR128 {
      */
     fun shiftLeftHeap(srcAddr: Int, destAddr: Int, bits: Int): ULong {
         require(bits >= 0)
-        
+
         if (bits == 0) {
             // Copy src to dest
-            io.github.kotlinmania.klang.mem.GlobalHeap.memcpy(destAddr, srcAddr, LIMB_COUNT * 2)
+            io.github.kotlinmania.klang.mem.GlobalHeap
+                .memcpy(destAddr, srcAddr, LIMB_COUNT * 2)
             return 0uL
         }
-        
+
         if (bits >= LIMB_COUNT * LIMB_BITS) {
             // Everything shifts out, result is zero
-            io.github.kotlinmania.klang.mem.GlobalHeap.memset(destAddr, 0, LIMB_COUNT * 2)
+            io.github.kotlinmania.klang.mem.GlobalHeap
+                .memset(destAddr, 0, LIMB_COUNT * 2)
             return accumulateSpillHeap(srcAddr)
         }
-        
+
         val wordShift = bits / LIMB_BITS
         val bitShift = bits % LIMB_BITS
-        
+
         // First, do word shift
         var spill = 0uL
-        
+
         // Accumulate limbs that will be shifted out (from MSB side)
         for (i in LIMB_COUNT - wordShift until LIMB_COUNT) {
             val ops16 = ArithmeticBitwiseOps.BITS_16
@@ -252,22 +257,22 @@ object SwAR128 {
             repeat(shiftAmount) { multiplier *= 2uL }
             spill += limbValue * multiplier
         }
-        
+
         // Shift limbs upward
         for (i in LIMB_COUNT - 1 downTo wordShift) {
             val limb = readLimb(srcAddr + (i - wordShift) * 2)
             writeLimb(destAddr + i * 2, limb)
         }
-        
+
         // Lower limbs become zero
         for (i in 0 until wordShift) {
             writeLimb(destAddr + i * 2, 0)
         }
-        
+
         if (bitShift == 0) {
             return spill
         }
-        
+
         // Now do bit shift within limbs
         var carry = 0uL
         for (i in 0 until LIMB_COUNT) {
@@ -282,12 +287,12 @@ object SwAR128 {
             writeLimb(destAddr + i * 2, (combined % LIMB_BASE_UL).toInt())
             carry = combined / LIMB_BASE_UL
         }
-        
+
         // Carry from the MSB limb is spill (bits shifted out beyond 128 bits)
         spill += carry
         return spill
     }
-    
+
     /**
      * Shift right a 128-bit integer in heap by specified bits.
      * @param srcAddr source address (8 limbs = 16 bytes)
@@ -297,42 +302,44 @@ object SwAR128 {
      */
     fun shiftRightHeap(srcAddr: Int, destAddr: Int, bits: Int): ULong {
         require(bits >= 0)
-        
+
         if (bits == 0) {
-            io.github.kotlinmania.klang.mem.GlobalHeap.memcpy(destAddr, srcAddr, LIMB_COUNT * 2)
+            io.github.kotlinmania.klang.mem.GlobalHeap
+                .memcpy(destAddr, srcAddr, LIMB_COUNT * 2)
             return 0uL
         }
-        
+
         if (bits >= LIMB_COUNT * LIMB_BITS) {
-            io.github.kotlinmania.klang.mem.GlobalHeap.memset(destAddr, 0, LIMB_COUNT * 2)
+            io.github.kotlinmania.klang.mem.GlobalHeap
+                .memset(destAddr, 0, LIMB_COUNT * 2)
             return accumulateSpillHeap(srcAddr)
         }
-        
+
         val wordShift = bits / LIMB_BITS
         val bitShift = bits % LIMB_BITS
-        
+
         var spill = 0uL
-        
+
         // Accumulate limbs that will be shifted out (from LSB side)
         for (i in 0 until wordShift) {
             spill += (readLimb(srcAddr + i * 2) and LIMB_MASK).toULong() * powerOf2(i * LIMB_BITS)
         }
-        
+
         // Shift limbs downward
         for (i in 0 until LIMB_COUNT - wordShift) {
             val limb = readLimb(srcAddr + (i + wordShift) * 2)
             writeLimb(destAddr + i * 2, limb)
         }
-        
+
         // Upper limbs become zero
         for (i in LIMB_COUNT - wordShift until LIMB_COUNT) {
             writeLimb(destAddr + i * 2, 0)
         }
-        
+
         if (bitShift == 0) {
             return spill
         }
-        
+
         // Now do bit shift within limbs
         var carry = 0uL
         for (i in LIMB_COUNT - 1 downTo 0) {
@@ -341,12 +348,12 @@ object SwAR128 {
             writeLimb(destAddr + i * 2, (raw / powerOf2(bitShift)).toInt())
             carry = raw % powerOf2(bitShift)
         }
-        
+
         // Carry represents bits shifted out from LSB
         spill += carry
         return spill
     }
-    
+
     /**
      * Compute 2^n without using bit shifts (for cross-platform consistency).
      * @param n exponent (0-63)
@@ -360,7 +367,7 @@ object SwAR128 {
         }
         return result
     }
-    
+
     /**
      * Accumulate all limbs of a heap-based 128-bit integer into a ULong.
      * Used for spill calculation.
@@ -374,11 +381,12 @@ object SwAR128 {
         }
         return total
     }
-    
+
     /**
      * Write zero to a 128-bit integer in heap.
      */
     fun zeroHeap(addr: Int) {
-        io.github.kotlinmania.klang.mem.GlobalHeap.memset(addr, 0, LIMB_COUNT * 2)
+        io.github.kotlinmania.klang.mem.GlobalHeap
+            .memset(addr, 0, LIMB_COUNT * 2)
     }
 }

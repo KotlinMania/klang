@@ -41,9 +41,10 @@ import io.github.kotlinmania.klang.bitwise.BitShiftMode
 object BitTwiddle {
     // Use 8-bit shifter for byte-level bit operations
     private val shifter8 = BitShiftEngine(BitShiftMode.NATIVE, 8)
+
     // Use 64-bit shifter for multi-byte operations
     private val shifter64 = BitShiftEngine(BitShiftMode.NATIVE, 64)
-    
+
     /**
      * Reads a single bit from memory.
      *
@@ -72,11 +73,12 @@ object BitTwiddle {
         val b = GlobalHeap.lbu(byteIndex)
         val mask = shifter8.leftShift(1, bitInByte).value.toInt()
         val maskedValue = shifter8.bitwiseAnd(value.toLong(), 1).toInt()
-        val newB = if (maskedValue != 0) {
-            shifter8.bitwiseOr(b.toLong(), mask.toLong()).toInt()
-        } else {
-            shifter8.bitwiseAnd(b.toLong(), shifter8.bitwiseNot(mask.toLong())).toInt()
-        }
+        val newB =
+            if (maskedValue != 0) {
+                shifter8.bitwiseOr(b.toLong(), mask.toLong()).toInt()
+            } else {
+                shifter8.bitwiseAnd(b.toLong(), shifter8.bitwiseNot(mask.toLong())).toInt()
+            }
         GlobalHeap.sb(byteIndex, shifter8.bitwiseAnd(newB.toLong(), 0xFF).toByte())
     }
 
@@ -126,4 +128,3 @@ object BitTwiddle {
         }
     }
 }
-

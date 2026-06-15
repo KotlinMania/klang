@@ -133,8 +133,11 @@ object StructLayout {
      * @property size Field size in bytes
      * @property align Field alignment requirement in bytes
      */
-    data class Field(val size: Int, val align: Int)
-    
+    data class Field(
+        val size: Int,
+        val align: Int,
+    )
+
     /**
      * Layout: Computed memory layout for a struct or union.
      *
@@ -142,7 +145,11 @@ object StructLayout {
      * @property size Total size in bytes (including padding)
      * @property align Overall alignment requirement in bytes
      */
-    data class Layout(val offsets: IntArray, val size: Int, val align: Int)
+    data class Layout(
+        val offsets: IntArray,
+        val size: Int,
+        val align: Int,
+    )
 
     /**
      * Compute natural-aligned struct layout.
@@ -201,7 +208,10 @@ object StructLayout {
         require(fields.isNotEmpty())
         var size = 0
         var align = 1
-        for (f in fields) { size = maxOf(size, f.size); align = maxOf(align, f.align) }
+        for (f in fields) {
+            size = maxOf(size, f.size)
+            align = maxOf(align, f.align)
+        }
         val total = ((size + (align - 1)) / align) * align
         return Layout(IntArray(fields.size) { 0 }, total, align)
     }

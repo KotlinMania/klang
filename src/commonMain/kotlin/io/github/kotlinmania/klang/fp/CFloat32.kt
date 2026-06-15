@@ -12,7 +12,9 @@ import kotlin.math.abs
  * explicitly, providing convenience operators that always truncate to 32-bit
  * precision after each arithmetic step.
  */
-class CFloat32 private constructor(private val bits: Int) {
+class CFloat32 private constructor(
+    private val bits: Int,
+) {
     val value: Float get() = Float.fromBits(bits)
 
     fun toFloat(): Float = value

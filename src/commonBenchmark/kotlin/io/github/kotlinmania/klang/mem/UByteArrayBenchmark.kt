@@ -39,36 +39,36 @@ import kotlinx.benchmark.State
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)
 class UByteArrayBenchmark {
-
     companion object {
-        const val BUFFER_SIZE = 15360                    // 80 × 24 × 8 cells
-        const val LONG_COUNT  = (BUFFER_SIZE + 7) ushr 3 // 8 bytes per Long slot
+        const val BUFFER_SIZE = 15360 // 80 × 24 × 8 cells
+        const val LONG_COUNT = (BUFFER_SIZE + 7) ushr 3 // 8 bytes per Long slot
     }
 
     // UByteArray is an inline class so it can't be `lateinit`. Initialise
     // each backing array at field declaration; @Setup re-initialises so
     // every benchmark iteration starts from a fresh deterministic state.
-    private var signedArr: ByteArray   = ByteArray(BUFFER_SIZE)
+    private var signedArr: ByteArray = ByteArray(BUFFER_SIZE)
     private var unsignedArr: UByteArray = UByteArray(BUFFER_SIZE)
-    private var longArr: LongArray     = LongArray(LONG_COUNT)
+    private var longArr: LongArray = LongArray(LONG_COUNT)
 
     @Setup
     fun setup() {
         // Same logical bytes (i and 0xFF) at every address across all three
         // storage shapes so the loads are comparing identical work.
-        signedArr   = ByteArray(BUFFER_SIZE)   { (it and 0xFF).toByte() }
-        unsignedArr = UByteArray(BUFFER_SIZE)  { (it and 0xFF).toUByte() }
-        longArr     = LongArray(LONG_COUNT) { lIdx ->
-            // Pack 8 consecutive bytes (b0..b7) as little-endian Long.
-            var packed = 0L
-            for (i in 0..7) {
-                val byteAddr = (lIdx shl 3) + i
-                if (byteAddr < BUFFER_SIZE) {
-                    packed = packed or ((byteAddr and 0xFF).toLong() shl (i shl 3))
+        signedArr = ByteArray(BUFFER_SIZE) { (it and 0xFF).toByte() }
+        unsignedArr = UByteArray(BUFFER_SIZE) { (it and 0xFF).toUByte() }
+        longArr =
+            LongArray(LONG_COUNT) { lIdx ->
+                // Pack 8 consecutive bytes (b0..b7) as little-endian Long.
+                var packed = 0L
+                for (i in 0..7) {
+                    val byteAddr = (lIdx shl 3) + i
+                    if (byteAddr < BUFFER_SIZE) {
+                        packed = packed or ((byteAddr and 0xFF).toLong() shl (i shl 3))
+                    }
                 }
+                packed
             }
-            packed
-        }
     }
 
     // ===== Load word =====
@@ -178,7 +178,7 @@ class UByteArrayBenchmark {
             ((arr[idx] ushr byteOffsetInLong) and 0xFFFF_FFFFL).toInt()
         } else {
             // Word straddles the boundary: low bytes from arr[idx], high from arr[idx+1].
-            val low  = (arr[idx]     ushr byteOffsetInLong) and ((1L shl (bytesInFirstSlot shl 3)) - 1L)
+            val low = (arr[idx] ushr byteOffsetInLong) and ((1L shl (bytesInFirstSlot shl 3)) - 1L)
             val high = arr[idx + 1] and ((1L shl ((4 - bytesInFirstSlot) shl 3)) - 1L)
             ((low or (high shl (bytesInFirstSlot shl 3))) and 0xFFFF_FFFFL).toInt()
         }

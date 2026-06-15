@@ -24,17 +24,17 @@ object BitShiftConfig {
     fun resolveMode(
         bitWidth: Int,
         requested: BitShiftMode = defaultMode,
-    ): BitShiftMode {
-        return when (requested) {
+    ): BitShiftMode =
+        when (requested) {
             BitShiftMode.NATIVE,
             BitShiftMode.ARITHMETIC,
             -> requested
 
-            BitShiftMode.AUTO -> resolvedModes[bitWidth] ?: detectMode(bitWidth).also {
-                resolvedModes[bitWidth] = it
-            }
+            BitShiftMode.AUTO ->
+                resolvedModes[bitWidth] ?: detectMode(bitWidth).also {
+                    resolvedModes[bitWidth] = it
+                }
         }
-    }
 
     private fun detectMode(bitWidth: Int): BitShiftMode {
         if (bitWidth == 64) {
@@ -50,15 +50,16 @@ object BitShiftConfig {
         val alternatingLow = generatePattern(bitWidth) { index -> index % 2 == 0 }
         val alternatingHigh = generatePattern(bitWidth) { index -> index % 2 == 1 }
 
-        val testValues = listOf(
-            0L,
-            1L,
-            maxValue,
-            maxValue - 1,
-            signBit,
-            alternatingLow,
-            alternatingHigh,
-        ).distinct()
+        val testValues =
+            listOf(
+                0L,
+                1L,
+                maxValue,
+                maxValue - 1,
+                signBit,
+                alternatingLow,
+                alternatingHigh,
+            ).distinct()
 
         for (value in testValues) {
             for (bits in 0 until bitWidth) {

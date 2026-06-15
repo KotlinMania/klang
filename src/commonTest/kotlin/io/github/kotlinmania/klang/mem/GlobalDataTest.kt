@@ -2,7 +2,6 @@ package io.github.kotlinmania.klang.mem
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlin.test.assertFails
 
 class GlobalDataTest {
@@ -18,7 +17,7 @@ class GlobalDataTest {
         repeat(32) { sum = sum or GlobalHeap.lbu(bss + it) }
         assertEquals(0, sum)
 
-        val payload = byteArrayOf(1,2,3,4,5)
+        val payload = byteArrayOf(1, 2, 3, 4, 5)
         val data = GlobalData.defineData("g_data", payload, align = 16)
         assertEquals(0, data and 15)
         repeat(payload.size) { idx ->
@@ -35,4 +34,3 @@ class GlobalDataTest {
         assertFails { GlobalData.defineBss("g_bss", 8) }
     }
 }
-

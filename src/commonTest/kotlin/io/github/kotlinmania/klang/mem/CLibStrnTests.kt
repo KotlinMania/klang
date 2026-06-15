@@ -14,7 +14,8 @@ class CLibStrnTests {
         assertEquals(0, CLib.strncmp(s, t, 3))
         // compare next char: 'd'(100) - 'z'(122) = -22
         assertEquals('d'.code - 'z'.code, CLib.strncmp(s, t, 4))
-        KMalloc.free(s); KMalloc.free(t)
+        KMalloc.free(s)
+        KMalloc.free(t)
     }
 
     @Test
@@ -26,7 +27,7 @@ class CLibStrnTests {
         // Expect 'h','i','\0','\0','\0'
         val expect = intArrayOf('h'.code, 'i'.code, 0, 0, 0)
         repeat(5) { assertEquals(expect[it], GlobalHeap.lbu(dst + it)) }
-        KMalloc.free(dst); KMalloc.free(src)
+        KMalloc.free(dst)
+        KMalloc.free(src)
     }
 }
-

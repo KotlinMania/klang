@@ -2,7 +2,6 @@ package io.github.kotlinmania.klang.bitwise
 
 import io.github.kotlinmania.klang.int.SwAR128
 import io.github.kotlinmania.klang.int.hpc.HeapUInt128
-import kotlin.math.abs
 
 /**
  * Float128Math - placeholder quad-precision support built on top of the limb-based SWAR engine.
@@ -173,9 +172,10 @@ object Float128Math {
     // Internal helpers
 
     internal fun pack(sign: Int, exp: Int, mantissa: IntArray): HeapUInt128 {
-        val limbs = IntArray(SwAR128.LIMB_COUNT) { index ->
-            if (index < mantissa.size) mantissa[index] else 0
-        }
+        val limbs =
+            IntArray(SwAR128.LIMB_COUNT) { index ->
+                if (index < mantissa.size) mantissa[index] else 0
+            }
         limbs[SwAR128.LIMB_COUNT - 1] = ((sign and 1) shl 15) or (exp and 0x7FFF)
         return HeapUInt128.fromLimbsUnsafe(limbs)
     }
@@ -211,9 +211,10 @@ object Float128Math {
     }
 
     private fun extractMantissa(mantissa: IntArray, shift: Int): Long {
-        var value = HeapUInt128.fromLimbsUnsafe(
-            IntArray(SwAR128.LIMB_COUNT) { idx -> if (idx < mantissa.size) mantissa[idx] else 0 }
-        )
+        var value =
+            HeapUInt128.fromLimbsUnsafe(
+                IntArray(SwAR128.LIMB_COUNT) { idx -> if (idx < mantissa.size) mantissa[idx] else 0 },
+            )
         if (shift > 0) {
             value = value.shiftRight(shift)
         }

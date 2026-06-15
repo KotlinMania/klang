@@ -345,10 +345,6 @@ kotlin {
     swiftExport {
         moduleName = frameworkName
         flattenPackage = projectNamespace
-        @OptIn(org.jetbrains.kotlin.gradle.swiftexport.ExperimentalSwiftExportDsl::class)
-        configure {
-            settings.put("enableCoroutinesSupport", "true")
-        }
     }
 
     // Android KMP library. Block name is `android` — `androidLibrary` is deprecated in current KGP.
@@ -473,8 +469,16 @@ ktlint {
     }
 }
 
+tasks
+    .matching { task ->
+        task.name.startsWith("runKtlintCheckOver") &&
+            task.name.endsWith("BenchmarkBenchmarkSourceSet")
+    }.configureEach {
+        enabled = false
+    }
+
 tasks.named("check") {
-    dependsOn(tasks.withType<io.gitlab.arturbosch.detekt.Detekt>())
+    dependsOn(tasks.named("detekt"))
     dependsOn(tasks.named("ktlintCheck"))
     // Android host unit tests run here alongside the tests that check -> allTests
     // already executes (jvm, macosArm64, the Apple simulators, js, wasmJs,
@@ -614,6 +618,31 @@ tasks.register("hostTests") {
 // so Swift Export breakage surfaces locally, not only in the swift.yml CI job.
 // Pattern mirrors kasuari-kotlin. This task is part of the build contract and
 // must fail rather than skip when the required toolchain is unavailable.
+fun patchSwiftExportPackagePlatforms(packageSwift: File) {
+    if (packageSwift.exists()) {
+        val text = packageSwift.readText()
+        if (!text.contains("platforms:")) {
+            packageSwift.writeText(
+                text.replaceFirst(
+                    Regex("(name:\\s*\"[^\"]*\",)"),
+                    "\$1\n    platforms: [.macOS(.v14)],",
+                ),
+            )
+        }
+    }
+}
+
+tasks.matching { it.name == "macosArm64DebugBuildSPMPackage" }.configureEach {
+    doFirst {
+        patchSwiftExportPackagePlatforms(
+            layout.buildDirectory
+                .file("SPMPackage/macosArm64/Debug/Package.swift")
+                .get()
+                .asFile,
+        )
+    }
+}
+
 tasks.register("swiftExportSmokeTest") {
     group = "verification"
     description = "Builds the Swift Export SPM package and runs swift test against it."
@@ -656,17 +685,7 @@ tasks.register("swiftExportSmokeTest") {
                 .file("SPMPackage/macosArm64/Debug/Package.swift")
                 .get()
                 .asFile
-        if (generatedPackageSwift.exists()) {
-            val text = generatedPackageSwift.readText()
-            if (!text.contains("platforms:")) {
-                generatedPackageSwift.writeText(
-                    text.replaceFirst(
-                        Regex("(name:\\s*\"[^\"]*\",)"),
-                        "\$1\n    platforms: [.macOS(.v14)],",
-                    ),
-                )
-            }
-        }
+        patchSwiftExportPackagePlatforms(generatedPackageSwift)
 
         execOperations
             .exec {

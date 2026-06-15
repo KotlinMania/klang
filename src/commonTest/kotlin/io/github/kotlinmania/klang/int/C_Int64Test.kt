@@ -10,9 +10,10 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class C_Int64Test {
-
     @BeforeTest
-    fun setup() { KMalloc.init(64 * 1024) }
+    fun setup() {
+        KMalloc.init(64 * 1024)
+    }
 
     @Test
     fun zeroOneMinMax() {
@@ -83,7 +84,14 @@ class C_Int64Test {
         assertEquals(0x0F0F_0F0F_0F0F_0F0FL or 0x00FF_00FF_00FF_00FFL, (a or b).toLong())
         assertEquals(0x0F0F_0F0F_0F0F_0F0FL xor 0x00FF_00FF_00FF_00FFL, (a xor b).toLong())
         assertEquals(-1L, C_Int64.zero().inv().toLong())
-        assertEquals(0x1234_5678L, C_Int64.fromLong(0x1234_5678L).inv().inv().toLong())
+        assertEquals(
+            0x1234_5678L,
+            C_Int64
+                .fromLong(0x1234_5678L)
+                .inv()
+                .inv()
+                .toLong(),
+        )
     }
 
     @Test

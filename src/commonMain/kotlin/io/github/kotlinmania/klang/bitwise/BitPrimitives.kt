@@ -19,12 +19,15 @@ object BitPrimitives {
     // ---- Leading/trailing zeros & population count ----
 
     fun clz32(x: Int): Int = x.countLeadingZeroBits()
+
     fun clz64(x: Long): Int = x.countLeadingZeroBits()
 
     fun ctz32(x: Int): Int = if (x == 0) 32 else x.countTrailingZeroBits()
+
     fun ctz64(x: Long): Int = if (x == 0L) 64 else x.countTrailingZeroBits()
 
     fun popcount32(x: Int): Int = x.countOneBits()
+
     fun popcount64(x: Long): Int = x.countOneBits()
 
     // ---- Rotations ----

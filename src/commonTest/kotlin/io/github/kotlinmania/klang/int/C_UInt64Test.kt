@@ -10,9 +10,10 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class C_UInt64Test {
-
     @BeforeTest
-    fun setup() { KMalloc.init(64 * 1024) }
+    fun setup() {
+        KMalloc.init(64 * 1024)
+    }
 
     @Test
     fun zeroOneMax() {
@@ -37,8 +38,10 @@ class C_UInt64Test {
     @Test
     fun additionWraps() {
         assertEquals(0uL, (C_UInt64.maxValue() + C_UInt64.one()).toULong())
-        assertEquals(ULong.MAX_VALUE - 1uL,
-                     (C_UInt64.maxValue() + C_UInt64.maxValue()).toULong())
+        assertEquals(
+            ULong.MAX_VALUE - 1uL,
+            (C_UInt64.maxValue() + C_UInt64.maxValue()).toULong(),
+        )
     }
 
     @Test
@@ -63,8 +66,10 @@ class C_UInt64Test {
         assertEquals(142uL, (a / b).toULong())
         assertEquals(6uL, (a % b).toULong())
         // Large unsigned: MAX / 2 = floor((2^64-1)/2)
-        assertEquals(0x7FFF_FFFF_FFFF_FFFFuL,
-                     (C_UInt64.maxValue() / C_UInt64.fromULong(2uL)).toULong())
+        assertEquals(
+            0x7FFF_FFFF_FFFF_FFFFuL,
+            (C_UInt64.maxValue() / C_UInt64.fromULong(2uL)).toULong(),
+        )
     }
 
     @Test
@@ -102,8 +107,10 @@ class C_UInt64Test {
 
     @Test
     fun shiftRightZeroFill() {
-        assertEquals(0x4000_0000_0000_0000uL,
-                     C_UInt64.fromULong(0x8000_0000_0000_0000uL).shiftRight(1).toULong())
+        assertEquals(
+            0x4000_0000_0000_0000uL,
+            C_UInt64.fromULong(0x8000_0000_0000_0000uL).shiftRight(1).toULong(),
+        )
         assertEquals(1uL, C_UInt64.fromULong(0x8000_0000_0000_0000uL).shiftRight(63).toULong())
         assertEquals(0x7FFF_FFFF_FFFF_FFFFuL, C_UInt64.maxValue().shiftRight(1).toULong())
     }
@@ -136,8 +143,10 @@ class C_UInt64Test {
     @Test
     fun hexFormat() {
         assertEquals("0x0000000000000000", C_UInt64.zero().toHexString())
-        assertEquals("0xdeadbeefcafebabe",
-                     C_UInt64.fromULong(0xDEAD_BEEF_CAFE_BABEuL).toHexString())
+        assertEquals(
+            "0xdeadbeefcafebabe",
+            C_UInt64.fromULong(0xDEAD_BEEF_CAFE_BABEuL).toHexString(),
+        )
         assertEquals("0xffffffffffffffff", C_UInt64.maxValue().toHexString())
     }
 }

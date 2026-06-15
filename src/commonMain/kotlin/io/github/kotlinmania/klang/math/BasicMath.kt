@@ -35,7 +35,6 @@ package io.github.kotlinmania.klang.math
  * @since 0.3.0
  */
 object BasicMath {
-
     fun sqrt(x: Double): Double = Double.fromBits(Float64Bits.sqrtBits(x.toRawBits()))
 
     fun floor(x: Double): Double = Double.fromBits(Float64Bits.floorBits(x.toRawBits()))
@@ -117,11 +116,12 @@ object BasicMath {
      * returns ±Inf or ±0 as appropriate.
      */
     fun scalbln(x: Double, n: Long): Double {
-        val nInt = when {
-            n > Int.MAX_VALUE.toLong() -> Int.MAX_VALUE
-            n < Int.MIN_VALUE.toLong() -> Int.MIN_VALUE
-            else -> n.toInt()
-        }
+        val nInt =
+            when {
+                n > Int.MAX_VALUE.toLong() -> Int.MAX_VALUE
+                n < Int.MIN_VALUE.toLong() -> Int.MIN_VALUE
+                else -> n.toInt()
+            }
         return Double.fromBits(Float64Bits.ldexpBits(x.toRawBits(), nInt))
     }
 }

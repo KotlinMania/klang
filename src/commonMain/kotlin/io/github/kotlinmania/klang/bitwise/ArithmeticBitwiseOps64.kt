@@ -1,4 +1,5 @@
 @file:Suppress("unused")
+
 package io.github.kotlinmania.klang.bitwise
 
 /**
@@ -61,10 +62,11 @@ object ArithmeticBitwiseOps64 {
      * `2^63` cannot be represented as a positive Long (== Long.MIN_VALUE),
      * so callers must special-case bits == 63.
      */
-    private val POW2: LongArray = LongArray(63).also { arr ->
-        arr[0] = 1L
-        for (i in 1 until 63) arr[i] = arr[i - 1] * 2L
-    }
+    private val POW2: LongArray =
+        LongArray(63).also { arr ->
+            arr[0] = 1L
+            for (i in 1 until 63) arr[i] = arr[i - 1] * 2L
+        }
 
     /**
      * Returns 2^n as a Long for n in 0..63.
@@ -157,12 +159,13 @@ object ArithmeticBitwiseOps64 {
         val lowB: Long = if (sb == 1L) b - SIGN_BIT else b
 
         // Compute the sign-bit (bit 63) of the result purely arithmetically.
-        val resSign: Long = when (op) {
-            OP_OR -> if (sa + sb >= 1L) 1L else 0L
-            OP_AND -> sa * sb
-            OP_XOR -> (sa + sb) % 2L
-            else -> 0L
-        }
+        val resSign: Long =
+            when (op) {
+                OP_OR -> if (sa + sb >= 1L) 1L else 0L
+                OP_AND -> sa * sb
+                OP_XOR -> (sa + sb) % 2L
+                else -> 0L
+            }
 
         // Iterate the remaining 63 bits on non-negative Longs.
         var result: Long = 0L
@@ -178,12 +181,13 @@ object ArithmeticBitwiseOps64 {
             }
             val bitA: Long = remA % 2L
             val bitB: Long = remB % 2L
-            val combined: Long = when (op) {
-                OP_OR -> if (bitA == 1L || bitB == 1L) 1L else 0L
-                OP_AND -> if (bitA == 1L && bitB == 1L) 1L else 0L
-                OP_XOR -> if (bitA != bitB) 1L else 0L
-                else -> 0L
-            }
+            val combined: Long =
+                when (op) {
+                    OP_OR -> if (bitA == 1L || bitB == 1L) 1L else 0L
+                    OP_AND -> if (bitA == 1L && bitB == 1L) 1L else 0L
+                    OP_XOR -> if (bitA != bitB) 1L else 0L
+                    else -> 0L
+                }
             if (combined == 1L) result += powerOf2
             remA /= 2L
             remB /= 2L

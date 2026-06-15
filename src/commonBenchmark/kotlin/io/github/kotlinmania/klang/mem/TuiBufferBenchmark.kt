@@ -23,7 +23,6 @@ import kotlinx.benchmark.State
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(kotlinx.benchmark.BenchmarkTimeUnit.MICROSECONDS)
 class TuiBufferBenchmark {
-
     companion object {
         const val CELL_SIZE = 8
         const val CODEPOINT_OFFSET = 0
@@ -33,8 +32,8 @@ class TuiBufferBenchmark {
 
         const val WIDTH = 80
         const val HEIGHT = 24
-        const val TOTAL_CELLS = WIDTH * HEIGHT       // 1920
-        const val BUFFER_BYTES = TOTAL_CELLS * CELL_SIZE  // 15360
+        const val TOTAL_CELLS = WIDTH * HEIGHT // 1920
+        const val BUFFER_BYTES = TOTAL_CELLS * CELL_SIZE // 15360
     }
 
     /** Object-based cell, equivalent to the current ratatui-kotlin model. */
@@ -120,7 +119,7 @@ class TuiBufferBenchmark {
     @Benchmark
     fun heapBulkClearMemset(): Int {
         GlobalHeap.memset(heapAddr1, 0x20, BUFFER_BYTES)
-        return GlobalHeap.lw(heapAddr1)  // pin against DCE
+        return GlobalHeap.lw(heapAddr1) // pin against DCE
     }
 
     @Benchmark
@@ -159,7 +158,7 @@ class TuiBufferBenchmark {
     fun heapWriteCellsDirectBytes(): Int {
         for (i in 0 until TOTAL_CELLS) {
             val cellAddr = heapAddr1 + i * CELL_SIZE
-            GlobalHeap.sb(cellAddr,     0x20.toByte())
+            GlobalHeap.sb(cellAddr, 0x20.toByte())
             GlobalHeap.sb(cellAddr + 1, 0.toByte())
             GlobalHeap.sb(cellAddr + 2, 0.toByte())
             GlobalHeap.sb(cellAddr + 3, 0.toByte())

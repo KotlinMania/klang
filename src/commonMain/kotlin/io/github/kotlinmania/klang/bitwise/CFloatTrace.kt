@@ -207,7 +207,7 @@ import kotlin.concurrent.Volatile
  * ```kotlin
  * object ThreadSafeCFloatTrace {
  *     private val lock = Any()
- *     
+ *
  *     fun <T> traceSync(block: () -> T): Pair<T, List<CFloatTrace.Entry>> {
  *         synchronized(lock) {
  *             return CFloatTrace.withTracing(block)
@@ -344,14 +344,14 @@ object CFloatTrace {
         val op: String,
         val lhsBits: Int,
         val rhsBits: Int?,
-        val resultBits: Int
+        val resultBits: Int,
     ) {
         /** The left operand as a Float value. */
         val lhs: Float get() = Float.fromBits(lhsBits)
-        
+
         /** The right operand as a Float value, or null for unary operations. */
         val rhs: Float? get() = rhsBits?.let { Float.fromBits(it) }
-        
+
         /** The result as a Float value. */
         val result: Float get() = Float.fromBits(resultBits)
     }
@@ -390,7 +390,7 @@ object CFloatTrace {
      * CFloatTrace.start()
      * // ... perform operations ...
      * val trace = CFloatTrace.stop()
-     * 
+     *
      * trace.forEach { entry ->
      *     println("${entry.op}: ${entry.lhs} → ${entry.result}")
      * }
@@ -423,7 +423,7 @@ object CFloatTrace {
      *     val y = CFloat32(3.0f)
      *     x * y + CFloat32(1.0f)
      * }
-     * 
+     *
      * println("Result: $result")
      * println("Operations: ${trace.size}")
      * trace.forEach { println(it) }
@@ -467,11 +467,11 @@ object CFloatTrace {
      * ## Example
      * ```kotlin
      * CFloatTrace.start()
-     * 
+     *
      * // Phase 1
      * performOperation1()
      * val trace1 = CFloatTrace.stop()
-     * 
+     *
      * // Phase 2 (new trace session)
      * CFloatTrace.reset()
      * CFloatTrace.start()

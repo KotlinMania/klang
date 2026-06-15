@@ -10,9 +10,10 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class C_UInt16Test {
-
     @BeforeTest
-    fun setup() { KMalloc.init(64 * 1024) }
+    fun setup() {
+        KMalloc.init(64 * 1024)
+    }
 
     @Test
     fun zeroOneMax() {

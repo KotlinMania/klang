@@ -6,7 +6,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class LogbIlogbRintTest {
-
     // ---- logb / ilogb ---------------------------------------------------
 
     @Test
@@ -30,11 +29,11 @@ class LogbIlogbRintTest {
     @Test
     fun ilogbNonPowerOfTwo() {
         // logb(x) gives floor(log2(|x|)) for finite normals
-        assertEquals(0, BasicMath.ilogb(1.5))           // 2^0 <= 1.5 < 2^1
-        assertEquals(1, BasicMath.ilogb(3.0))           // 2^1 <= 3.0 < 2^2
-        assertEquals(2, BasicMath.ilogb(7.999))         // 2^2 <= 7.999 < 2^3
-        assertEquals(-1, BasicMath.ilogb(0.6))          // 2^-1 <= 0.6 < 2^0
-        assertEquals(-2, BasicMath.ilogb(0.3))          // 2^-2 <= 0.3 < 2^-1
+        assertEquals(0, BasicMath.ilogb(1.5)) // 2^0 <= 1.5 < 2^1
+        assertEquals(1, BasicMath.ilogb(3.0)) // 2^1 <= 3.0 < 2^2
+        assertEquals(2, BasicMath.ilogb(7.999)) // 2^2 <= 7.999 < 2^3
+        assertEquals(-1, BasicMath.ilogb(0.6)) // 2^-1 <= 0.6 < 2^0
+        assertEquals(-2, BasicMath.ilogb(0.3)) // 2^-2 <= 0.3 < 2^-1
     }
 
     @Test
@@ -126,12 +125,27 @@ class LogbIlogbRintTest {
 
     @Test
     fun nearbyintMatchesRint() {
-        val values = doubleArrayOf(
-            0.0, -0.0, 0.5, 1.5, 2.5, 3.5, -0.5, -1.5,
-            2.3, 2.7, -2.3, -2.7,
-            Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY,
-            Double.MAX_VALUE, Double.MIN_VALUE, 1e100, 1e-100,
-        )
+        val values =
+            doubleArrayOf(
+                0.0,
+                -0.0,
+                0.5,
+                1.5,
+                2.5,
+                3.5,
+                -0.5,
+                -1.5,
+                2.3,
+                2.7,
+                -2.3,
+                -2.7,
+                Double.POSITIVE_INFINITY,
+                Double.NEGATIVE_INFINITY,
+                Double.MAX_VALUE,
+                Double.MIN_VALUE,
+                1e100,
+                1e-100,
+            )
         for (x in values) {
             assertEquals(
                 BasicMath.rint(x).toRawBits(),

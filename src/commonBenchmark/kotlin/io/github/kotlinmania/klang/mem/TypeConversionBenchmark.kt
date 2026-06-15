@@ -48,7 +48,6 @@ import kotlinx.benchmark.State
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.NANOSECONDS)
 class TypeConversionBenchmark {
-
     companion object {
         const val N = 1024
         const val BUFFER_BYTES = N * 2 // enough for 1024 16-bit slots

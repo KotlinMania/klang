@@ -7,18 +7,16 @@ package io.github.kotlinmania.klang.math
 
 import io.github.kotlinmania.klang.fp.Float32Math
 import io.github.kotlinmania.klang.mem.GlobalHeap
-import kotlin.math.abs as kotlinAbs
 
 /**
  * F32Math: Heap-native math operations for 32-bit floats.
- * 
+ *
  * Uses Float32Math for deterministic bit-exact operations across platforms.
  * All functions operate directly on heap memory addresses.
  */
 object F32Math {
-    
     // ==================== Basic Operations ====================
-    
+
     /**
      * Absolute value: |x|
      * @param destAddr Destination heap address
@@ -26,10 +24,10 @@ object F32Math {
      */
     fun abs(destAddr: Int, srcAddr: Int) {
         val bits = GlobalHeap.lw(srcAddr)
-        val result = bits and 0x7FFFFFFF  // Clear sign bit
+        val result = bits and 0x7FFFFFFF // Clear sign bit
         GlobalHeap.sw(destAddr, result)
     }
-    
+
     /**
      * Square root
      * @param destAddr Destination heap address
@@ -40,7 +38,7 @@ object F32Math {
         val result = Float32Math.sqrtBits(bits)
         GlobalHeap.sw(destAddr, result)
     }
-    
+
     /**
      * Copy sign from y to x: |x| * sign(y)
      * @param destAddr Destination heap address
@@ -53,9 +51,9 @@ object F32Math {
         val result = (xBits and 0x7FFFFFFF) or (yBits and 0x80000000.toInt())
         GlobalHeap.sw(destAddr, result)
     }
-    
+
     // ==================== Classification ====================
-    
+
     /**
      * Check if value is NaN
      * @param addr Heap address to check
@@ -67,7 +65,7 @@ object F32Math {
         val frac = bits and 0x7FFFFF
         return exp == 0xFF && frac != 0
     }
-    
+
     /**
      * Check if value is infinite
      * @param addr Heap address to check
@@ -79,7 +77,7 @@ object F32Math {
         val frac = bits and 0x7FFFFF
         return exp == 0xFF && frac == 0
     }
-    
+
     /**
      * Check if value is finite (not NaN, not Inf)
      * @param addr Heap address to check
@@ -90,7 +88,7 @@ object F32Math {
         val exp = (bits ushr 23) and 0xFF
         return exp != 0xFF
     }
-    
+
     /**
      * Check if value is zero (+0.0 or -0.0)
      * @param addr Heap address to check
@@ -100,7 +98,7 @@ object F32Math {
         val bits = GlobalHeap.lw(addr)
         return (bits and 0x7FFFFFFF) == 0
     }
-    
+
     /**
      * Check if value is subnormal (denormalized)
      * @param addr Heap address to check
@@ -112,7 +110,7 @@ object F32Math {
         val frac = bits and 0x7FFFFF
         return exp == 0 && frac != 0
     }
-    
+
     /**
      * Check if value is normal (not zero, subnormal, infinite, or NaN)
      * @param addr Heap address to check
@@ -123,7 +121,7 @@ object F32Math {
         val exp = (bits ushr 23) and 0xFF
         return exp != 0 && exp != 0xFF
     }
-    
+
     /**
      * Extract sign bit (0 for positive/+0, 1 for negative/-0)
      * @param addr Heap address to check
@@ -133,9 +131,9 @@ object F32Math {
         val bits = GlobalHeap.lw(addr)
         return (bits ushr 31) and 1
     }
-    
+
     // ==================== Comparison ====================
-    
+
     /**
      * Maximum of two values (NaN-aware)
      * Returns first argument if either is NaN
@@ -146,15 +144,16 @@ object F32Math {
     fun max(destAddr: Int, aAddr: Int, bAddr: Int) {
         val a = GlobalHeap.lwf(aAddr)
         val b = GlobalHeap.lwf(bAddr)
-        val result = when {
-            a.isNaN() -> a
-            b.isNaN() -> a
-            a >= b -> a
-            else -> b
-        }
+        val result =
+            when {
+                a.isNaN() -> a
+                b.isNaN() -> a
+                a >= b -> a
+                else -> b
+            }
         GlobalHeap.swf(destAddr, result)
     }
-    
+
     /**
      * Minimum of two values (NaN-aware)
      * Returns first argument if either is NaN
@@ -165,15 +164,16 @@ object F32Math {
     fun min(destAddr: Int, aAddr: Int, bAddr: Int) {
         val a = GlobalHeap.lwf(aAddr)
         val b = GlobalHeap.lwf(bAddr)
-        val result = when {
-            a.isNaN() -> a
-            b.isNaN() -> a
-            a <= b -> a
-            else -> b
-        }
+        val result =
+            when {
+                a.isNaN() -> a
+                b.isNaN() -> a
+                a <= b -> a
+                else -> b
+            }
         GlobalHeap.swf(destAddr, result)
     }
-    
+
     /**
      * Positive difference: max(x - y, 0)
      * @param destAddr Destination heap address
@@ -188,9 +188,9 @@ object F32Math {
         val result = if (diff > 0.0f) diff else 0.0f
         GlobalHeap.swf(destAddr, result)
     }
-    
+
     // ==================== Rounding (to be implemented with BSD libm) ====================
-    
+
     /**
      * Floor: largest integer <= x
      * @param destAddr Destination heap address
@@ -200,7 +200,7 @@ object F32Math {
         val bits = GlobalHeap.lw(srcAddr)
         GlobalHeap.sw(destAddr, Float32Math.floorBits(bits))
     }
-    
+
     /**
      * Ceiling: smallest integer >= x
      * @param destAddr Destination heap address
@@ -210,7 +210,7 @@ object F32Math {
         val bits = GlobalHeap.lw(srcAddr)
         GlobalHeap.sw(destAddr, Float32Math.ceilBits(bits))
     }
-    
+
     /**
      * Truncate towards zero
      * @param destAddr Destination heap address
@@ -220,7 +220,7 @@ object F32Math {
         val bits = GlobalHeap.lw(srcAddr)
         GlobalHeap.sw(destAddr, Float32Math.truncBits(bits))
     }
-    
+
     /**
      * Round to nearest integer (ties to even)
      * @param destAddr Destination heap address
@@ -231,9 +231,9 @@ object F32Math {
         // C99 round(): half away from zero.
         GlobalHeap.sw(destAddr, Float32Math.roundBits(bits))
     }
-    
+
     // ==================== Vector Operations ====================
-    
+
     /**
      * Vector absolute value
      * @param destAddr Destination array start address
@@ -242,11 +242,11 @@ object F32Math {
      */
     fun abs_vec(destAddr: Int, srcAddr: Int, count: Int) {
         for (i in 0 until count) {
-            val offset = i * 4  // 4 bytes per float
+            val offset = i * 4 // 4 bytes per float
             abs(destAddr + offset, srcAddr + offset)
         }
     }
-    
+
     /**
      * Vector square root
      * @param destAddr Destination array start address
@@ -259,7 +259,7 @@ object F32Math {
             sqrt(destAddr + offset, srcAddr + offset)
         }
     }
-    
+
     /**
      * Vector maximum
      * @param destAddr Destination array start address
@@ -273,7 +273,7 @@ object F32Math {
             max(destAddr + offset, aAddr + offset, bAddr + offset)
         }
     }
-    
+
     /**
      * Vector minimum
      * @param destAddr Destination array start address

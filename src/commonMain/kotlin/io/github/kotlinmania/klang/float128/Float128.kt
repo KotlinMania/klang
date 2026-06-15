@@ -6,7 +6,7 @@ import io.github.kotlinmania.klang.int.hpc.HeapUInt128
 
 /**
  * Float128 – IEEE-754 binary128 placeholder backed by limb arithmetic.
- * 
+ *
  * Current arithmetic delegates to Double while the limb math is being implemented.
  */
 class Float128 private constructor(
@@ -15,9 +15,8 @@ class Float128 private constructor(
     private val mantissa: HeapUInt128,
     private val specialZero: Boolean,
     private val specialInf: Boolean,
-    private val specialNaN: Boolean
+    private val specialNaN: Boolean,
 ) : Comparable<Float128> {
-
     override fun compareTo(other: Float128): Int {
         if (this.specialNaN || other.specialNaN) return 0
         if (this.specialInf && other.specialInf) return sign.compareTo(other.sign)
@@ -37,27 +36,30 @@ class Float128 private constructor(
         return Double.fromBits(Float128Math.toFloat64Bits(packed))
     }
 
-    override fun toString(): String {
-        return when {
+    override fun toString(): String =
+        when {
             specialNaN -> "NaN"
             specialInf -> if (sign == 1) "-Inf" else "Inf"
             specialZero -> if (sign == 1) "-0" else "0"
-            else -> buildString {
-                append(if (sign == 1) "-0x" else "0x")
-                append(mantissa.toHexString())
-                append("p")
-                append(exponent)
-            }
+            else ->
+                buildString {
+                    append(if (sign == 1) "-0x" else "0x")
+                    append(mantissa.toHexString())
+                    append("p")
+                    append(exponent)
+                }
         }
-    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Float128) return false
         if (specialNaN && other.specialNaN) return true
-        return sign == other.sign && exponent == other.exponent &&
-            mantissa == other.mantissa && specialZero == other.specialZero &&
-            specialInf == other.specialInf && specialNaN == other.specialNaN
+        return sign == other.sign &&
+            exponent == other.exponent &&
+            mantissa == other.mantissa &&
+            specialZero == other.specialZero &&
+            specialInf == other.specialInf &&
+            specialNaN == other.specialNaN
     }
 
     override fun hashCode(): Int {
@@ -100,7 +102,11 @@ class Float128 private constructor(
             return Float128(sign, parsed.exponent, parsed.mantissa, parsed.isZero, false, false)
         }
 
-        private data class Parsed(val mantissa: HeapUInt128, val exponent: Int, val isZero: Boolean)
+        private data class Parsed(
+            val mantissa: HeapUInt128,
+            val exponent: Int,
+            val isZero: Boolean,
+        )
 
         private fun decimalToBinary128(value: String): Parsed {
             val parts = value.split('.')

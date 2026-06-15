@@ -14,8 +14,11 @@ object CPlatform {
 }
 
 @Suppress("NOTHING_TO_INLINE")
-class CChar(val raw: Byte) {
+class CChar(
+    val raw: Byte,
+) {
     inline fun toIntSigned(): Int = raw.toInt()
+
     inline fun toIntUnsigned(): Int {
         val shifter = BitShiftEngine(BitShiftMode.NATIVE, 8)
         return shifter.bitwiseAnd(raw.toLong(), 0xFF).toInt()
@@ -30,4 +33,3 @@ inline fun asPlainChar(value: Int): CChar = CChar(value.toByte())
 
 @Suppress("NOTHING_TO_INLINE")
 inline fun plainCharToInt(c: CChar): Int = if (CPlatform.plainCharIsSigned) c.toIntSigned() else c.toIntUnsigned()
-

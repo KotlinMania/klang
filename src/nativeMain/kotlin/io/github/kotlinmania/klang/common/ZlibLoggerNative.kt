@@ -6,11 +6,11 @@ package io.github.kotlinmania.klang.common
 
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.toKString
-import kotlin.time.Clock
 import platform.posix.fclose
 import platform.posix.fopen
 import platform.posix.fputs
 import platform.posix.getenv
+import kotlin.time.Clock
 
 actual var LOG_FILE_PATH: String? = null
 

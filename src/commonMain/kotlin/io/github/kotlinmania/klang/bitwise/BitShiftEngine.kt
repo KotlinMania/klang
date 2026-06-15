@@ -1,4 +1,5 @@
 @file:Suppress("unused", "UNUSED_PARAMETER")
+
 package io.github.kotlinmania.klang.bitwise
 
 import io.github.kotlinmania.klang.mem.PackedBuffer
@@ -32,7 +33,7 @@ enum class BitShiftMode {
      * behavior before committing to a strategy.
      */
     AUTO,
-    
+
     /**
      * Use Kotlin's built-in shift operations (shl, shr, ushr).
      *
@@ -45,7 +46,7 @@ enum class BitShiftMode {
      * - JavaScript shifts can behave differently
      */
     NATIVE,
-    
+
     /**
      * Use pure arithmetic operations (multiplication/division).
      *
@@ -330,11 +331,12 @@ class BitShiftEngine(
             return ShiftResult(0L, 0L, true)
         }
 
-        val activeMode = if (mode == BitShiftMode.AUTO) {
-            BitShiftConfig.resolveMode(bitWidth)
-        } else {
-            mode
-        }
+        val activeMode =
+            if (mode == BitShiftMode.AUTO) {
+                BitShiftConfig.resolveMode(bitWidth)
+            } else {
+                mode
+            }
 
         return when (activeMode) {
             BitShiftMode.NATIVE -> {
@@ -360,7 +362,7 @@ class BitShiftEngine(
                 if (arithmeticOps == null) {
                     throw IllegalStateException(
                         "ARITHMETIC mode is not supported for bitWidth > 32. " +
-                        "Current bitWidth: $bitWidth. Use NATIVE mode instead."
+                            "Current bitWidth: $bitWidth. Use NATIVE mode instead.",
                     )
                 }
 
@@ -414,11 +416,12 @@ class BitShiftEngine(
             return ShiftResult(if (value < 0) -1L else 0L, 0L, false)
         }
 
-        val activeMode = if (mode == BitShiftMode.AUTO) {
-            BitShiftConfig.resolveMode(bitWidth)
-        } else {
-            mode
-        }
+        val activeMode =
+            if (mode == BitShiftMode.AUTO) {
+                BitShiftConfig.resolveMode(bitWidth)
+            } else {
+                mode
+            }
 
         return when (activeMode) {
             BitShiftMode.NATIVE -> {
@@ -440,7 +443,7 @@ class BitShiftEngine(
                 if (arithmeticOps == null) {
                     throw IllegalStateException(
                         "ARITHMETIC mode is not supported for bitWidth > 32. " +
-                        "Current bitWidth: $bitWidth. Use NATIVE mode instead."
+                            "Current bitWidth: $bitWidth. Use NATIVE mode instead.",
                     )
                 }
 
@@ -481,11 +484,12 @@ class BitShiftEngine(
             return ShiftResult(0L, 0L, false)
         }
 
-        val activeMode = if (mode == BitShiftMode.AUTO) {
-            BitShiftConfig.resolveMode(bitWidth)
-        } else {
-            mode
-        }
+        val activeMode =
+            if (mode == BitShiftMode.AUTO) {
+                BitShiftConfig.resolveMode(bitWidth)
+            } else {
+                mode
+            }
 
         return when (activeMode) {
             BitShiftMode.NATIVE -> {
@@ -507,7 +511,7 @@ class BitShiftEngine(
                 if (arithmeticOps == null) {
                     throw IllegalStateException(
                         "ARITHMETIC mode is not supported for bitWidth > 32. " +
-                        "Current bitWidth: $bitWidth. Use NATIVE mode instead."
+                            "Current bitWidth: $bitWidth. Use NATIVE mode instead.",
                     )
                 }
 
@@ -547,11 +551,12 @@ class BitShiftEngine(
      * @return a AND b, masked to bit width
      */
     fun bitwiseAnd(a: Long, b: Long): Long {
-        val result = if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
-            arithmeticOps.and(a, b)
-        } else {
-            a and b
-        }
+        val result =
+            if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
+                arithmeticOps.and(a, b)
+            } else {
+                a and b
+            }
         return normalize(result)
     }
 
@@ -566,11 +571,12 @@ class BitShiftEngine(
      * @return a OR b, masked to bit width
      */
     fun bitwiseOr(a: Long, b: Long): Long {
-        val result = if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
-            arithmeticOps.or(a, b)
-        } else {
-            a or b
-        }
+        val result =
+            if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
+                arithmeticOps.or(a, b)
+            } else {
+                a or b
+            }
         return normalize(result)
     }
 
@@ -585,11 +591,12 @@ class BitShiftEngine(
      * @return a XOR b, masked to bit width
      */
     fun bitwiseXor(a: Long, b: Long): Long {
-        val result = if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
-            arithmeticOps.xor(a, b)
-        } else {
-            a xor b
-        }
+        val result =
+            if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
+                arithmeticOps.xor(a, b)
+            } else {
+                a xor b
+            }
         return normalize(result)
     }
 
@@ -604,11 +611,12 @@ class BitShiftEngine(
      * @return NOT value, masked to bit width
      */
     fun bitwiseNot(value: Long): Long {
-        val result = if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
-            arithmeticOps.not(value)
-        } else {
-            value.inv()
-        }
+        val result =
+            if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
+                arithmeticOps.not(value)
+            } else {
+                value.inv()
+            }
         return normalize(result)
     }
 
@@ -631,11 +639,11 @@ class BitShiftEngine(
         require(bits in 1..bitWidth) {
             "Bits $bits out of range for bitWidth $bitWidth"
         }
-        
+
         if (bits == bitWidth) {
             return maxValue
         }
-        
+
         return if (mode == BitShiftMode.ARITHMETIC && arithmeticOps != null) {
             arithmeticOps.createMask(bits)
         } else {
@@ -643,7 +651,7 @@ class BitShiftEngine(
             (1L shl bits) - 1L
         }
     }
-    
+
     /**
      * Create a copy with a different mode.
      *
@@ -659,7 +667,7 @@ class BitShiftEngine(
      * @return New BitShiftEngine with specified bit width
      */
     fun withBitWidth(newBitWidth: Int): BitShiftEngine = BitShiftEngine(mode, newBitWidth)
-    
+
     /**
      * Compose two bytes into a 16-bit value.
      *
@@ -686,7 +694,7 @@ class BitShiftEngine(
         val highShifted = shifter16.leftShift(highMasked, 8).value
         return shifter16.bitwiseOr(lowMasked, highShifted)
     }
-    
+
     /**
      * Decompose a 16-bit value into two bytes.
      *
@@ -710,7 +718,7 @@ class BitShiftEngine(
         val highByte = shifter16.unsignedRightShift(value.toLong(), 8).value.toByte()
         return Pair(lowByte, highByte)
     }
-    
+
     /**
      * Shift a value left by a multiple of 8 bits (byte positions).
      *
@@ -720,11 +728,11 @@ class BitShiftEngine(
      * ## Usage Example
      * ```kotlin
      * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
-     * 
+     *
      * // Shift left by 1 byte (8 bits)
      * val result = engine.byteShiftLeft(0x12345678, 1)
      * // result.value: 0x34567800
-     * 
+     *
      * // Shift left by 2 bytes (16 bits)
      * val result2 = engine.byteShiftLeft(0x12345678, 2)
      * // result2.value: 0x56780000
@@ -745,11 +753,11 @@ class BitShiftEngine(
         if (bytes == 0) {
             return ShiftResult(normalize(value), 0L, false)
         }
-        
+
         val bitShift = bytes * 8
         return leftShift(value, bitShift)
     }
-    
+
     /**
      * Shift a value right by a multiple of 8 bits (byte positions).
      *
@@ -760,11 +768,11 @@ class BitShiftEngine(
      * ## Usage Example
      * ```kotlin
      * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
-     * 
+     *
      * // Shift right by 1 byte (8 bits)
      * val result = engine.byteShiftRight(0x12345678, 1)
      * // result.value: 0x00123456
-     * 
+     *
      * // Shift right by 2 bytes (16 bits)
      * val result2 = engine.byteShiftRight(0x12345678, 2)
      * // result2.value: 0x00001234
@@ -785,15 +793,15 @@ class BitShiftEngine(
         if (bytes == 0) {
             return ShiftResult(normalize(value), 0L, false)
         }
-        
+
         val bitShift = bytes * 8
         return unsignedRightShift(value, bitShift)
     }
-    
+
     // ============================================================================
     // Helper Functions for Common Operations
     // ============================================================================
-    
+
     /**
      * Extract a specific byte from a value.
      *
@@ -804,7 +812,7 @@ class BitShiftEngine(
      * ```kotlin
      * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
      * val value = 0x12345678L
-     * 
+     *
      * engine.extractByte(value, 0) // 0x78
      * engine.extractByte(value, 1) // 0x56
      * engine.extractByte(value, 2) // 0x34
@@ -819,11 +827,11 @@ class BitShiftEngine(
         require(byteIndex >= 0 && byteIndex < bitWidth / 8) {
             "Byte index $byteIndex out of range for bitWidth $bitWidth"
         }
-        
+
         val shifted = byteShiftRight(value, byteIndex).value
         return bitwiseAnd(shifted, 0xFFL)
     }
-    
+
     /**
      * Replace a specific byte in a value.
      *
@@ -833,7 +841,7 @@ class BitShiftEngine(
      * ```kotlin
      * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
      * val original = 0x12345678L
-     * 
+     *
      * engine.replaceByte(original, 1, 0xAB) // 0x1234AB78
      * ```
      *
@@ -846,21 +854,21 @@ class BitShiftEngine(
         require(byteIndex >= 0 && byteIndex < bitWidth / 8) {
             "Byte index $byteIndex out of range for bitWidth $bitWidth"
         }
-        
+
         // Mask for the byte position
         val byteMask = byteShiftLeft(0xFFL, byteIndex).value
         val invertedMask = bitwiseNot(byteMask)
-        
+
         // Clear the target byte
         val cleared = bitwiseAnd(value, invertedMask)
-        
+
         // Insert the new byte
         val maskedNewByte = bitwiseAnd(newByte, 0xFFL)
         val positioned = byteShiftLeft(maskedNewByte, byteIndex).value
-        
+
         return bitwiseOr(cleared, positioned)
     }
-    
+
     /**
      * Check if a specific bit is set.
      *
@@ -879,11 +887,11 @@ class BitShiftEngine(
         require(bitIndex >= 0 && bitIndex < bitWidth) {
             "Bit index $bitIndex out of range for bitWidth $bitWidth"
         }
-        
+
         val mask = leftShift(1L, bitIndex).value
         return bitwiseAnd(value, mask) != 0L
     }
-    
+
     /**
      * Set a specific bit to 1.
      *
@@ -901,11 +909,11 @@ class BitShiftEngine(
         require(bitIndex >= 0 && bitIndex < bitWidth) {
             "Bit index $bitIndex out of range for bitWidth $bitWidth"
         }
-        
+
         val mask = leftShift(1L, bitIndex).value
         return bitwiseOr(value, mask)
     }
-    
+
     /**
      * Clear a specific bit to 0.
      *
@@ -923,12 +931,12 @@ class BitShiftEngine(
         require(bitIndex >= 0 && bitIndex < bitWidth) {
             "Bit index $bitIndex out of range for bitWidth $bitWidth"
         }
-        
+
         val mask = leftShift(1L, bitIndex).value
         val invertedMask = bitwiseNot(mask)
         return bitwiseAnd(value, invertedMask)
     }
-    
+
     /**
      * Toggle a specific bit (0→1, 1→0).
      *
@@ -947,11 +955,11 @@ class BitShiftEngine(
         require(bitIndex >= 0 && bitIndex < bitWidth) {
             "Bit index $bitIndex out of range for bitWidth $bitWidth"
         }
-        
+
         val mask = leftShift(1L, bitIndex).value
         return bitwiseXor(value, mask)
     }
-    
+
     /**
      * Count the number of set bits (population count / Hamming weight).
      *
@@ -969,16 +977,16 @@ class BitShiftEngine(
     fun popCount(value: Long): Int {
         var count = 0
         var v = normalize(value)
-        
+
         for (i in 0 until bitWidth) {
             if (isBitSet(v, i)) {
                 count++
             }
         }
-        
+
         return count
     }
-    
+
     /**
      * Sign-extend a value from a smaller bit width.
      *
@@ -988,7 +996,7 @@ class BitShiftEngine(
      * ## Usage Example
      * ```kotlin
      * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
-     * 
+     *
      * // Sign-extend an 8-bit value
      * engine.signExtend(0xFF, 8) // 0xFFFFFFFF (negative)
      * engine.signExtend(0x7F, 8) // 0x0000007F (positive)
@@ -1002,15 +1010,15 @@ class BitShiftEngine(
         require(sourceBits > 0 && sourceBits <= bitWidth) {
             "Source bits $sourceBits must be in range 1..$bitWidth"
         }
-        
+
         if (sourceBits == bitWidth) {
             return normalize(value)
         }
-        
+
         // Check sign bit
         val signBitPos = sourceBits - 1
         val isNegative = isBitSet(value, signBitPos)
-        
+
         if (!isNegative) {
             // Positive: just mask to source width
             val mask = getMask(sourceBits)
@@ -1023,7 +1031,7 @@ class BitShiftEngine(
             return bitwiseOr(masked, upperMask)
         }
     }
-    
+
     /**
      * Zero-extend a value from a smaller bit width.
      *
@@ -1033,7 +1041,7 @@ class BitShiftEngine(
      * ## Usage Example
      * ```kotlin
      * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
-     * 
+     *
      * // Zero-extend an 8-bit value
      * engine.zeroExtend(0xFF, 8) // 0x000000FF
      * engine.zeroExtend(0x7F, 8) // 0x0000007F
@@ -1047,11 +1055,11 @@ class BitShiftEngine(
         require(sourceBits > 0 && sourceBits <= bitWidth) {
             "Source bits $sourceBits must be in range 1..$bitWidth"
         }
-        
+
         val mask = getMask(sourceBits)
         return bitwiseAnd(value, mask)
     }
-    
+
     /**
      * Compose multiple bytes into a larger value (little-endian).
      *
@@ -1060,7 +1068,7 @@ class BitShiftEngine(
      * ## Usage Example
      * ```kotlin
      * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
-     * 
+     *
      * // Compose 4 bytes into a 32-bit value
      * val bytes = longArrayOf(0x78, 0x56, 0x34, 0x12)
      * engine.composeBytes(bytes) // 0x12345678
@@ -1073,17 +1081,17 @@ class BitShiftEngine(
         require(bytes.size <= bitWidth / 8) {
             "Too many bytes (${bytes.size}) for bitWidth $bitWidth"
         }
-        
+
         var result = 0L
         for (i in bytes.indices) {
             val byte = bitwiseAnd(bytes[i], 0xFFL)
             val shifted = byteShiftLeft(byte, i).value
             result = bitwiseOr(result, shifted)
         }
-        
+
         return result
     }
-    
+
     /**
      * Decompose a value into individual bytes (little-endian).
      *
@@ -1092,7 +1100,7 @@ class BitShiftEngine(
      * ## Usage Example
      * ```kotlin
      * val engine = BitShiftEngine(BitShiftMode.NATIVE, 32)
-     * 
+     *
      * val bytes = engine.decomposeBytes(0x12345678, 4)
      * // bytes = [0x78, 0x56, 0x34, 0x12]
      * ```
@@ -1105,16 +1113,16 @@ class BitShiftEngine(
         require(byteCount > 0 && byteCount <= bitWidth / 8) {
             "Byte count $byteCount out of range for bitWidth $bitWidth"
         }
-        
+
         return LongArray(byteCount) { i ->
             extractByte(value, i)
         }
     }
-    
+
     // ========================================================================
     // Type-Preserving Shift Operations
     // ========================================================================
-    
+
     /**
      * Replicate a byte value across all bytes in a word.
      *
@@ -1145,7 +1153,7 @@ class BitShiftEngine(
         result = bitwiseOr(result, byteShiftLeft(byte, 7).value)
         return result
     }
-    
+
     /**
      * Pack 8 bytes into a 64-bit word (little-endian).
      *
@@ -1173,8 +1181,16 @@ class BitShiftEngine(
      * @return 64-bit word composed from bytes
      * @since 0.1.0
      */
-    fun packBytesToWord(b0: Long, b1: Long, b2: Long, b3: Long, 
-                        b4: Long, b5: Long, b6: Long, b7: Long): Long {
+    fun packBytesToWord(
+        b0: Long,
+        b1: Long,
+        b2: Long,
+        b3: Long,
+        b4: Long,
+        b5: Long,
+        b6: Long,
+        b7: Long,
+    ): Long {
         var result = bitwiseAnd(b0, 0xFFL)
         result = bitwiseOr(result, byteShiftLeft(bitwiseAnd(b1, 0xFFL), 1).value)
         result = bitwiseOr(result, byteShiftLeft(bitwiseAnd(b2, 0xFFL), 2).value)
@@ -1207,7 +1223,7 @@ class BitShiftEngine(
         val result = leftShift(value.toLong() and 0xFFL, bits)
         return (result.value and 0xFFL).toByte()
     }
-    
+
     /**
      * Right shift a Byte value, returning a Byte result.
      *
@@ -1228,7 +1244,7 @@ class BitShiftEngine(
         val result = rightShift(value.toLong() and 0xFFL, bits)
         return (result.value and 0xFFL).toByte()
     }
-    
+
     /**
      * Unsigned right shift a Byte value, returning a Byte result.
      *
@@ -1249,7 +1265,7 @@ class BitShiftEngine(
         val result = unsignedRightShift(value.toLong() and 0xFFL, bits)
         return (result.value and 0xFFL).toByte()
     }
-    
+
     /**
      * Left shift a Short value, returning a Short result.
      *
@@ -1270,7 +1286,7 @@ class BitShiftEngine(
         val result = leftShift(value.toLong() and 0xFFFFL, bits)
         return (result.value and 0xFFFFL).toShort()
     }
-    
+
     /**
      * Right shift a Short value, returning a Short result.
      *
@@ -1291,7 +1307,7 @@ class BitShiftEngine(
         val result = rightShift(value.toLong() and 0xFFFFL, bits)
         return (result.value and 0xFFFFL).toShort()
     }
-    
+
     /**
      * Unsigned right shift a Short value, returning a Short result.
      *
@@ -1312,7 +1328,7 @@ class BitShiftEngine(
         val result = unsignedRightShift(value.toLong() and 0xFFFFL, bits)
         return (result.value and 0xFFFFL).toShort()
     }
-    
+
     /**
      * Left shift an Int value, returning an Int result.
      *
@@ -1333,7 +1349,7 @@ class BitShiftEngine(
         val result = leftShift(value.toLong() and 0xFFFFFFFFL, bits)
         return (result.value and 0xFFFFFFFFL).toInt()
     }
-    
+
     /**
      * Right shift an Int value, returning an Int result.
      *
@@ -1354,7 +1370,7 @@ class BitShiftEngine(
         val result = rightShift(value.toLong() and 0xFFFFFFFFL, bits)
         return (result.value and 0xFFFFFFFFL).toInt()
     }
-    
+
     /**
      * Unsigned right shift an Int value, returning an Int result.
      *
@@ -1397,13 +1413,14 @@ class BitShiftEngine(
      * @return [ShiftResult] with the shifted value
      */
     fun leftShift(buffer: PackedBuffer, addr: Int, bits: Int): ShiftResult {
-        val value = when (bitWidth) {
-            8 -> buffer.getByte(addr).toLong()
-            16 -> buffer.getShort(addr).toLong() and 0xFFFFL
-            32 -> buffer.getInt(addr).toLong() and 0xFFFFFFFFL
-            64 -> buffer.getLong(addr)
-            else -> error("Unsupported bitWidth: $bitWidth")
-        }
+        val value =
+            when (bitWidth) {
+                8 -> buffer.getByte(addr).toLong()
+                16 -> buffer.getShort(addr).toLong() and 0xFFFFL
+                32 -> buffer.getInt(addr).toLong() and 0xFFFFFFFFL
+                64 -> buffer.getLong(addr)
+                else -> error("Unsupported bitWidth: $bitWidth")
+            }
         val result = leftShift(value, bits)
         when (bitWidth) {
             8 -> buffer.setByte(addr, result.value.toInt())
@@ -1423,13 +1440,14 @@ class BitShiftEngine(
      * @return [ShiftResult] with the shifted value
      */
     fun rightShift(buffer: PackedBuffer, addr: Int, bits: Int): ShiftResult {
-        val value = when (bitWidth) {
-            8 -> buffer.getByte(addr).toLong()
-            16 -> buffer.getShort(addr).toLong() and 0xFFFFL
-            32 -> buffer.getInt(addr).toLong() and 0xFFFFFFFFL
-            64 -> buffer.getLong(addr)
-            else -> error("Unsupported bitWidth: $bitWidth")
-        }
+        val value =
+            when (bitWidth) {
+                8 -> buffer.getByte(addr).toLong()
+                16 -> buffer.getShort(addr).toLong() and 0xFFFFL
+                32 -> buffer.getInt(addr).toLong() and 0xFFFFFFFFL
+                64 -> buffer.getLong(addr)
+                else -> error("Unsupported bitWidth: $bitWidth")
+            }
         val result = rightShift(value, bits)
         when (bitWidth) {
             8 -> buffer.setByte(addr, result.value.toInt())
@@ -1449,13 +1467,14 @@ class BitShiftEngine(
      * @return [ShiftResult] with the shifted value
      */
     fun unsignedRightShift(buffer: PackedBuffer, addr: Int, bits: Int): ShiftResult {
-        val value = when (bitWidth) {
-            8 -> buffer.getByte(addr).toLong()
-            16 -> buffer.getShort(addr).toLong() and 0xFFFFL
-            32 -> buffer.getInt(addr).toLong() and 0xFFFFFFFFL
-            64 -> buffer.getLong(addr)
-            else -> error("Unsupported bitWidth: $bitWidth")
-        }
+        val value =
+            when (bitWidth) {
+                8 -> buffer.getByte(addr).toLong()
+                16 -> buffer.getShort(addr).toLong() and 0xFFFFL
+                32 -> buffer.getInt(addr).toLong() and 0xFFFFFFFFL
+                64 -> buffer.getLong(addr)
+                else -> error("Unsupported bitWidth: $bitWidth")
+            }
         val result = unsignedRightShift(value, bits)
         when (bitWidth) {
             8 -> buffer.setByte(addr, result.value.toInt())
@@ -1475,15 +1494,14 @@ class BitShiftEngine(
      * @param addr Address of the value
      * @return The value as Long
      */
-    fun load(buffer: PackedBuffer, addr: Int): Long {
-        return when (bitWidth) {
+    fun load(buffer: PackedBuffer, addr: Int): Long =
+        when (bitWidth) {
             8 -> buffer.getByte(addr).toLong() and 0xFFL
             16 -> buffer.getShort(addr).toLong() and 0xFFFFL
             32 -> buffer.getInt(addr).toLong() and 0xFFFFFFFFL
             64 -> buffer.getLong(addr)
             else -> error("Unsupported bitWidth: $bitWidth")
         }
-    }
 
     /**
      * Write a value to a PackedBuffer.

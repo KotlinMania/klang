@@ -11,7 +11,9 @@ import io.github.kotlinmania.klang.fp.CFloat64
  * @property addr Heap address where the value is stored
  * @since 0.1.0
  */
-interface CVar { val addr: Int }
+interface CVar {
+    val addr: Int
+}
 
 /**
  * CByteVar: C-style `char` variable (8-bit signed integer).
@@ -34,7 +36,9 @@ interface CVar { val addr: Int }
  * @see GlobalHeap.lb Load byte
  * @see GlobalHeap.sb Store byte
  */
-class CByteVar(override val addr: Int) : CVar {
+class CByteVar(
+    override val addr: Int,
+) : CVar {
     /**
      * The byte value stored at [addr].
      *
@@ -63,7 +67,9 @@ class CByteVar(override val addr: Int) : CVar {
  * @see GlobalHeap.lh Load halfword
  * @see GlobalHeap.sh Store halfword
  */
-class CShortVar(override val addr: Int) : CVar {
+class CShortVar(
+    override val addr: Int,
+) : CVar {
     /**
      * The 16-bit value stored at [addr].
      *
@@ -94,7 +100,9 @@ class CShortVar(override val addr: Int) : CVar {
  * @see GlobalHeap.lw Load word
  * @see GlobalHeap.sw Store word
  */
-class CIntVar(override val addr: Int) : CVar {
+class CIntVar(
+    override val addr: Int,
+) : CVar {
     /**
      * The 32-bit value stored at [addr].
      *
@@ -112,8 +120,10 @@ class CIntVar(override val addr: Int) : CVar {
      *
      * @param x Value to add
      */
-    fun addAssign(x: Int) { GlobalHeap.sw(addr, GlobalHeap.lw(addr) + x) }
-    
+    fun addAssign(x: Int) {
+        GlobalHeap.sw(addr, GlobalHeap.lw(addr) + x)
+    }
+
     /**
      * In-place subtraction (equivalent to C's `-=`).
      *
@@ -121,7 +131,9 @@ class CIntVar(override val addr: Int) : CVar {
      *
      * @param x Value to subtract
      */
-    fun subAssign(x: Int) { GlobalHeap.sw(addr, GlobalHeap.lw(addr) - x) }
+    fun subAssign(x: Int) {
+        GlobalHeap.sw(addr, GlobalHeap.lw(addr) - x)
+    }
 }
 
 /**
@@ -141,7 +153,9 @@ class CIntVar(override val addr: Int) : CVar {
  * @see GlobalHeap.ld Load doubleword
  * @see GlobalHeap.sd Store doubleword
  */
-class CLongVar(override val addr: Int) : CVar {
+class CLongVar(
+    override val addr: Int,
+) : CVar {
     /**
      * The 64-bit value stored at [addr].
      *
@@ -170,7 +184,9 @@ class CLongVar(override val addr: Int) : CVar {
  * @see GlobalHeap.lwf Load word as float
  * @see GlobalHeap.swf Store float as word
  */
-class CFloatVar(override val addr: Int) : CVar {
+class CFloatVar(
+    override val addr: Int,
+) : CVar {
     /**
      * The 32-bit float value stored at [addr].
      *
@@ -184,14 +200,14 @@ class CFloatVar(override val addr: Int) : CVar {
 
 /**
  * CFloat32Var: C-style deterministic single-precision float variable.
- * 
+ *
  * Stores a [CFloat32] value in heap memory, providing bit-exact arithmetic
  * that truncates to 32-bit precision after each operation (matching C behavior).
- * 
+ *
  * ## CFloat32 vs Float
  * - **CFloat32**: Truncates after every operation (C-compatible)
  * - **Float**: May use extended precision in intermediates (platform-dependent)
- * 
+ *
  * ## Usage Example
  * ```kotlin
  * KStack.withFrame {
@@ -200,21 +216,25 @@ class CFloatVar(override val addr: Int) : CVar {
  *     println(x.value.toFloat())  // 3.0
  * }
  * ```
- * 
+ *
  * @property addr Heap address (4-byte aligned recommended)
  * @property value The CFloat32 value (mutable, accesses heap)
  * @see io.github.kotlinmania.klang.fp.CFloat32 For deterministic arithmetic operations
  * @see CFloatVar For native Float storage (platform-dependent precision)
  */
-class CFloat32Var(override val addr: Int) : CVar {
+class CFloat32Var(
+    override val addr: Int,
+) : CVar {
     /**
      * The CFloat32 value stored at [addr].
-     * 
+     *
      * **Get**: Loads bits from heap, wraps in CFloat32
      * **Set**: Unwraps CFloat32 bits, stores to heap
      */
     var value: io.github.kotlinmania.klang.fp.CFloat32
-        get() = io.github.kotlinmania.klang.fp.CFloat32.fromBits(GlobalHeap.lw(addr))
+        get() =
+            io.github.kotlinmania.klang.fp.CFloat32
+                .fromBits(GlobalHeap.lw(addr))
         set(v) = GlobalHeap.sw(addr, v.toBits())
 }
 
@@ -243,7 +263,9 @@ class CFloat32Var(override val addr: Int) : CVar {
  * @see GlobalHeap.sdf Store double as doubleword
  * @see CFloat64 For cross-platform deterministic arithmetic
  */
-class CFloat64Var(override val addr: Int) : CVar {
+class CFloat64Var(
+    override val addr: Int,
+) : CVar {
     /**
      * The 64-bit double value stored at [addr].
      *
@@ -275,21 +297,21 @@ class CFloat64Var(override val addr: Int) : CVar {
 
 /**
  * CFloat128Var: C-style quad-precision variable (double-double).
- * 
+ *
  * Stores a [CFloat128] value in heap memory using double-double representation
  * (~106-bit mantissa precision). Ideal for high-precision accumulation without
  * error drift in iterative calculations.
- * 
+ *
  * ## Storage
  * - Size: 16 bytes (two 64-bit doubles)
  * - Precision: ~31 decimal digits
  * - Range: Same as Double (exponent shared)
- * 
+ *
  * ## Use Cases
  * - Sum accumulation in ML inference
  * - Financial calculations requiring exact decimal arithmetic
  * - Scientific computing with error analysis
- * 
+ *
  * ## Usage Example
  * ```kotlin
  * KStack.withFrame {
@@ -300,15 +322,17 @@ class CFloat64Var(override val addr: Int) : CVar {
  *     println(sum.value.toDouble())  // Accurate sum
  * }
  * ```
- * 
+ *
  * @property addr Heap address (16-byte aligned recommended)
  * @property value The CFloat128 value (mutable, accesses heap)
  * @see io.github.kotlinmania.klang.fp.CFloat128 For high-precision arithmetic
  */
-class CFloat128Var(override val addr: Int) : CVar {
+class CFloat128Var(
+    override val addr: Int,
+) : CVar {
     /**
      * The CFloat128 value stored at [addr].
-     * 
+     *
      * **Get**: Loads two doubles from heap, constructs CFloat128
      * **Set**: Extracts two doubles from CFloat128, stores to heap
      */
@@ -316,7 +340,8 @@ class CFloat128Var(override val addr: Int) : CVar {
         get() {
             val hi = GlobalHeap.ldf(addr)
             val lo = GlobalHeap.ldf(addr + 8)
-            return io.github.kotlinmania.klang.fp.CFloat128(hi, lo)
+            return io.github.kotlinmania.klang.fp
+                .CFloat128(hi, lo)
         }
         set(v) {
             GlobalHeap.sdf(addr, v.hi)
@@ -326,14 +351,14 @@ class CFloat128Var(override val addr: Int) : CVar {
 
 /**
  * CLongDoubleVar: C-style `long double` variable (extended precision).
- * 
+ *
  * Stores a [CLongDouble] value in heap memory. This uses the default flavor
  * for the platform (typically EXTENDED80 approximation via double-double).
- * 
+ *
  * ## Storage
  * - Size: 16 bytes (double-double representation)
  * - Format: Platform-dependent flavor selection
- * 
+ *
  * ## Usage Example
  * ```kotlin
  * KStack.withFrame {
@@ -341,17 +366,19 @@ class CFloat128Var(override val addr: Int) : CVar {
  *     // Use for high-precision calculations
  * }
  * ```
- * 
+ *
  * @property addr Heap address (16-byte aligned recommended)
  * @property value The CLongDouble value (mutable, accesses heap)
  * @see io.github.kotlinmania.klang.fp.CLongDouble For extended-precision arithmetic
  */
-class CLongDoubleVar(override val addr: Int) : CVar {
+class CLongDoubleVar(
+    override val addr: Int,
+) : CVar {
     /**
      * The CLongDouble value stored at [addr].
-     * 
+     *
      * Stores as CFloat128 (double-double) internally for consistency.
-     * 
+     *
      * **Get**: Loads double-double, converts to CLongDouble
      * **Set**: Converts CLongDouble to CFloat128, stores double-double
      */
@@ -361,10 +388,12 @@ class CLongDoubleVar(override val addr: Int) : CVar {
             // arithmetic doesn't try to read the (null) `d` slot.
             val hi = GlobalHeap.ldf(addr)
             val lo = GlobalHeap.ldf(addr + 8)
-            val f128 = io.github.kotlinmania.klang.fp.CFloat128(hi, lo)
+            val f128 =
+                io.github.kotlinmania.klang.fp
+                    .CFloat128(hi, lo)
             return io.github.kotlinmania.klang.fp.CLongDouble.ofCFloat128(
                 f128,
-                io.github.kotlinmania.klang.fp.CLongDouble.Flavor.EXTENDED80
+                io.github.kotlinmania.klang.fp.CLongDouble.Flavor.EXTENDED80,
             )
         }
         set(v) {
@@ -376,21 +405,21 @@ class CLongDoubleVar(override val addr: Int) : CVar {
 
 /**
  * CFloat16Var: C-style IEEE-754 binary16 variable (half-precision float).
- * 
+ *
  * Represents a 16-bit half-precision floating-point value stored in heap memory.
  * Commonly used in machine learning, GPU computing, and memory-constrained applications.
- * 
+ *
  * ## IEEE-754 Binary16 Format
  * - Sign: 1 bit (bit 15)
  * - Exponent: 5 bits (bits 14-10, bias = 15)
  * - Mantissa: 10 bits (bits 9-0, implicit leading 1)
- * 
+ *
  * ## Precision & Range
  * - Mantissa precision: ~3.3 decimal digits
  * - Exponent range: 2^-14 to 2^15
  * - Max value: 65,504
  * - Min positive: 6.1×10^-5
- * 
+ *
  * ## Usage Example
  * ```kotlin
  * KStack.withFrame {
@@ -400,48 +429,52 @@ class CLongDoubleVar(override val addr: Int) : CVar {
  *     println(h.value.toFloat())  // 2.5
  * }
  * ```
- * 
+ *
  * @property addr Heap address of the float16 (2-byte aligned recommended)
  * @property value The half-precision float value (mutable, directly accesses heap)
  * @see GlobalHeap.lh Load halfword
  * @see GlobalHeap.sh Store halfword
  * @see io.github.kotlinmania.klang.fp.CFloat16 For value type and arithmetic operations
  */
-class CFloat16Var(override val addr: Int) : CVar {
+class CFloat16Var(
+    override val addr: Int,
+) : CVar {
     /**
      * The 16-bit half-precision float value stored at [addr].
-     * 
+     *
      * **Get**: Loads from heap via [GlobalHeap.lh], converts to CFloat16
      * **Set**: Converts CFloat16 to bits, stores via [GlobalHeap.sh]
      */
     var value: io.github.kotlinmania.klang.fp.CFloat16
-        get() = io.github.kotlinmania.klang.fp.CFloat16.fromBits(GlobalHeap.lh(addr).toInt())
+        get() =
+            io.github.kotlinmania.klang.fp.CFloat16
+                .fromBits(GlobalHeap.lh(addr).toInt())
         set(v) = GlobalHeap.sh(addr, v.toBits().toShort())
 }
 
 /**
  * CBF16Var: C-style bfloat16 variable (brain floating-point).
- * 
+ *
  * Represents a 16-bit brain floating-point value stored in heap memory.
  * bfloat16 is widely used in deep learning (Google TPU, PyTorch, TensorFlow)
  * because it preserves the exponent range of float32 while reducing precision.
- * 
+ *
  * ## bfloat16 Format
  * - Sign: 1 bit (bit 15)
  * - Exponent: 8 bits (bits 14-7, bias = 127, **same as float32**)
  * - Mantissa: 7 bits (bits 6-0, implicit leading 1)
- * 
+ *
  * ## Why bfloat16?
  * - **Same exponent range as float32** (2^-126 to 2^127)
  * - **No overflow issues** when converting from float32
  * - **Simple conversion**: Just truncate float32 to 16 bits
  * - **Faster training**: Google TPU, NVIDIA Tensor Cores
- * 
+ *
  * ## Precision & Range
  * - Mantissa precision: ~2 decimal digits (vs 7 for float32)
  * - Exponent range: Same as float32
  * - Trade-off: Range over precision
- * 
+ *
  * ## Usage Example
  * ```kotlin
  * KStack.withFrame {
@@ -451,14 +484,16 @@ class CFloat16Var(override val addr: Int) : CVar {
  *     println(bf.value.toFloat())  // ~2.72
  * }
  * ```
- * 
+ *
  * @property addr Heap address of the bfloat16 (2-byte aligned recommended)
  * @property value The brain float value (mutable, directly accesses heap)
  * @see GlobalHeap.lh Load halfword
  * @see GlobalHeap.sh Store halfword
  * @see io.github.kotlinmania.klang.fp.CBF16 For value type and arithmetic operations
  */
-class CBF16Var(override val addr: Int) : CVar {
+class CBF16Var(
+    override val addr: Int,
+) : CVar {
     /**
      * The 16-bit bfloat16 value stored at [addr].
      *
@@ -466,7 +501,9 @@ class CBF16Var(override val addr: Int) : CVar {
      * **Set**: Converts CBF16 to bits, stores via [GlobalHeap.sh]
      */
     var value: io.github.kotlinmania.klang.fp.CBF16
-        get() = io.github.kotlinmania.klang.fp.CBF16.fromBits(GlobalHeap.lh(addr))
+        get() =
+            io.github.kotlinmania.klang.fp.CBF16
+                .fromBits(GlobalHeap.lh(addr))
         set(v) = GlobalHeap.sh(addr, v.toBits())
 }
 
@@ -493,7 +530,9 @@ class CBF16Var(override val addr: Int) : CVar {
  * @see GlobalHeap.sb Store byte
  * @see io.github.kotlinmania.klang.fp.CE8M0 For decoding semantics
  */
-class CE8M0Var(override val addr: Int) : CVar {
+class CE8M0Var(
+    override val addr: Int,
+) : CVar {
     /**
      * The CE8M0 value stored at [addr].
      *
@@ -501,7 +540,9 @@ class CE8M0Var(override val addr: Int) : CVar {
      * **Set**: Unwraps CE8M0 bits, stores via [GlobalHeap.sb]
      */
     var value: io.github.kotlinmania.klang.fp.CE8M0
-        get() = io.github.kotlinmania.klang.fp.CE8M0.fromBits(GlobalHeap.lbu(addr))
+        get() =
+            io.github.kotlinmania.klang.fp.CE8M0
+                .fromBits(GlobalHeap.lbu(addr))
         set(v) = GlobalHeap.sb(addr, v.toBits().toByte())
 }
 
@@ -527,7 +568,9 @@ class CE8M0Var(override val addr: Int) : CVar {
  * @see GlobalHeap.sb Store byte
  * @see io.github.kotlinmania.klang.fp.CUE4M3 For encode/decode semantics
  */
-class CUE4M3Var(override val addr: Int) : CVar {
+class CUE4M3Var(
+    override val addr: Int,
+) : CVar {
     /**
      * The CUE4M3 value stored at [addr].
      *
@@ -535,7 +578,9 @@ class CUE4M3Var(override val addr: Int) : CVar {
      * **Set**: Unwraps CUE4M3 bits, stores via [GlobalHeap.sb]
      */
     var value: io.github.kotlinmania.klang.fp.CUE4M3
-        get() = io.github.kotlinmania.klang.fp.CUE4M3.fromBits(GlobalHeap.lbu(addr))
+        get() =
+            io.github.kotlinmania.klang.fp.CUE4M3
+                .fromBits(GlobalHeap.lbu(addr))
         set(v) = GlobalHeap.sb(addr, v.toBits().toByte())
 }
 
@@ -617,7 +662,7 @@ object CAutos {
         GlobalHeap.sb(p, init)
         return CByteVar(p)
     }
-    
+
     /**
      * Allocate a short on the stack.
      *
@@ -630,7 +675,7 @@ object CAutos {
         GlobalHeap.sh(p, init)
         return CShortVar(p)
     }
-    
+
     /**
      * Allocate an int on the stack.
      *
@@ -643,7 +688,7 @@ object CAutos {
         GlobalHeap.sw(p, init)
         return CIntVar(p)
     }
-    
+
     /**
      * Allocate a long on the stack.
      *
@@ -656,7 +701,7 @@ object CAutos {
         GlobalHeap.sd(p, init)
         return CLongVar(p)
     }
-    
+
     /**
      * Allocate a float on the stack.
      *
@@ -669,21 +714,26 @@ object CAutos {
         GlobalHeap.swf(p, init)
         return CFloatVar(p)
     }
-    
+
     /**
      * Allocate a float32 (deterministic single precision) on the stack.
-     * 
+     *
      * @param init Initial value (default: CFloat32.ZERO)
      * @param align Alignment (default: 4)
      * @return CFloat32Var pointing to stack memory
      * @see io.github.kotlinmania.klang.fp.CFloat32 For bit-exact arithmetic
      */
-    fun float32(init: io.github.kotlinmania.klang.fp.CFloat32 = io.github.kotlinmania.klang.fp.CFloat32.fromFloat(0f), align: Int = 4): CFloat32Var {
+    fun float32(
+        init: io.github.kotlinmania.klang.fp.CFloat32 =
+            io.github.kotlinmania.klang.fp.CFloat32
+                .fromFloat(0f),
+        align: Int = 4,
+    ): CFloat32Var {
         val p = KStack.alloca(4, align)
         GlobalHeap.sw(p, init.toBits())
         return CFloat32Var(p)
     }
-    
+
     /**
      * Allocate a double on the stack.
      *
@@ -696,13 +746,13 @@ object CAutos {
         GlobalHeap.sdf(p, init)
         return CFloat64Var(p)
     }
-    
+
     /**
      * Allocate a float128 (quad precision) on the stack.
-     * 
+     *
      * Uses double-double representation with ~106-bit mantissa precision.
      * Ideal for high-precision accumulation and error-sensitive calculations.
-     * 
+     *
      * @param init Initial value (default: CFloat128.ZERO)
      * @param align Alignment (default: 16 bytes)
      * @return CFloat128Var pointing to stack memory
@@ -714,26 +764,31 @@ object CAutos {
         GlobalHeap.sdf(p + 8, init.lo)
         return CFloat128Var(p)
     }
-    
+
     /**
      * Allocate a long double (extended precision) on the stack.
-     * 
+     *
      * @param init Initial value (default: CLongDouble.ofDouble(0.0))
      * @param align Alignment (default: 16 bytes)
      * @return CLongDoubleVar pointing to stack memory
      * @see io.github.kotlinmania.klang.fp.CLongDouble
      */
-    fun longdouble(init: io.github.kotlinmania.klang.fp.CLongDouble = io.github.kotlinmania.klang.fp.CLongDouble.ofDouble(0.0), align: Int = 16): CLongDoubleVar {
+    fun longdouble(
+        init: io.github.kotlinmania.klang.fp.CLongDouble =
+            io.github.kotlinmania.klang.fp.CLongDouble
+                .ofDouble(0.0),
+        align: Int = 16,
+    ): CLongDoubleVar {
         val p = KStack.alloca(16, align)
         val f128 = init.toCFloat128()
         GlobalHeap.sdf(p, f128.hi)
         GlobalHeap.sdf(p + 8, f128.lo)
         return CLongDoubleVar(p)
     }
-    
+
     /**
      * Allocate a float16 (half-precision) on the stack.
-     * 
+     *
      * IEEE-754 binary16 format, commonly used in ML for memory efficiency.
      * Provides ~3.3 decimal digits of precision.
      *
@@ -747,19 +802,24 @@ object CAutos {
         GlobalHeap.sh(p, init.toBits().toShort())
         return CFloat16Var(p)
     }
-    
+
     /**
      * Allocate a bfloat16 (brain float) on the stack.
-     * 
+     *
      * bfloat16 format preserves float32 exponent range with reduced precision.
      * Widely used in deep learning (Google TPU, PyTorch, TensorFlow).
-     * 
+     *
      * @param init Initial value (default: CBF16.ZERO)
      * @param align Alignment (default: 2 bytes)
      * @return CBF16Var pointing to stack memory
      * @see io.github.kotlinmania.klang.fp.CBF16
      */
-    fun bfloat16(init: io.github.kotlinmania.klang.fp.CBF16 = io.github.kotlinmania.klang.fp.CBF16.fromFloat(0f), align: Int = 2): CBF16Var {
+    fun bfloat16(
+        init: io.github.kotlinmania.klang.fp.CBF16 =
+            io.github.kotlinmania.klang.fp.CBF16
+                .fromFloat(0f),
+        align: Int = 2,
+    ): CBF16Var {
         val p = KStack.alloca(2, align)
         GlobalHeap.sh(p, init.toBits())
         return CBF16Var(p)
@@ -860,7 +920,7 @@ object CGlobals {
      * @return CIntVar pointing to global memory
      */
     fun int(name: String, init: Int = 0, align: Int = 4): CIntVar = CIntVar(GlobalData.defineI32(name, init, align))
-    
+
     /**
      * Define a global long variable.
      *
@@ -870,7 +930,7 @@ object CGlobals {
      * @return CLongVar pointing to global memory
      */
     fun long(name: String, init: Long = 0, align: Int = 8): CLongVar = CLongVar(GlobalData.defineI64(name, init, align))
-    
+
     /**
      * Define a global double variable.
      *
@@ -880,7 +940,7 @@ object CGlobals {
      * @return CFloat64Var pointing to global memory
      */
     fun double(name: String, init: Double = 0.0, align: Int = 8): CFloat64Var = CFloat64Var(GlobalData.defineF64(name, init, align))
-    
+
     /**
      * Define a global float32 variable.
      *
@@ -889,12 +949,18 @@ object CGlobals {
      * @param align Alignment (default: 4)
      * @return CFloat32Var pointing to global memory
      */
-    fun float32(name: String, init: io.github.kotlinmania.klang.fp.CFloat32 = io.github.kotlinmania.klang.fp.CFloat32.fromFloat(0f), align: Int = 4): CFloat32Var {
+    fun float32(
+        name: String,
+        init: io.github.kotlinmania.klang.fp.CFloat32 =
+            io.github.kotlinmania.klang.fp.CFloat32
+                .fromFloat(0f),
+        align: Int = 4,
+    ): CFloat32Var {
         val addr = GlobalData.defineBss(name, 4, align)
         GlobalHeap.sw(addr, init.toBits())
         return CFloat32Var(addr)
     }
-    
+
     /**
      * Define a global float128 variable.
      *
@@ -909,7 +975,7 @@ object CGlobals {
         GlobalHeap.sdf(addr + 8, init.lo)
         return CFloat128Var(addr)
     }
-    
+
     /**
      * Define a global long double variable.
      *
@@ -918,14 +984,20 @@ object CGlobals {
      * @param align Alignment (default: 16)
      * @return CLongDoubleVar pointing to global memory
      */
-    fun longdouble(name: String, init: io.github.kotlinmania.klang.fp.CLongDouble = io.github.kotlinmania.klang.fp.CLongDouble.ofDouble(0.0), align: Int = 16): CLongDoubleVar {
+    fun longdouble(
+        name: String,
+        init: io.github.kotlinmania.klang.fp.CLongDouble =
+            io.github.kotlinmania.klang.fp.CLongDouble
+                .ofDouble(0.0),
+        align: Int = 16,
+    ): CLongDoubleVar {
         val addr = GlobalData.defineBss(name, 16, align)
         val f128 = init.toCFloat128()
         GlobalHeap.sdf(addr, f128.hi)
         GlobalHeap.sdf(addr + 8, f128.lo)
         return CLongDoubleVar(addr)
     }
-    
+
     /**
      * Define a global float16 variable.
      *
@@ -939,7 +1011,7 @@ object CGlobals {
         GlobalHeap.sh(addr, init.toBits().toShort())
         return CFloat16Var(addr)
     }
-    
+
     /**
      * Define a global bfloat16 variable.
      *
@@ -948,7 +1020,13 @@ object CGlobals {
      * @param align Alignment (default: 2)
      * @return CBF16Var pointing to global memory
      */
-    fun bfloat16(name: String, init: io.github.kotlinmania.klang.fp.CBF16 = io.github.kotlinmania.klang.fp.CBF16.fromFloat(0f), align: Int = 2): CBF16Var {
+    fun bfloat16(
+        name: String,
+        init: io.github.kotlinmania.klang.fp.CBF16 =
+            io.github.kotlinmania.klang.fp.CBF16
+                .fromFloat(0f),
+        align: Int = 2,
+    ): CBF16Var {
         val addr = GlobalData.defineBss(name, 2, align)
         GlobalHeap.sh(addr, init.toBits())
         return CBF16Var(addr)
@@ -1052,9 +1130,10 @@ object CHeapVars {
     fun int(init: Int = 0, align: Int = 4): CIntVar {
         val p = KMalloc.malloc(4)
         // align>=4 guaranteed by KMalloc default alignment; align parameter reserved for future aligned_alloc
-        GlobalHeap.sw(p, init); return CIntVar(p)
+        GlobalHeap.sw(p, init)
+        return CIntVar(p)
     }
-    
+
     /**
      * Allocate a double on the heap.
      *
@@ -1065,28 +1144,34 @@ object CHeapVars {
      */
     fun double(init: Double = 0.0): CFloat64Var {
         val p = KMalloc.malloc(8)
-        GlobalHeap.sdf(p, init); return CFloat64Var(p)
+        GlobalHeap.sdf(p, init)
+        return CFloat64Var(p)
     }
-    
+
     /**
      * Allocate a float32 on the heap.
-     * 
+     *
      * @param init Initial value (default: CFloat32.fromFloat(0f))
      * @return CFloat32Var pointing to heap memory
-     * 
+     *
      * **Important**: Must call [free] to avoid memory leak.
      */
-    fun float32(init: io.github.kotlinmania.klang.fp.CFloat32 = io.github.kotlinmania.klang.fp.CFloat32.fromFloat(0f)): CFloat32Var {
+    fun float32(
+        init: io.github.kotlinmania.klang.fp.CFloat32 =
+            io.github.kotlinmania.klang.fp.CFloat32
+                .fromFloat(0f),
+    ): CFloat32Var {
         val p = KMalloc.malloc(4)
-        GlobalHeap.sw(p, init.toBits()); return CFloat32Var(p)
+        GlobalHeap.sw(p, init.toBits())
+        return CFloat32Var(p)
     }
-    
+
     /**
      * Allocate a float128 on the heap.
-     * 
+     *
      * @param init Initial value (default: CFloat128.ZERO)
      * @return CFloat128Var pointing to heap memory
-     * 
+     *
      * **Important**: Must call [free] to avoid memory leak.
      */
     fun float128(init: io.github.kotlinmania.klang.fp.CFloat128 = io.github.kotlinmania.klang.fp.CFloat128.ZERO): CFloat128Var {
@@ -1095,47 +1180,57 @@ object CHeapVars {
         GlobalHeap.sdf(p + 8, init.lo)
         return CFloat128Var(p)
     }
-    
+
     /**
      * Allocate a long double on the heap.
-     * 
+     *
      * @param init Initial value (default: CLongDouble.ofDouble(0.0))
      * @return CLongDoubleVar pointing to heap memory
-     * 
+     *
      * **Important**: Must call [free] to avoid memory leak.
      */
-    fun longdouble(init: io.github.kotlinmania.klang.fp.CLongDouble = io.github.kotlinmania.klang.fp.CLongDouble.ofDouble(0.0)): CLongDoubleVar {
+    fun longdouble(
+        init: io.github.kotlinmania.klang.fp.CLongDouble =
+            io.github.kotlinmania.klang.fp.CLongDouble
+                .ofDouble(0.0),
+    ): CLongDoubleVar {
         val p = KMalloc.malloc(16)
         val f128 = init.toCFloat128()
         GlobalHeap.sdf(p, f128.hi)
         GlobalHeap.sdf(p + 8, f128.lo)
         return CLongDoubleVar(p)
     }
-    
+
     /**
      * Allocate a float16 on the heap.
-     * 
+     *
      * @param init Initial value (default: CFloat16.ZERO)
      * @return CFloat16Var pointing to heap memory
-     * 
+     *
      * **Important**: Must call [free] to avoid memory leak.
      */
     fun float16(init: io.github.kotlinmania.klang.fp.CFloat16 = io.github.kotlinmania.klang.fp.CFloat16.Companion.ZERO): CFloat16Var {
         val p = KMalloc.malloc(2)
-        GlobalHeap.sh(p, init.toBits().toShort()); return CFloat16Var(p)
+        GlobalHeap.sh(p, init.toBits().toShort())
+        return CFloat16Var(p)
     }
-    
+
     /**
      * Allocate a bfloat16 on the heap.
-     * 
+     *
      * @param init Initial value (default: CBF16.ZERO)
      * @return CBF16Var pointing to heap memory
-     * 
+     *
      * **Important**: Must call [free] to avoid memory leak.
      */
-    fun bfloat16(init: io.github.kotlinmania.klang.fp.CBF16 = io.github.kotlinmania.klang.fp.CBF16.fromFloat(0f)): CBF16Var {
+    fun bfloat16(
+        init: io.github.kotlinmania.klang.fp.CBF16 =
+            io.github.kotlinmania.klang.fp.CBF16
+                .fromFloat(0f),
+    ): CBF16Var {
         val p = KMalloc.malloc(2)
-        GlobalHeap.sh(p, init.toBits()); return CBF16Var(p)
+        GlobalHeap.sh(p, init.toBits())
+        return CBF16Var(p)
     }
 
     /**
@@ -1148,7 +1243,8 @@ object CHeapVars {
      */
     fun e8m0(init: io.github.kotlinmania.klang.fp.CE8M0 = io.github.kotlinmania.klang.fp.CE8M0.ZERO): CE8M0Var {
         val p = KMalloc.malloc(1)
-        GlobalHeap.sb(p, init.toBits().toByte()); return CE8M0Var(p)
+        GlobalHeap.sb(p, init.toBits().toByte())
+        return CE8M0Var(p)
     }
 
     /**
@@ -1161,9 +1257,10 @@ object CHeapVars {
      */
     fun ue4m3(init: io.github.kotlinmania.klang.fp.CUE4M3 = io.github.kotlinmania.klang.fp.CUE4M3.ZERO): CUE4M3Var {
         val p = KMalloc.malloc(1)
-        GlobalHeap.sb(p, init.toBits().toByte()); return CUE4M3Var(p)
+        GlobalHeap.sb(p, init.toBits().toByte())
+        return CUE4M3Var(p)
     }
-    
+
     /**
      * Free a heap-allocated variable.
      *
@@ -1179,5 +1276,7 @@ object CHeapVars {
      * // x is now invalid
      * ```
      */
-    fun free(v: CVar) { KMalloc.free(v.addr) }
+    fun free(v: CVar) {
+        KMalloc.free(v.addr)
+    }
 }

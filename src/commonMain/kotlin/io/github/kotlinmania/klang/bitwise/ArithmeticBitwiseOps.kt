@@ -1,11 +1,12 @@
 @file:Suppress("unused", "UNUSED_PARAMETER")
+
 package io.github.kotlinmania.klang.bitwise
 
 import io.github.kotlinmania.klang.common.ZlibLogger
 
 /**
  * ArithmeticBitwiseOps: Pure arithmetic bitwise operations for cross-platform determinism.
- * 
+ *
  * @native-bitshift-allowed This is a core BitShift implementation file.
  * Native bitwise operations (shl, shr, ushr, and, or) are permitted here
  * as this file provides the foundation for the BitShift engine.
@@ -179,12 +180,13 @@ class ArithmeticBitwiseOps(
     }
 
     // Precompute powers of two up to the configured bit length for reuse
-    private val pow2Cache: LongArray = LongArray(bitLength + 1).also { cache ->
-        cache[0] = 1L
-        for (i in 1..bitLength) {
-            cache[i] = cache[i - 1] * 2L
+    private val pow2Cache: LongArray =
+        LongArray(bitLength + 1).also { cache ->
+            cache[0] = 1L
+            for (i in 1..bitLength) {
+                cache[i] = cache[i - 1] * 2L
+            }
         }
-    }
 
     // Arithmetic-only power-of-two (no bit shifts)
     private fun pow2(n: Int): Long {

@@ -124,8 +124,9 @@ import io.github.kotlinmania.klang.bitwise.Float16Math
  * @see CFloat128 For 128-bit extended precision
  * @since 0.1.0
  */
-class CFloat16 private constructor(private val bits: Int) {
-    
+class CFloat16 private constructor(
+    private val bits: Int,
+) {
     /**
      * The value as a Kotlin [Float].
      *
@@ -133,21 +134,21 @@ class CFloat16 private constructor(private val bits: Int) {
      * This is a widening conversion (no precision loss).
      */
     val value: Float get() = Float.fromBits(Float16Math.toFloat32Bits(bits))
-    
+
     /**
      * Convert to Kotlin [Float] (single-precision).
      *
      * @return The value as a 32-bit Float
      */
     fun toFloat(): Float = value
-    
+
     /**
      * Convert to [Double] (double-precision).
      *
      * @return The value as a 64-bit Double
      */
     fun toDouble(): Double = value.toDouble()
-    
+
     /**
      * Get raw IEEE-754 binary16 bits as an [Int].
      *
@@ -156,14 +157,14 @@ class CFloat16 private constructor(private val bits: Int) {
      * @return The 16-bit representation in an Int
      */
     fun toBits(): Int = bits and 0xFFFF
-    
+
     /**
      * Get raw IEEE-754 binary16 bits as a [UShort].
      *
      * @return The 16-bit representation as an unsigned short
      */
     fun toUShort(): UShort = (bits and 0xFFFF).toUShort()
-    
+
     /**
      * Unary negation operator.
      *
@@ -172,7 +173,7 @@ class CFloat16 private constructor(private val bits: Int) {
      * @return A new CFloat16 with opposite sign
      */
     operator fun unaryMinus(): CFloat16 = fromBits(Float16Math.negateBits(bits))
-    
+
     /**
      * Addition operator.
      *
@@ -189,39 +190,31 @@ class CFloat16 private constructor(private val bits: Int) {
      * val sum = a + b  // 3.5
      * ```
      */
-    operator fun plus(other: CFloat16): CFloat16 {
-        return fromBits(Float16Math.addBits(this.bits, other.bits))
-    }
-    
+    operator fun plus(other: CFloat16): CFloat16 = fromBits(Float16Math.addBits(this.bits, other.bits))
+
     /**
      * Subtraction operator.
      *
      * @param other Value to subtract
      * @return A new CFloat16 representing the difference
      */
-    operator fun minus(other: CFloat16): CFloat16 {
-        return fromBits(Float16Math.subBits(this.bits, other.bits))
-    }
-    
+    operator fun minus(other: CFloat16): CFloat16 = fromBits(Float16Math.subBits(this.bits, other.bits))
+
     /**
      * Multiplication operator.
      *
      * @param other Value to multiply by
      * @return A new CFloat16 representing the product
      */
-    operator fun times(other: CFloat16): CFloat16 {
-        return fromBits(Float16Math.mulBits(this.bits, other.bits))
-    }
-    
+    operator fun times(other: CFloat16): CFloat16 = fromBits(Float16Math.mulBits(this.bits, other.bits))
+
     /**
      * Division operator.
      *
      * @param other Divisor
      * @return A new CFloat16 representing the quotient
      */
-    operator fun div(other: CFloat16): CFloat16 {
-        return fromBits(Float16Math.divBits(this.bits, other.bits))
-    }
+    operator fun div(other: CFloat16): CFloat16 = fromBits(Float16Math.divBits(this.bits, other.bits))
 
     // ===== Basic math: sqrt, rounding, FP utilities =====
 
@@ -261,7 +254,7 @@ class CFloat16 private constructor(private val bits: Int) {
         val (iBits, fBits) = Float32Math.modfBits(value.toRawBits())
         return fromFloat(Float.fromBits(iBits)) to fromFloat(Float.fromBits(fBits))
     }
-    
+
     /**
      * Comparison operator.
      *
@@ -272,43 +265,41 @@ class CFloat16 private constructor(private val bits: Int) {
      * @param other Value to compare against
      * @return Negative if this < other, zero if equal, positive if this > other
      */
-    operator fun compareTo(other: CFloat16): Int {
-        return Float16Math.compareBits(this.bits, other.bits)
-    }
-    
+    operator fun compareTo(other: CFloat16): Int = Float16Math.compareBits(this.bits, other.bits)
+
     /**
      * String representation of the value.
      *
      * @return String representation (converts to Float first)
      */
     override fun toString(): String = value.toString()
-    
+
     companion object {
         /**
          * Positive zero (+0.0).
          */
         val ZERO = CFloat16(Float16Math.ZERO_BITS)
-        
+
         /**
          * One (1.0).
          */
         val ONE = CFloat16(Float16Math.ONE_BITS)
-        
+
         /**
          * Not-a-Number (NaN).
          */
         val NaN = CFloat16(Float16Math.NAN_BITS)
-        
+
         /**
          * Positive infinity (+∞).
          */
         val POSITIVE_INFINITY = CFloat16(Float16Math.INF_BITS)
-        
+
         /**
          * Negative infinity (-∞).
          */
         val NEGATIVE_INFINITY = CFloat16(Float16Math.NEG_INF_BITS)
-        
+
         /**
          * Create CFloat16 from raw bits.
          *
@@ -316,7 +307,7 @@ class CFloat16 private constructor(private val bits: Int) {
          * @return A new CFloat16 with the specified bit pattern
          */
         fun fromBits(bits: Int): CFloat16 = CFloat16(bits and 0xFFFF)
-        
+
         /**
          * Create CFloat16 from raw bits (UShort variant).
          *
@@ -324,7 +315,7 @@ class CFloat16 private constructor(private val bits: Int) {
          * @return A new CFloat16 with the specified bit pattern
          */
         fun fromBits(bits: UShort): CFloat16 = CFloat16(bits.toInt() and 0xFFFF)
-        
+
         /**
          * Create CFloat16 from [Float] with rounding.
          *
@@ -346,7 +337,7 @@ class CFloat16 private constructor(private val bits: Int) {
             val f16bits = Float16Math.fromFloat32Bits(f32bits)
             return CFloat16(f16bits)
         }
-        
+
         /**
          * Create CFloat16 from [Double].
          *
@@ -356,7 +347,7 @@ class CFloat16 private constructor(private val bits: Int) {
          * @return A new CFloat16 representing the rounded value
          */
         fun fromDouble(value: Double): CFloat16 = fromFloat(value.toFloat())
-        
+
         /**
          * Create CFloat16 from [Int].
          *

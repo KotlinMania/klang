@@ -19,10 +19,13 @@ import io.github.kotlinmania.klang.mem.KMalloc
  * all targets. Shifts are routed through BitShiftEngine for cross-platform
  * determinism.
  */
-class C_UInt16 private constructor(val addr: Int) : Comparable<C_UInt16> {
-
+class C_UInt16 private constructor(
+    val addr: Int,
+) : Comparable<C_UInt16> {
     private fun toLong(): Long = engine.bitwiseAnd(GlobalHeap.lh(addr).toLong(), MASK_16)
+
     fun toUShort(): UShort = toLong().toUShort()
+
     fun toUInt(): UInt = toLong().toUInt()
 
     fun toHexString(): String = "0x" + toLong().toString(16).padStart(4, '0')
@@ -98,8 +101,11 @@ class C_UInt16 private constructor(val addr: Int) : Comparable<C_UInt16> {
         private val MASK_16: Long = engine.getMask(16)
 
         fun alloc(): C_UInt16 = C_UInt16(KMalloc.malloc(BYTES))
+
         fun zero(): C_UInt16 = alloc().also { GlobalHeap.sh(it.addr, 0) }
+
         fun one(): C_UInt16 = alloc().also { GlobalHeap.sh(it.addr, 1) }
+
         fun maxValue(): C_UInt16 = alloc().also { GlobalHeap.sh(it.addr, MASK_16.toShort()) }
 
         fun fromUShort(value: UShort): C_UInt16 =
