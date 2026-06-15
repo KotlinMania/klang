@@ -1,10 +1,9 @@
 import XCTest
 import Klang
 
-// Smoke test for the Kotlin → Swift Export → SPM → swift test pipeline.
+// Swift tests for the Kotlin → Swift Export → SPM → swift test pipeline.
 //
-// The file's mere existence and successful compilation prove three layers
-// of the pipeline:
+// Successful compilation proves three layers of the pipeline:
 //
 //   1. `embedSwiftExportForXcode` produced `Klang.swiftmodule/`
 //      and the supporting KotlinRuntimeSupport / ExportedKotlinPackages /
@@ -25,11 +24,29 @@ import Klang
 //      valid as a Swift identifier and reachable from this Package.swift
 //      via the `KlangLibrary` product.
 //
-// Add more meaningful per-API tests below as the Swift Export surface
-// grows. For now the import + a single passing assertion is the
-// canary that the pipeline is green for this repo.
 final class KlangExportTests: XCTestCase {
     func testSwiftModuleLoads() throws {
         XCTAssertTrue(true, "Klang swift module imported cleanly")
     }
+
+    func testBitShiftModeEnumExports() throws {
+        XCTAssertEqual(bitwise.BitShiftMode.AUTO.rawValue, 0)
+        XCTAssertEqual(bitwise.BitShiftMode.NATIVE.description, "NATIVE")
+        XCTAssertEqual(bitwise.BitShiftMode(rawValue: 2), .ARITHMETIC)
+        XCTAssertEqual(bitwise.BitShiftMode("AUTO"), .AUTO)
+    }
+
+    func testArithmeticBitwiseOpsBridge() throws {
+        let ops = bitwise.ArithmeticBitwiseOps(bitLength: 8)
+
+        XCTAssertEqual(ops.and(value1: 0b1100, value2: 0b1010), 0b1000)
+        XCTAssertEqual(ops.or(value1: 0b1100, value2: 0b1010), 0b1110)
+        XCTAssertEqual(ops.xor(value1: 0b1100, value2: 0b1010), 0b0110)
+        XCTAssertEqual(ops.not(value: 0b0000), 0xFF)
+        XCTAssertEqual(ops.leftShift(value: 0b0011, bits: 2), 0b1100)
+        XCTAssertEqual(ops.normalize(value: 0x1FF), 0xFF)
+        XCTAssertTrue(ops.isBitSet(value: 0b1000, bitPosition: 3))
+        XCTAssertFalse(ops.isBitSet(value: 0b1000, bitPosition: 2))
+    }
+
 }

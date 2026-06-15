@@ -232,15 +232,6 @@ tasks.matching { it.name == "compileAndroidMain" }.configureEach {
     dependsOn(ensureAndroidSdk)
 }
 
-// Gap #9b: KGP-generated bridge boilerplate and KotlinCoroutineSupport runtime
-// produce warnings (unchecked casts, unused expressions, opt-in requirements)
-// that cannot be fixed in source — they are regenerated every build.
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
-    if (name.startsWith("compileSwiftExport")) {
-        compilerOptions.allWarningsAsErrors.set(false)
-    }
-}
-
 val jvmToolchainVersion = providers.gradleProperty("jvm.toolchain").getOrElse("21").toInt()
 
 // ============================================================================
@@ -477,6 +468,66 @@ tasks
         enabled = false
     }
 
+val patchSwiftExportGeneratedKotlinWarnings by tasks.registering {
+    group = "build"
+    description = "Normalizes generated Swift Export Kotlin bridge sources before strict compilation."
+    dependsOn(
+        tasks.matching { task ->
+            task.name.endsWith("DebugSwiftExport") ||
+                task.name.endsWith("DebugGenerateSPMPackage") ||
+                task.name.endsWith("DebugBuildSPMPackage")
+        },
+    )
+    outputs.upToDateWhen { false }
+    doLast {
+        val swiftExportDir =
+            layout.buildDirectory
+                .dir("SwiftExport")
+                .get()
+                .asFile
+        if (!swiftExportDir.isDirectory) return@doLast
+
+        swiftExportDir
+            .walkTopDown()
+            .filter { file -> file.isFile && file.extension == "kt" }
+            .forEach { file ->
+                var text = file.readText()
+                text = text.replace(Regex("(?m)^@file:(?:kotlin\\.)?Suppress\\([^\\r\\n]*\\)\\r?\\n"), "")
+                text =
+                    "@file:kotlin.Suppress(\"DEPRECATION_ERROR\", \"UNCHECKED_CAST\", \"UNUSED_EXPRESSION\", \"USELESS_ELVIS\")\n$text"
+                if (file.name == "KotlinCoroutineSupport.kt") {
+                    text =
+                        text.replace(
+                            Regex(
+                                "(?m)^@file:OptIn\\(kotlinx\\.coroutines\\.InternalForInheritanceCoroutinesApi::class\\)\\r?\\n",
+                            ),
+                            "",
+                        )
+                    text = "@file:OptIn(kotlinx.coroutines.InternalForInheritanceCoroutinesApi::class)\n$text"
+                    text =
+                        text.replace(
+                            "is State.Completed -> return state.error?.let { throw it } ?: null",
+                            """
+                            is State.Completed -> {
+                                state.error?.let { throw it }
+                                return null
+                            }
+                            """.trimIndent(),
+                        )
+                }
+                file.writeText(text)
+            }
+    }
+}
+
+tasks
+    .matching { task ->
+        task.name.startsWith("compileSwiftExport") &&
+            task.name.contains("Kotlin")
+    }.configureEach {
+        dependsOn(patchSwiftExportGeneratedKotlinWarnings)
+    }
+
 tasks.named("check") {
     dependsOn(tasks.named("detekt"))
     dependsOn(tasks.named("ktlintCheck"))
@@ -613,6 +664,14 @@ tasks.register("hostTests") {
     )
 }
 
+tasks.register("test") {
+    group = "verification"
+    description = "Runs the full local test gate, including Swift Export."
+    dependsOn("allTests")
+    dependsOn("testAndroidHostTest")
+    dependsOn("swiftExportSmokeTest")
+}
+
 // Swift Export smoke test — produces the SPM package via embedSwiftExportForXcode
 // (spawned with the Xcode-style env it requires) and runs `swift test` against it,
 // so Swift Export breakage surfaces locally, not only in the swift.yml CI job.
@@ -662,6 +721,7 @@ tasks.register("swiftExportSmokeTest") {
                 commandLine(
                     "./gradlew",
                     "embedSwiftExportForXcode",
+                    ":swift-common-test-export:embedSwiftExportForXcode",
                     "--no-configuration-cache",
                     "--no-daemon",
                     "--console=plain",
@@ -686,10 +746,36 @@ tasks.register("swiftExportSmokeTest") {
                 .get()
                 .asFile
         patchSwiftExportPackagePlatforms(generatedPackageSwift)
+        val generatedTestPackageSwift =
+            layout.projectDirectory
+                .file("swift-common-test-export/build/SPMPackage/macosArm64/Debug/Package.swift")
+                .asFile
+        patchSwiftExportPackagePlatforms(generatedTestPackageSwift)
+
+        val swiftTestPackagesDir =
+            layout.buildDirectory
+                .dir("swift-test-packages")
+                .get()
+                .asFile
+        delete(swiftTestPackagesDir)
+        copy {
+            from(generatedPackageSwift.parentFile)
+            into(swiftTestPackagesDir.resolve("Klang"))
+        }
+        copy {
+            from(generatedTestPackageSwift.parentFile)
+            into(swiftTestPackagesDir.resolve("KlangTests"))
+        }
 
         execOperations
             .exec {
                 workingDir = layout.projectDirectory.dir("swift-test-harness").asFile
+                commandLine("swift", "test")
+            }.assertNormalExitValue()
+
+        execOperations
+            .exec {
+                workingDir = layout.projectDirectory.dir("swift-common-test-harness").asFile
                 commandLine("swift", "test")
             }.assertNormalExitValue()
     }

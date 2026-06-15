@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "klang"
+include(":swift-common-test-export")

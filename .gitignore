@@ -1,6 +1,7 @@
 /.gradle
 /.idea
 /build
+/swift-common-test-export/build/
 /docs/default
 /out
 /out.kt
