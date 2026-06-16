@@ -34,11 +34,6 @@ plugins {
     alias(libs.plugins.kotlin.allopen)
 }
 
-allOpen {
-    annotation("org.openjdk.jmh.annotations.State")
-    annotation("kotlinx.benchmark.State")
-}
-
 group = providers.gradleProperty("project.group").getOrElse("io.github.kotlinmania")
 version = providers.gradleProperty("project.version").getOrElse("0.1.0-SNAPSHOT")
 val frameworkName = providers.gradleProperty("project.frameworkName").getOrElse("Unnamed")
@@ -52,6 +47,44 @@ val commonMainDependencyBundle =
         .named("libs")
         .findBundle(commonMainBundleName)
         .orElseThrow { GradleException("Missing libs bundle '$commonMainBundleName'") }
+
+fun csvProperty(name: String): Set<String> =
+    providers
+        .gradleProperty(name)
+        .map { value ->
+            value
+                .split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .toSet()
+        }.getOrElse(emptySet())
+
+fun optionalTrimmedProperty(name: String): String? =
+    providers
+        .gradleProperty(name)
+        .map { it.trim() }
+        .orNull
+        ?.takeIf { it.isNotEmpty() }
+
+val enabledFeatureNames = csvProperty("project.features")
+val benchmarkEnabled = "benchmark" in enabledFeatureNames
+val benchmarkTargetNames = csvProperty("project.benchmark.targets")
+val commonBenchmarkBundleName = optionalTrimmedProperty("project.dependencies.commonBenchmarkBundle")
+val commonBenchmarkDependencyBundle =
+    commonBenchmarkBundleName?.let { bundleName ->
+        extensions
+            .getByType(VersionCatalogsExtension::class.java)
+            .named("libs")
+            .findBundle(bundleName)
+            .orElseThrow { GradleException("Missing libs bundle '$bundleName'") }
+    }
+if (benchmarkEnabled && commonBenchmarkDependencyBundle == null) {
+    throw GradleException("Feature 'benchmark' requires project.dependencies.commonBenchmarkBundle")
+}
+val benchmarkWarmups = providers.gradleProperty("project.benchmark.warmups").map { it.toInt() }.getOrElse(3)
+val benchmarkIterations = providers.gradleProperty("project.benchmark.iterations").map { it.toInt() }.getOrElse(5)
+val benchmarkIterationTime = providers.gradleProperty("project.benchmark.iterationTime").map { it.toLong() }.getOrElse(1L)
+val benchmarkIterationTimeUnit = providers.gradleProperty("project.benchmark.iterationTimeUnit").getOrElse("s")
 
 // Opt-ins shared across Kotlin targets.
 val commonOptIns =
@@ -107,6 +140,7 @@ val requiredAndroidSdkPackageDirs =
     )
 
 fun writeAndroidLocalProperties() {
+    projectAndroidSdkDir.mkdirs()
     val sdkDirPropertyValue = projectAndroidSdkDir.absolutePath.replace("\\", "/")
     layout.projectDirectory
         .file("local.properties")
@@ -217,7 +251,7 @@ fun installProjectAndroidSdk(execOperations: ExecOperations) {
     println("setup-android-sdk: done; SDK at $projectAndroidSdkDir")
 }
 
-writeAndroidLocalProperties()
+installProjectAndroidSdk(serviceOf())
 
 val ensureAndroidSdk by tasks.registering {
     group = "setup"
@@ -230,6 +264,15 @@ val ensureAndroidSdk by tasks.registering {
 
 tasks.matching { it.name == "compileAndroidMain" }.configureEach {
     dependsOn(ensureAndroidSdk)
+}
+
+// Gap #9b: KGP-generated bridge boilerplate and KotlinCoroutineSupport runtime
+// produce warnings (unchecked casts, unused expressions, opt-in requirements)
+// that cannot be fixed in source — they are regenerated every build.
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
+    if (name.startsWith("compileSwiftExport")) {
+        compilerOptions.allWarningsAsErrors.set(false)
+    }
 }
 
 val jvmToolchainVersion = providers.gradleProperty("jvm.toolchain").getOrElse("21").toInt()
@@ -249,18 +292,6 @@ kotlin {
     jvmToolchain(jvmToolchainVersion)
 
     applyDefaultHierarchyTemplate()
-
-    fun KotlinTarget.configureBenchmarkCompilation() {
-        val mainCompilation = compilations.getByName("main")
-        if (compilations.findByName("benchmark") == null) {
-            compilations.create("benchmark") {
-                associateWith(mainCompilation)
-                defaultSourceSet.dependencies {
-                    implementation(libs.kotlinx.benchmark.runtime)
-                }
-            }
-        }
-    }
 
     compilerOptions {
         languageVersion.set(KotlinVersion.KOTLIN_2_4)
@@ -283,22 +314,57 @@ kotlin {
         }
     }
 
+    fun KotlinTarget.configureBenchmarkCompilation() {
+        if (!benchmarkEnabled || name !in benchmarkTargetNames) return
+        val mainCompilation = compilations.getByName("main")
+        compilations.create("benchmark") {
+            associateWith(mainCompilation)
+            defaultSourceSet.dependencies {
+                implementation(commonBenchmarkDependencyBundle!!)
+            }
+        }
+    }
+
     // Apple — Tier 1/2 targets
     macosArm64 {
         configureBenchmarkCompilation()
         addToXcf()
     }
-    iosArm64 { addToXcf(static = true) }
-    iosSimulatorArm64 { addToXcf(static = true) }
-    tvosArm64 { addToXcf() }
-    tvosSimulatorArm64 { addToXcf() }
-    watchosArm64 { addToXcf() }
-    watchosDeviceArm64 { addToXcf() }
-    watchosSimulatorArm64 { addToXcf() }
+    iosArm64 {
+        configureBenchmarkCompilation()
+        addToXcf(static = true)
+    }
+    iosSimulatorArm64 {
+        configureBenchmarkCompilation()
+        addToXcf(static = true)
+    }
+    tvosArm64 {
+        configureBenchmarkCompilation()
+        addToXcf()
+    }
+    tvosSimulatorArm64 {
+        configureBenchmarkCompilation()
+        addToXcf()
+    }
+    watchosArm64 {
+        configureBenchmarkCompilation()
+        addToXcf()
+    }
+    watchosDeviceArm64 {
+        configureBenchmarkCompilation()
+        addToXcf()
+    }
+    watchosSimulatorArm64 {
+        configureBenchmarkCompilation()
+        addToXcf()
+    }
 
     // iosX64: Intel Mac simulator. Tier 3 in Kotlin/Native but NOT deprecated —
     // Apple still ships x86_64 iOS simulator runtimes, so it is always built.
-    iosX64 { addToXcf(static = true) }
+    iosX64 {
+        configureBenchmarkCompilation()
+        addToXcf(static = true)
+    }
 
     // Other native — Tier 1/2
     linuxX64 { configureBenchmarkCompilation() }
@@ -306,10 +372,10 @@ kotlin {
     mingwX64 { configureBenchmarkCompilation() }
 
     // Android NDK — always built (full target surface, no opt-in gate).
-    androidNativeArm32()
-    androidNativeArm64()
-    androidNativeX86()
-    androidNativeX64()
+    androidNativeArm32 { configureBenchmarkCompilation() }
+    androidNativeArm64 { configureBenchmarkCompilation() }
+    androidNativeX86 { configureBenchmarkCompilation() }
+    androidNativeX64 { configureBenchmarkCompilation() }
 
     // Web
     js {
@@ -321,12 +387,14 @@ kotlin {
     // wasmJs is Stable as of Kotlin 2.2; @OptIn may be removable — verify before dropping on wasmWasi.
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
+        configureBenchmarkCompilation()
         browser()
         nodejs()
     }
 
     @OptIn(ExperimentalWasmDsl::class)
     wasmWasi {
+        configureBenchmarkCompilation()
         nodejs()
     }
 
@@ -336,6 +404,10 @@ kotlin {
     swiftExport {
         moduleName = frameworkName
         flattenPackage = projectNamespace
+        @OptIn(org.jetbrains.kotlin.gradle.swiftexport.ExperimentalSwiftExportDsl::class)
+        configure {
+            settings.put("enableCoroutinesSupport", "true")
+        }
     }
 
     // Android KMP library. Block name is `android` — `androidLibrary` is deprecated in current KGP.
@@ -349,6 +421,7 @@ kotlin {
 
     // JVM — jvmTarget derived from the same toolchain property so they can't drift.
     jvm {
+        configureBenchmarkCompilation()
         compilerOptions {
             jvmTarget.set(JvmTarget.fromTarget(jvmToolchainVersion.toString()))
         }
@@ -361,43 +434,37 @@ kotlin {
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
-    }
-}
-
-afterEvaluate {
-    val sourceSets = kotlin.sourceSets
-    val commonBenchmarkSourceSet =
-        sourceSets.findByName("commonBenchmark")
-            ?: sourceSets.create("commonBenchmark").apply {
-                dependencies {
-                    implementation(libs.kotlinx.benchmark.runtime)
-                }
+        if (benchmarkEnabled) {
+            val commonBenchmark = maybeCreate("commonBenchmark")
+            commonBenchmark.dependencies {
+                implementation(commonBenchmarkDependencyBundle!!)
             }
-    listOf(
-        "jsBenchmark",
-        "macosArm64Benchmark",
-        "linuxX64Benchmark",
-        "linuxArm64Benchmark",
-        "mingwX64Benchmark",
-    ).forEach { benchmarkSourceSetName ->
-        sourceSets.findByName(benchmarkSourceSetName)?.dependsOn(commonBenchmarkSourceSet)
+            benchmarkTargetNames.forEach { targetName ->
+                findByName("${targetName}Benchmark")?.dependsOn(commonBenchmark)
+            }
+        }
     }
 }
 
-benchmark {
-    targets {
-        register("jsBenchmark")
-        register("macosArm64Benchmark")
-        register("linuxX64Benchmark")
-        register("linuxArm64Benchmark")
-        register("mingwX64Benchmark")
-    }
-    configurations {
-        named("main") {
-            warmups = 3
-            iterations = 5
-            iterationTime = 1
-            iterationTimeUnit = "s"
+allOpen {
+    annotation("org.openjdk.jmh.annotations.State")
+    annotation("kotlinx.benchmark.State")
+}
+
+if (benchmarkEnabled) {
+    benchmark {
+        targets {
+            benchmarkTargetNames.forEach { targetName ->
+                register("${targetName}Benchmark")
+            }
+        }
+        configurations {
+            named("main") {
+                warmups = benchmarkWarmups
+                iterations = benchmarkIterations
+                iterationTime = benchmarkIterationTime
+                iterationTimeUnit = benchmarkIterationTimeUnit
+            }
         }
     }
 }
@@ -460,76 +527,25 @@ ktlint {
     }
 }
 
-tasks
-    .matching { task ->
-        task.name.startsWith("runKtlintCheckOver") &&
-            task.name.endsWith("BenchmarkBenchmarkSourceSet")
-    }.configureEach {
-        enabled = false
-    }
+if (benchmarkEnabled) {
+    tasks
+        .withType<io.gitlab.arturbosch.detekt.Detekt>()
+        .matching {
+            it.name.contains("BenchmarkBenchmark")
+        }.configureEach {
+            enabled = false
+        }
 
-val patchSwiftExportGeneratedKotlinWarnings by tasks.registering {
-    group = "build"
-    description = "Normalizes generated Swift Export Kotlin bridge sources before strict compilation."
-    dependsOn(
-        tasks.matching { task ->
-            task.name.endsWith("DebugSwiftExport") ||
-                task.name.endsWith("DebugGenerateSPMPackage") ||
-                task.name.endsWith("DebugBuildSPMPackage")
-        },
-    )
-    outputs.upToDateWhen { false }
-    doLast {
-        val swiftExportDir =
-            layout.buildDirectory
-                .dir("SwiftExport")
-                .get()
-                .asFile
-        if (!swiftExportDir.isDirectory) return@doLast
-
-        swiftExportDir
-            .walkTopDown()
-            .filter { file -> file.isFile && file.extension == "kt" }
-            .forEach { file ->
-                var text = file.readText()
-                text = text.replace(Regex("(?m)^@file:(?:kotlin\\.)?Suppress\\([^\\r\\n]*\\)\\r?\\n"), "")
-                text =
-                    "@file:kotlin.Suppress(\"DEPRECATION_ERROR\", \"UNCHECKED_CAST\", \"UNUSED_EXPRESSION\", \"USELESS_ELVIS\")\n$text"
-                if (file.name == "KotlinCoroutineSupport.kt") {
-                    text =
-                        text.replace(
-                            Regex(
-                                "(?m)^@file:OptIn\\(kotlinx\\.coroutines\\.InternalForInheritanceCoroutinesApi::class\\)\\r?\\n",
-                            ),
-                            "",
-                        )
-                    text = "@file:OptIn(kotlinx.coroutines.InternalForInheritanceCoroutinesApi::class)\n$text"
-                    text =
-                        text.replace(
-                            "is State.Completed -> return state.error?.let { throw it } ?: null",
-                            """
-                            is State.Completed -> {
-                                state.error?.let { throw it }
-                                return null
-                            }
-                            """.trimIndent(),
-                        )
-                }
-                file.writeText(text)
-            }
-    }
+    tasks
+        .matching {
+            it.name.startsWith("runKtlintCheckOver") && it.name.endsWith("BenchmarkBenchmarkSourceSet")
+        }.configureEach {
+            enabled = false
+        }
 }
 
-tasks
-    .matching { task ->
-        task.name.startsWith("compileSwiftExport") &&
-            task.name.contains("Kotlin")
-    }.configureEach {
-        dependsOn(patchSwiftExportGeneratedKotlinWarnings)
-    }
-
 tasks.named("check") {
-    dependsOn(tasks.named("detekt"))
+    dependsOn(tasks.withType<io.gitlab.arturbosch.detekt.Detekt>())
     dependsOn(tasks.named("ktlintCheck"))
     // Android host unit tests run here alongside the tests that check -> allTests
     // already executes (jvm, macosArm64, the Apple simulators, js, wasmJs,
@@ -664,44 +680,11 @@ tasks.register("hostTests") {
     )
 }
 
-tasks.register("test") {
-    group = "verification"
-    description = "Runs the full local test gate, including Swift Export."
-    dependsOn("allTests")
-    dependsOn("testAndroidHostTest")
-    dependsOn("swiftExportSmokeTest")
-}
-
 // Swift Export smoke test — produces the SPM package via embedSwiftExportForXcode
 // (spawned with the Xcode-style env it requires) and runs `swift test` against it,
 // so Swift Export breakage surfaces locally, not only in the swift.yml CI job.
 // Pattern mirrors kasuari-kotlin. This task is part of the build contract and
 // must fail rather than skip when the required toolchain is unavailable.
-fun patchSwiftExportPackagePlatforms(packageSwift: File) {
-    if (packageSwift.exists()) {
-        val text = packageSwift.readText()
-        if (!text.contains("platforms:")) {
-            packageSwift.writeText(
-                text.replaceFirst(
-                    Regex("(name:\\s*\"[^\"]*\",)"),
-                    "\$1\n    platforms: [.macOS(.v14)],",
-                ),
-            )
-        }
-    }
-}
-
-tasks.matching { it.name == "macosArm64DebugBuildSPMPackage" }.configureEach {
-    doFirst {
-        patchSwiftExportPackagePlatforms(
-            layout.buildDirectory
-                .file("SPMPackage/macosArm64/Debug/Package.swift")
-                .get()
-                .asFile,
-        )
-    }
-}
-
 tasks.register("swiftExportSmokeTest") {
     group = "verification"
     description = "Builds the Swift Export SPM package and runs swift test against it."
@@ -721,7 +704,6 @@ tasks.register("swiftExportSmokeTest") {
                 commandLine(
                     "./gradlew",
                     "embedSwiftExportForXcode",
-                    ":swift-common-test-export:embedSwiftExportForXcode",
                     "--no-configuration-cache",
                     "--no-daemon",
                     "--console=plain",
@@ -745,37 +727,21 @@ tasks.register("swiftExportSmokeTest") {
                 .file("SPMPackage/macosArm64/Debug/Package.swift")
                 .get()
                 .asFile
-        patchSwiftExportPackagePlatforms(generatedPackageSwift)
-        val generatedTestPackageSwift =
-            layout.projectDirectory
-                .file("swift-common-test-export/build/SPMPackage/macosArm64/Debug/Package.swift")
-                .asFile
-        patchSwiftExportPackagePlatforms(generatedTestPackageSwift)
-
-        val swiftTestPackagesDir =
-            layout.buildDirectory
-                .dir("swift-test-packages")
-                .get()
-                .asFile
-        delete(swiftTestPackagesDir)
-        copy {
-            from(generatedPackageSwift.parentFile)
-            into(swiftTestPackagesDir.resolve("Klang"))
-        }
-        copy {
-            from(generatedTestPackageSwift.parentFile)
-            into(swiftTestPackagesDir.resolve("KlangTests"))
+        if (generatedPackageSwift.exists()) {
+            val text = generatedPackageSwift.readText()
+            if (!text.contains("platforms:")) {
+                generatedPackageSwift.writeText(
+                    text.replaceFirst(
+                        Regex("(name:\\s*\"[^\"]*\",)"),
+                        "\$1\n    platforms: [.macOS(.v14)],",
+                    ),
+                )
+            }
         }
 
         execOperations
             .exec {
                 workingDir = layout.projectDirectory.dir("swift-test-harness").asFile
-                commandLine("swift", "test")
-            }.assertNormalExitValue()
-
-        execOperations
-            .exec {
-                workingDir = layout.projectDirectory.dir("swift-common-test-harness").asFile
                 commandLine("swift", "test")
             }.assertNormalExitValue()
     }

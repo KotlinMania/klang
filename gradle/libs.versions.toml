@@ -25,3 +25,6 @@ kotlinx-benchmark-runtime = { module = "org.jetbrains.kotlinx:kotlinx-benchmark-
 klang-commonMain = [
   "kotlinx-coroutines-core",
 ]
+klang-commonBenchmark = [
+  "kotlinx-benchmark-runtime",
+]
