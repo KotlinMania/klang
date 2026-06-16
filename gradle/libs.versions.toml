@@ -5,7 +5,7 @@ androidKmp = "9.2.1"
 vanniktech = "0.36.0"
 detekt = "1.23.8"
 ktlint = "14.2.0"
-kotlinxBenchmark = "0.4.16"
+kotlinxBenchmark = "0.4.17"
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
