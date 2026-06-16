@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "SwiftTestHarness",
     dependencies: [
-        .package(name: "Klang", path: "../build/swift-test-packages/Klang")
+        .package(name: "Klang", path: "../build/SPMPackage/macosArm64/Debug")
     ],
     targets: [
         .testTarget(
