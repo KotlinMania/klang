@@ -8,6 +8,7 @@ import org.gradle.process.ExecOperations
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsEnvSpec
@@ -29,6 +30,8 @@ plugins {
     alias(libs.plugins.vanniktech)
     alias(libs.plugins.detekt)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.kotlinx.benchmark)
+    alias(libs.plugins.kotlin.allopen)
 }
 
 group = providers.gradleProperty("project.group").getOrElse("io.github.kotlinmania")
@@ -44,6 +47,44 @@ val commonMainDependencyBundle =
         .named("libs")
         .findBundle(commonMainBundleName)
         .orElseThrow { GradleException("Missing libs bundle '$commonMainBundleName'") }
+
+fun csvProperty(name: String): Set<String> =
+    providers
+        .gradleProperty(name)
+        .map { value ->
+            value
+                .split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .toSet()
+        }.getOrElse(emptySet())
+
+fun optionalTrimmedProperty(name: String): String? =
+    providers
+        .gradleProperty(name)
+        .map { it.trim() }
+        .orNull
+        ?.takeIf { it.isNotEmpty() }
+
+val enabledFeatureNames = csvProperty("project.features")
+val benchmarkEnabled = "benchmark" in enabledFeatureNames
+val benchmarkTargetNames = csvProperty("project.benchmark.targets")
+val commonBenchmarkBundleName = optionalTrimmedProperty("project.dependencies.commonBenchmarkBundle")
+val commonBenchmarkDependencyBundle =
+    commonBenchmarkBundleName?.let { bundleName ->
+        extensions
+            .getByType(VersionCatalogsExtension::class.java)
+            .named("libs")
+            .findBundle(bundleName)
+            .orElseThrow { GradleException("Missing libs bundle '$bundleName'") }
+    }
+if (benchmarkEnabled && commonBenchmarkDependencyBundle == null) {
+    throw GradleException("Feature 'benchmark' requires project.dependencies.commonBenchmarkBundle")
+}
+val benchmarkWarmups = providers.gradleProperty("project.benchmark.warmups").map { it.toInt() }.getOrElse(3)
+val benchmarkIterations = providers.gradleProperty("project.benchmark.iterations").map { it.toInt() }.getOrElse(5)
+val benchmarkIterationTime = providers.gradleProperty("project.benchmark.iterationTime").map { it.toLong() }.getOrElse(1L)
+val benchmarkIterationTimeUnit = providers.gradleProperty("project.benchmark.iterationTimeUnit").getOrElse("s")
 
 // Opt-ins shared across Kotlin targets.
 val commonOptIns =
@@ -273,33 +314,72 @@ kotlin {
         }
     }
 
+    fun KotlinTarget.configureBenchmarkCompilation() {
+        if (!benchmarkEnabled || name !in benchmarkTargetNames) return
+        val mainCompilation = compilations.getByName("main")
+        compilations.create("benchmark") {
+            associateWith(mainCompilation)
+            defaultSourceSet.dependencies {
+                implementation(commonBenchmarkDependencyBundle!!)
+            }
+        }
+    }
+
     // Apple — Tier 1/2 targets
-    macosArm64 { addToXcf() }
-    iosArm64 { addToXcf(static = true) }
-    iosSimulatorArm64 { addToXcf(static = true) }
-    tvosArm64 { addToXcf() }
-    tvosSimulatorArm64 { addToXcf() }
-    watchosArm64 { addToXcf() }
-    watchosDeviceArm64 { addToXcf() }
-    watchosSimulatorArm64 { addToXcf() }
+    macosArm64 {
+        configureBenchmarkCompilation()
+        addToXcf()
+    }
+    iosArm64 {
+        configureBenchmarkCompilation()
+        addToXcf(static = true)
+    }
+    iosSimulatorArm64 {
+        configureBenchmarkCompilation()
+        addToXcf(static = true)
+    }
+    tvosArm64 {
+        configureBenchmarkCompilation()
+        addToXcf()
+    }
+    tvosSimulatorArm64 {
+        configureBenchmarkCompilation()
+        addToXcf()
+    }
+    watchosArm64 {
+        configureBenchmarkCompilation()
+        addToXcf()
+    }
+    watchosDeviceArm64 {
+        configureBenchmarkCompilation()
+        addToXcf()
+    }
+    watchosSimulatorArm64 {
+        configureBenchmarkCompilation()
+        addToXcf()
+    }
 
     // iosX64: Intel Mac simulator. Tier 3 in Kotlin/Native but NOT deprecated —
     // Apple still ships x86_64 iOS simulator runtimes, so it is always built.
-    iosX64 { addToXcf(static = true) }
+    iosX64 {
+        configureBenchmarkCompilation()
+        addToXcf(static = true)
+    }
 
     // Other native — Tier 1/2
-    linuxX64()
-    linuxArm64()
-    mingwX64()
+    linuxX64 { configureBenchmarkCompilation() }
+    linuxArm64 { configureBenchmarkCompilation() }
+    mingwX64 { configureBenchmarkCompilation() }
 
     // Android NDK — always built (full target surface, no opt-in gate).
-    androidNativeArm32()
-    androidNativeArm64()
-    androidNativeX86()
-    androidNativeX64()
+    androidNativeArm32 { configureBenchmarkCompilation() }
+    androidNativeArm64 { configureBenchmarkCompilation() }
+    androidNativeX86 { configureBenchmarkCompilation() }
+    androidNativeX64 { configureBenchmarkCompilation() }
 
     // Web
     js {
+        configureBenchmarkCompilation()
         browser()
         nodejs()
     }
@@ -307,12 +387,14 @@ kotlin {
     // wasmJs is Stable as of Kotlin 2.2; @OptIn may be removable — verify before dropping on wasmWasi.
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
+        configureBenchmarkCompilation()
         browser()
         nodejs()
     }
 
     @OptIn(ExperimentalWasmDsl::class)
     wasmWasi {
+        configureBenchmarkCompilation()
         nodejs()
     }
 
@@ -339,6 +421,7 @@ kotlin {
 
     // JVM — jvmTarget derived from the same toolchain property so they can't drift.
     jvm {
+        configureBenchmarkCompilation()
         compilerOptions {
             jvmTarget.set(JvmTarget.fromTarget(jvmToolchainVersion.toString()))
         }
@@ -350,6 +433,38 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+        }
+        if (benchmarkEnabled) {
+            val commonBenchmark = maybeCreate("commonBenchmark")
+            commonBenchmark.dependencies {
+                implementation(commonBenchmarkDependencyBundle!!)
+            }
+            benchmarkTargetNames.forEach { targetName ->
+                findByName("${targetName}Benchmark")?.dependsOn(commonBenchmark)
+            }
+        }
+    }
+}
+
+allOpen {
+    annotation("org.openjdk.jmh.annotations.State")
+    annotation("kotlinx.benchmark.State")
+}
+
+if (benchmarkEnabled) {
+    benchmark {
+        targets {
+            benchmarkTargetNames.forEach { targetName ->
+                register("${targetName}Benchmark")
+            }
+        }
+        configurations {
+            named("main") {
+                warmups = benchmarkWarmups
+                iterations = benchmarkIterations
+                iterationTime = benchmarkIterationTime
+                iterationTimeUnit = benchmarkIterationTimeUnit
+            }
         }
     }
 }
@@ -410,6 +525,23 @@ ktlint {
         exclude("**/build/**")
         include("**/src/**/kotlin/**")
     }
+}
+
+if (benchmarkEnabled) {
+    tasks
+        .withType<io.gitlab.arturbosch.detekt.Detekt>()
+        .matching {
+            it.name.contains("BenchmarkBenchmark")
+        }.configureEach {
+            enabled = false
+        }
+
+    tasks
+        .matching {
+            it.name.startsWith("runKtlintCheckOver") && it.name.endsWith("BenchmarkBenchmarkSourceSet")
+        }.configureEach {
+            enabled = false
+        }
 }
 
 tasks.named("check") {
