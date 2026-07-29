@@ -1,5 +1,5 @@
 [versions]
-kotlin = "2.4.0"
+kotlin = "2.4.10"
 coroutines = "1.11.0"
 androidKmp = "9.3.1"
 vanniktech = "0.36.0"
