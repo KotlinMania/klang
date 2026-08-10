@@ -23,17 +23,50 @@ DEPLOYMENT_TARGET_SETTING_NAME=MACOSX_DEPLOYMENT_TARGET \
 If Swift Export is configured, `./gradlew test --no-configuration-cache`
 must also run the Swift smoke test.
 
-## Non-Fatal Noise
+## Swift Export Worker Classpath
 
-This error is known KGP noise:
+This error can appear during `macosArm64DebugSwiftExport`:
 
 ```text
 NoClassDefFoundError: kotlinx/coroutines/internal/intellij/IntellijCoroutines
 ```
 
-It is not the build failure. Do not add a jar to the buildscript or
-classpath. The worker process has its own classpath, and `SWIFT.md`
-documents that there is no per-repo jar fix.
+It is not the downstream Swift build failure by itself: Gradle may still
+finish `BUILD SUCCESSFUL`. But it is also not random noise. The missing
+class is provided by JetBrains' IntelliJ-flavored coroutine artifact, not
+by normal `org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm`.
+
+Do not add jars to `buildscript` or the ordinary project dependency
+classpath. KGP runs Swift Export in an isolated Gradle worker whose
+classpath comes from the `swiftExportClasspath` configuration. The build
+script must fill that configuration directly:
+
+```kotlin
+val intellijCoroutinesVersion =
+    providers.gradleProperty("versions.intellij.coroutines").getOrElse("1.10.2-intellij-1")
+
+val projectDependencyHandler = project.dependencies
+configurations.configureEach {
+    if (name == "swiftExportClasspath") {
+        dependencies.add(projectDependencyHandler.create("org.jetbrains.kotlin:swift-export-embeddable:$kotlinVersion"))
+        dependencies.add(
+            projectDependencyHandler.create(
+                "org.jetbrains.intellij.deps.kotlinx:kotlinx-coroutines-core-jvm:$intellijCoroutinesVersion",
+            ),
+        )
+    }
+}
+```
+
+`swift-export-embeddable` must be listed explicitly. KGP normally adds it
+with Gradle `defaultDependencies`, but adding any dependency to
+`swiftExportClasspath` disables that default population.
+
+`gradle.properties` carries the IntelliJ coroutine patch version:
+
+```properties
+versions.intellij.coroutines=1.10.2-intellij-1
+```
 
 ## Forbidden Fixes
 
@@ -46,7 +79,8 @@ Do not use these to make Swift Export pass:
 - compatibility `typealias` declarations that preserve a bad exported name
 - disabling targets
 - scoping `allWarningsAsErrors=false` to hide warnings from our own API bridge
-- adding jars for the `IntellijCoroutines` worker error
+- adding ordinary coroutines jars or buildscript jars for the
+  `IntellijCoroutines` worker error
 
 Annotation hiding is not an API repair. If something is not API, make it
 `internal`. If it is API, make it bridgeable.
