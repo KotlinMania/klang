@@ -34,3 +34,7 @@ klang-commonMain = [
   "kotlinx-datetime",
   "collections-immutable",
 ]
+klang-commonBenchmark = [
+  "kotlinx-benchmark-runtime",
+]
+
