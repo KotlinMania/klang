@@ -1,13 +1,14 @@
 [versions]
 kotlin = "2.4.0"
 coroutines = "1.11.0"
+vanniktech = "0.37.0"
 serialization = "1.11.0"
 datetime = "0.8.0"
 collectionsImmutable = "0.5.1"
-androidKmp = "9.2.1"
+androidKmp = "9.3.2"
 detekt = "1.23.8"
 ktlint = "14.2.0"
-kotlinxBenchmark = "0.4.17"
+kotlinxBenchmark = "0.4.19"
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
@@ -34,3 +35,7 @@ klang-commonMain = [
   "kotlinx-datetime",
   "collections-immutable",
 ]
+klang-commonBenchmark = [
+  "kotlinx-benchmark-runtime",
+]
+
