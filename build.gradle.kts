@@ -637,19 +637,37 @@ rootProject.extensions.configure<YarnRootEnvSpec>("kotlinYarnSpec") { version.se
 rootProject.extensions.configure<WasmYarnRootEnvSpec>("kotlinWasmYarnSpec") { version.set(wasmYarnVersion) }
 
 rootProject.extensions.configure<YarnRootExtension>("kotlinYarn") {
-    project.properties
-        .filterKeys { it.startsWith("yarn.resolution.") }
-        .forEach { (key, value) ->
-            val pkg = key.removePrefix("yarn.resolution.")
-            val ver = value as? String ?: return@forEach
-            resolution(pkg, ver)
-            resolution("**/$pkg", ver)
-        }
-    // webpack resolution sourced from kotlin-js-store/package.json (see above)
-    // rather than a yarn.resolution.webpack property, so it can never override a
-    // Dependabot bump of the store.
-    resolution("webpack", webpackVersion)
-    resolution("**/webpack", webpackVersion)
+    // CVE-driven version overrides for transitive npm deps. Each pair forces
+    // both top-level and nested resolution so a downstream package can't pull
+    // back in a vulnerable version through its own dependency tree.
+    resolution("diff", "8.0.3")
+    resolution("**/diff", "8.0.3")
+    resolution("fast-uri", "3.1.2")
+    resolution("**/fast-uri", "3.1.2")
+    resolution("serialize-javascript", "7.0.5")
+    resolution("**/serialize-javascript", "7.0.5")
+    resolution("webpack", "5.106.2")
+    resolution("**/webpack", "5.106.2")
+    resolution("follow-redirects", "1.16.0")
+    resolution("**/follow-redirects", "1.16.0")
+    resolution("lodash", "4.18.1")
+    resolution("**/lodash", "4.18.1")
+    resolution("ajv", "8.20.0")
+    resolution("**/ajv", "8.20.0")
+    resolution("brace-expansion", "5.0.6")
+    resolution("**/brace-expansion", "5.0.6")
+    resolution("flatted", "3.4.2")
+    resolution("**/flatted", "3.4.2")
+    resolution("minimatch", "10.2.5")
+    resolution("**/minimatch", "10.2.5")
+    resolution("picomatch", "4.0.4")
+    resolution("**/picomatch", "4.0.4")
+    resolution("qs", "6.15.1")
+    resolution("**/qs", "6.15.1")
+    resolution("socket.io-parser", "4.2.6")
+    resolution("**/socket.io-parser", "4.2.6")
+    resolution("ws", "8.20.1")
+    resolution("**/ws", "8.20.1")
 }
 
 val patchedKarmaWebpackPackage =
