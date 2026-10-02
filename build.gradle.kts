@@ -903,7 +903,8 @@ val publishToCentralPortal by tasks.registering {
 tasks.register("test") {
     group = "verification"
     description = "Runs the commonTest-backed KMP suite, Android host tests, and Swift Export smoke test."
-    dependsOn("hostTests")
+    dependsOn("allTests")
+    dependsOn("testAndroidHostTest")
     dependsOn("swiftExportSmokeTest")
 }
 
@@ -994,6 +995,12 @@ tasks.register("swiftExportSmokeTest") {
                         "DEPLOYMENT_TARGET_SETTING_NAME" to "MACOSX_DEPLOYMENT_TARGET",
                     ),
                 )
+            }.assertNormalExitValue()
+
+        execOperations
+            .exec {
+                workingDir = layout.projectDirectory.dir("swift-test-harness").asFile
+                commandLine("swift", "package", "reset")
             }.assertNormalExitValue()
 
         execOperations
