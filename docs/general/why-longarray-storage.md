@@ -34,7 +34,7 @@ loadWordSweepUnsigned   4.846 ± 0.017  µs/op   ← UByteArray (stdlib)
 
 That's the opposite of what every "use `UByteArray`, no mask needed" piece of advice predicts. Two paths to the same `Int` bit pattern produced different machine code, and the *cleaner-looking* one was the slower one. Confidence intervals didn't overlap. The result was robust across runs.
 
-The question — "why is `UByteArray` slower than `ByteArray + and 0xFF` on Kotlin/Native?" — has a 100% concrete answer in the v2.3.21 stdlib source, which we mirror at `/Volumes/stuff/Projects/kotlinmania/kotlin.coroutines-cpp/tmp/kotlin/`. What follows is the line-by-line tour.
+The question — "why is `UByteArray` slower than `ByteArray + and 0xFF` on Kotlin/Native?" — has a 100% concrete answer in the v2.3.21 stdlib source, which we mirror at `../kotlin.coroutines-cpp/tmp/kotlin/`. What follows is the line-by-line tour.
 
 ---
 
@@ -289,13 +289,13 @@ These are I/O boundaries, by design. Anything that needs to compute on the data 
 The Kotlin source mirror is at:
 
 ```
-/Volumes/stuff/Projects/kotlinmania/kotlin.coroutines-cpp/tmp/kotlin/
+../kotlin.coroutines-cpp/tmp/kotlin/
 ```
 
 It is a shallow clone of `JetBrains/kotlin` at tag `v2.3.21` (specifically the release tag `build-2.3.21-release-298`). To verify the claims in this document directly:
 
 ```bash
-cd /Volumes/stuff/Projects/kotlinmania/kotlin.coroutines-cpp/tmp/kotlin
+cd ../kotlin.coroutines-cpp/tmp/kotlin
 
 # (1) Byte/Short have no shift operators
 grep -nE 'shl|shr|ushr|inv\(\)' libraries/stdlib/src/kotlin/Primitives.kt | head -20
@@ -322,7 +322,7 @@ grep -rEn 'VALUE_CLASS_WITHOUT_JVM_INLINE_ANNOTATION' compiler/fir/checkers
 To re-run the empirical comparison:
 
 ```bash
-cd /Volumes/stuff/Projects/kotlinmania/klang
+cd .
 ./gradlew macosArm64BenchmarkBenchmark | grep -E 'loadWordSweep'
 ```
 

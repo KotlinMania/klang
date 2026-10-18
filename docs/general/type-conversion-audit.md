@@ -289,7 +289,7 @@ Keep as-is; this is the functional contract.
 For reproducibility:
 
 ```bash
-cd /Volumes/stuff/Projects/kotlinmania/klang
+cd .
 
 # Round-trip same-line conversion chains
 grep -rEn '\.toInt\(\)\.toShort\(\)|\.toInt\(\)\.toByte\(\)|\.toInt\(\)\.toLong\(\)|\.toLong\(\)\.toInt\(\)|\.toShort\(\)\.toInt\(\)|\.toByte\(\)\.toInt\(\)|\.toUByte\(\)\.toInt\(\)|\.toInt\(\)\.toUByte\(\)' \
